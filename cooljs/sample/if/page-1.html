@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Cool JS</title>
+    
+    <script src="/cool.js"></script> 
+    
+    <style>
+        div {
+            width: 400px;
+            height: 50px;
+            margin: 20px
+        }
+    </style>
+</head>
+<body>
+    
+    <button js-click="map.hasFlug = false; callTest(123);">Test</button>
+    
+    <js-if conditional="map.hasFlug">
+        <div style="background-color: red;">
+            <js-set target="style.display" value="none" dom="parent"></js-set>
+        </div>
+    </js-if>
+
+    <js-if conditional="map.hasFlug">
+        <js-set target="style.display" value="none" dom="next"></js-set>
+        <div style="background-color: green;"></div>
+    </js-if>
+        
+    <js-if conditional="map.hasFlug">
+        <div style="background-color: blue;"></div>
+        <js-set target="style.display" value="none" dom="back"></js-set>
+    </js-if>
+    
+    <js-if conditional="map.hasFlug">
+        <js-set target="style.display" value="none">
+            <div style="background-color:hotpink;"></div>
+        </js-set>
+    </js-if>
+    
+    <js-if conditional="map.hasFlug">
+        <js-set target="style.display" value="none" dom="chield.first">
+            <div style="background-color:indigo;"></div>
+            <div style="background-color:indigo;"></div>
+        </js-set>
+    </js-if>
+    
+    <js-if conditional="map.hasFlug">
+        <js-set target="style.display" value="none" dom="chield.1">
+            <div style="background-color:lawngreen;"></div>
+            <div style="background-color:lawngreen;"></div>
+            <div style="background-color:lawngreen;"></div>
+        </js-set>
+    </js-if>
+    
+    <js-if conditional="map.hasFlug">
+        <div style="background-color:orange;"></div>
+        <js-set target="style.display" value="none" dom="next, back, curent">
+            <div style="background-color:orange;"></div>
+            <div style="background-color:orange;"></div>
+        </js-set>
+        <div style="background-color:orange;"></div>
+    </js-if>
+    
+    <js-if conditional="map.hasFlug">
+        <js-set target="style.display" value="none" dom="#someDiv"></js-set>
+    </js-if>
+    <div id="someDiv" style="background-color:mediumturquoise;"></div>
+
+    <script>
+
+        var map = {};
+
+        map.hasFlug = true;
+        
+        //var tmp = window["cool"];
+
+        //alert(tmp);
+
+        cool.changed(map, "hasFlug");
+
+        //var arr = document.querySelectorAll('[onclick]');
+        var arr = document.querySelectorAll('[js-click]');
+
+        var tt = 0;
+
+        function callTest(arg1)
+        {
+            alert("Функция успешно вызвана;" + "Флаг равен: " + map.hasFlug + ",  аргумент : " + 123);
+        }
+
+    </script>
+
+</body>
+</html>

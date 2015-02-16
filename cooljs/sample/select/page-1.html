@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Cool JS</title>
+    
+    <script src="/cool.js"></script> 
+    
+    <style>
+        div {
+            width: 400px;
+            height: 50px;
+            margin: 20px
+        }
+    </style>
+</head>
+<body>
+    <js-query select="item from dom where item.style.backgroundColor = 'blue' " >
+        
+        <js-set target="item.style.display" value="none"></js-set>
+
+        <div style="background-color: red;"></div>
+        <div style="background-color: red;"></div>
+        <div style="background-color: blue;"></div>
+        <div style="background-color: red;"></div>
+        <div style="background-color: red;"></div>
+        <div style="background-color: blue;"></div>
+        <div style="background-color: blue;"></div>
+    </js-query>
+</body>
+</html>
