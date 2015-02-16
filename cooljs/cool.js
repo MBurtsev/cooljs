@@ -45,6 +45,101 @@
     // Tags processing
 
     // js-ajax
+    tagAjax : function(obj)
+    {
+        var src = obj.getAttribute("src");
+        var type = obj.getAttribute("type");
+
+        if (src == null || src == "")
+        {
+            throw "js-ajax: The src attribute is empty";
+        }
+
+        if (type == null || type == "")
+        {
+            throw "js-ajax: The type attribute is empty";
+        }
+        else if (type != "text" && type != "json" && type != "stream" && type != "xml")
+        {
+            throw "js-ajax: The type attribute must be text or json or stream or xml";
+        }
+
+        var method  = obj.getAttribute("method");
+        var data    = obj.getAttribute("data");
+        var target  = obj.getAttribute("target");
+        var mock    = obj.getAttribute("mock");
+        var request = obj.getAttribute("request");
+        var response = obj.getAttribute("response");
+        var once    = obj.getAttribute("once") != null;
+        var nocache = obj.getAttribute("nocache") != null;
+
+        if (method == null || method == "")
+        {
+            method = "GET";
+        }
+
+        obj.cool.obj        = obj;
+        obj.cool.type       = type;
+        obj.cool.display    = obj.style.display;
+        obj.cool.data       = data;
+        obj.cool.method     = method;
+        obj.cool.mock       = mock;
+        obj.cool.request    = request;
+        obj.cool.response   = response;
+        obj.cool.once       = once;
+        obj.cool.nocache    = nocache;
+        obj.cool.count      = 0;
+        obj.cool.action = function()
+        {
+            if (this.once && this.count == 0 || !this.once)
+            {
+                var ajax = cool.ajax(this.method, this.src, this.data, this, function(xhr, tag)
+                {
+                    var dt = {};
+
+                    if (tag.response != null)
+                    {
+                        tag.response(xhr, tag.obj, dt);
+                    }
+                    else if (type == "text")
+                    {
+                        // todo
+                    }
+                    else if (type == "json")
+                    {
+                        dt = JSON.parse(xhr.responseText);
+                    }
+                    else if (type == "xml")
+                    {
+                        // todo
+                    }
+                    else if (type == "stream")
+                    {
+                        
+                    }
+
+
+                });
+
+                if (this.request != null)
+                {
+                    this.request(ajax, this.obj);
+                }
+
+                ajax.go();
+            }
+            else
+            {
+                this.actionBase();
+                this.obj.style.display = this.display;
+            }
+        }
+        obj.cool.cancel = function()
+        {
+            this.obj.style.display = "none";
+            this.cancelBase();
+        }
+    },
 
     // js-page
     tagPage : function(obj)
@@ -174,7 +269,7 @@
 
                         cool.processElement(obj);
                         this.actionBase();
-                    });
+                    }).go();
 
                     break;
                 }
@@ -331,8 +426,12 @@
                 callback(obj, tag);
             }
         }
-        obj.send(data);
-
+        obj.cooljs().data = data;
+        obj.go = function()
+        {
+            obj.send(this.cool.data);
+        }
+        
         return obj;
     },
 
@@ -689,6 +788,261 @@ Object.prototype.cooljs = function()
 };
 
 window.onload = cool.init;
+
+cool.cool.metaStream =
+{
+    // data parsing
+    parse: function(data, root)
+    {
+        var spliter = data[0];
+        var arr = data.split(spliter);
+
+        if (root == null)
+        {
+            root = {};
+        }
+
+        // wrong format
+        if (arr.length < 2)
+        {
+            root.status = 0;
+            root.message = "Incorrect format";
+
+            return root;
+        }
+        // only status
+        else if (arr.length == 2)
+        {
+            root.status = arr[1];
+            root.message = "";
+
+            return root;
+        }
+
+        // error
+        if (arr[1] == 0)
+        {
+            root.status = arr[1];
+            root.message = arr[2];
+
+            return root;
+        }
+
+        // empty
+        if (arr.length < 3)
+        {
+            root.status = arr[1];
+            root.message = "";
+
+            return root;
+        }
+
+        root.status = 1;
+
+        var meta = arr[2].split(':');
+        var cur = 0;
+        var pos = 3;
+        var name = "";
+        var node = null;
+        var obj = root;
+
+        while (pos < arr.length && cur < meta.length)
+        {
+            switch (meta[cur])
+            {
+                case 'v':
+                {
+                    var val = arr[pos++];
+
+                    name = meta[++cur];
+
+                    if (name.length > 1 && name[name.length - 2] == '-')
+                    {
+                        if (name[name.length - 1] == 'i')
+                        {
+                            val = parseInt(val);
+                        }
+                        else if (name[name.length - 1] == 'f')
+                        {
+                            val = parseFloat(val);
+                        }
+                        else if (name[name.length - 1] == 'b')
+                        {
+                            val = cool.metaStream.booleanHt[val];
+                        }
+
+                        name = name.substr(0, name.length - 2);
+                    }
+
+                    //cool.metaStream.console.push('name = ' + name + ", val = " + val);
+
+                    if (name.length == 0)
+                    {
+                        obj = val;
+                    }
+                    else
+                    {
+                        obj[name] = val;
+                    }
+
+                    break;
+                }
+                case 'f':
+                {
+                    var tmp0 =
+                    {
+                        type: 'f',
+                        start: cur + 1,
+                        end: cool.metaStream.findEnd(meta, cur + 1),
+                        parent: null,
+                        count: arr[pos++],
+                        index: 0,
+                        arr: [],
+                        context: obj
+                    };
+
+                    name = meta[++cur];
+                    obj[name] = tmp0.arr;
+
+                    if (tmp0.count == 0)
+                    {
+                        cur = tmp0.end;
+
+                        break;
+                    }
+
+                    if (node == null)
+                    {
+                        node = tmp0;
+                    }
+                    else
+                    {
+                        tmp0.parent = node;
+                        node = tmp0;
+                    }
+
+                    obj = {};
+
+                    //if (tmp0.count == 0)
+                    //{
+                    //    var bp = 0;
+                    //}
+
+                    //cool.metaStream.console.push("Count: " + tmp0.count);
+
+                    break;
+                }
+                case 'w':
+                {
+                    name = meta[++cur];
+
+                    var tmp1 =
+                    {
+                        type: 'w',
+                        start: cur + 1,
+                        end: cool.metaStream.findEnd(meta, cur + 1),
+                        parent: null,
+                        sign: arr[pos++],
+                        arr: [],
+                        context: obj
+                    };
+
+                    if (node == null)
+                    {
+                        node = tmp1;
+                    }
+                    else
+                    {
+                        tmp1.parent = node;
+                        node = tmp1;
+                    }
+
+                    obj[name] = node.arr;
+
+                    obj = {};
+
+                    break;
+                }
+            }
+
+            // конец итерации цикла
+            if (node != null && node.end == cur + 1)
+            {
+                node.arr.push(obj);
+
+                var exit = false;
+
+                if (node.type == 'f')
+                {
+                    node.index++;
+
+                    if (node.index >= node.count)
+                    {
+                        exit = true;
+                    }
+                }
+                else if (node.type == 'w' && node.sign != arr[pos++])
+                {
+                    exit = true;
+                }
+
+                if (exit)
+                {
+                    obj = node.context;
+                    node = node.parent;
+                }
+                else
+                {
+                    obj = {};
+                    cur = node.start;
+                }
+            }
+
+            cur++;
+        }
+
+        return root;
+    },
+
+    booleanHt:
+    {
+        "true": true,
+        "True": true,
+        "1": true,
+        "false": false,
+        "False": false,
+        "0": false
+    },
+
+    findEnd: function(meta, cur)
+    {
+        var depf = 0;
+
+        for (var i = cur; i < meta.length; ++i)
+        {
+            if (meta[i] == 'f' || meta[i] == 'w')
+            {
+                depf++;
+            }
+            else if (meta[i] == 'e')
+            {
+                if (depf > 0)
+                {
+                    depf--;
+                }
+                else
+                {
+                    return i;
+                }
+            }
+        }
+
+        return meta.length - 1;
+    },
+
+    console : []
+}
+
 
 //cool.parseCon("map.hasFlug == true && map.age == some.getAge(wer - (web * 4) + 10) || arr[5] != 'test' || cash[n + 89] == ver.ss + 530");
 
