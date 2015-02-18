@@ -16,7 +16,8 @@
             "js-query": cool.tagQuery,
             "js-if": cool.tagIf,
             "js-load": cool.tagLoad,
-            "js-page": cool.tagPage
+            "js-page": cool.tagPage,
+            "js-ajax": cool.tagAjax
         },
         cool.jsA =
         {
@@ -64,13 +65,13 @@
             throw "js-ajax: The type attribute must be text or json or stream or xml";
         }
 
-        var method  = obj.getAttribute("method");
-        var data    = obj.getAttribute("data");
-        var target  = obj.getAttribute("target");
-        var mock    = obj.getAttribute("mock");
+        var method = obj.getAttribute("method");
+        var data = obj.getAttribute("data");
+        var target = obj.getAttribute("target");
+        var mock = obj.getAttribute("mock");
         var request = obj.getAttribute("request");
         var response = obj.getAttribute("response");
-        var once    = obj.getAttribute("once") != null;
+        var once = obj.getAttribute("once") != null;
         var nocache = obj.getAttribute("nocache") != null;
 
         if (method == null || method == "")
@@ -78,8 +79,36 @@
             method = "GET";
         }
 
+        if (type == "stream")
+        {
+            for (var i = 0; i < obj.childNodes.length; ++i)
+            {
+                var itm = obj.childNodes[i];
+
+                if (itm.tagName != null && itm.tagName.toLowerCase() == "js-stream-description")
+                {
+                    obj.metaIndex = i;
+
+                    break;
+                }
+            }
+
+            if (obj.metaIndex == null)
+            {
+                throw "js-ajax: The js-stream-description must be defined, because type='stream' was chosen.";
+            }
+            
+            obj.metaInline = obj.childNodes[obj.metaIndex].getAttribute("inline") != null;
+
+            if (!obj.metaInline)
+            {
+                obj.meta = cool.metaStream.toShort(obj.childNodes[obj.metaIndex]);
+            }
+        }
+
         obj.cool.obj        = obj;
         obj.cool.type       = type;
+        obj.cool.target     = target;
         obj.cool.display    = obj.style.display;
         obj.cool.data       = data;
         obj.cool.method     = method;
@@ -789,12 +818,12 @@ Object.prototype.cooljs = function()
 
 window.onload = cool.init;
 
-cool.cool.metaStream =
+cool.metaStream =
 {
     // data parsing
-    parse: function(data, root)
+    parse: function(metaStr, data, root)
     {
-        var spliter = data[0];
+        var spliter = metaStr[0];
         var arr = data.split(spliter);
 
         if (root == null)
@@ -802,51 +831,14 @@ cool.cool.metaStream =
             root = {};
         }
 
-        // wrong format
-        if (arr.length < 2)
-        {
-            root.status = 0;
-            root.message = "Incorrect format";
-
-            return root;
-        }
-        // only status
-        else if (arr.length == 2)
-        {
-            root.status = arr[1];
-            root.message = "";
-
-            return root;
-        }
-
-        // error
-        if (arr[1] == 0)
-        {
-            root.status = arr[1];
-            root.message = arr[2];
-
-            return root;
-        }
-
-        // empty
-        if (arr.length < 3)
-        {
-            root.status = arr[1];
-            root.message = "";
-
-            return root;
-        }
-
-        root.status = 1;
-
-        var meta = arr[2].split(':');
-        var cur = 0;
-        var pos = 3;
+        var meta = metaStr.split(':');
+        var cur = 1;
+        var pos = 0;
         var name = "";
         var node = null;
         var obj = root;
 
-        while (pos < arr.length && cur < meta.length)
+        while (cur < meta.length)
         {
             switch (meta[cur])
             {
@@ -904,6 +896,7 @@ cool.cool.metaStream =
                     name = meta[++cur];
                     obj[name] = tmp0.arr;
 
+                    // skip
                     if (tmp0.count == 0)
                     {
                         cur = tmp0.end;
@@ -923,13 +916,6 @@ cool.cool.metaStream =
 
                     obj = {};
 
-                    //if (tmp0.count == 0)
-                    //{
-                    //    var bp = 0;
-                    //}
-
-                    //cool.metaStream.console.push("Count: " + tmp0.count);
-
                     break;
                 }
                 case 'w':
@@ -942,10 +928,16 @@ cool.cool.metaStream =
                         start: cur + 1,
                         end: cool.metaStream.findEnd(meta, cur + 1),
                         parent: null,
-                        sign: arr[pos++],
+                        sign: meta[++cur],
                         arr: [],
                         context: obj
                     };
+
+                    // skip
+                    if (tmp1.sign != arr[pos++])
+                    {
+                        cur = tmp1.end;
+                    }
 
                     if (node == null)
                     {
@@ -963,17 +955,44 @@ cool.cool.metaStream =
 
                     break;
                 }
+                case 'o':
+                {
+                    name = meta[++cur];
+
+                    var tmp2 =
+                    {
+                        type: 'o',
+                        start: cur + 1,
+                        end: cool.metaStream.findEnd(meta, cur + 1),
+                        parent: null,
+                        context: obj
+                    };
+
+                    if (node == null)
+                    {
+                        node = tmp2;
+                    }
+                    else
+                    {
+                        tmp2.parent = node;
+                        node = tmp2;
+                    }
+                    
+                    obj[name] = {};
+                    obj = obj[name];
+
+                    break;
+                }
             }
 
             // конец итерации цикла
             if (node != null && node.end == cur + 1)
             {
-                node.arr.push(obj);
-
                 var exit = false;
 
                 if (node.type == 'f')
                 {
+                    node.arr.push(obj);
                     node.index++;
 
                     if (node.index >= node.count)
@@ -981,7 +1000,16 @@ cool.cool.metaStream =
                         exit = true;
                     }
                 }
-                else if (node.type == 'w' && node.sign != arr[pos++])
+                else if (node.type == 'w')
+                {
+                    node.arr.push(obj);
+
+                    if (node.sign != arr[pos++])
+                    {
+                        exit = true;
+                    }
+                }
+                else if (node.type == 'o')
                 {
                     exit = true;
                 }
@@ -1004,6 +1032,172 @@ cool.cool.metaStream =
         return root;
     },
 
+    // get short string from decription data tags
+    toShort : function(obj, spliter, arr)
+    {
+        if (obj.tagName == null)
+        {
+            return "";
+        }
+
+        var tagName = obj.tagName.toLowerCase();
+        var i = 0;
+        var itm = null;
+        var name = "";
+        var type = "";
+
+        if (tagName == "js-stream-description")
+        {
+            var short1 = obj.getAttribute("short");
+
+            if (short1 != null)
+            {
+                return short1;
+            }
+            
+            spliter = obj.getAttribute("spliter");
+
+            if (spliter == null || spliter == "")
+            {
+                throw "js-stream-description: The 'spliter' attribute is empty";
+            }
+            
+            arr = [];
+
+            arr.push(spliter);
+
+            for (i = 0; i < obj.childNodes.length; ++i)
+            {
+                itm = obj.childNodes[i];
+
+                cool.metaStream.toShort(itm, spliter, arr);
+            }
+
+            var ret = arr.join(":");
+
+            return ret;
+        }
+        else if (tagName == "js-stream-var")
+        {
+            name = obj.getAttribute("name");
+            type = obj.getAttribute("type");
+
+            if (name == null || name == "")
+            {
+                throw "js-stream-var: The 'name' attribute is empty";
+            }
+
+            if (type == null || type == "")
+            {
+                throw "js-stream-var: The 'type' attribute is empty";
+            }
+
+            if (type == "object")
+            {
+                arr.push("o");
+                arr.push(name);
+
+                for (i = 0; i < obj.childNodes.length; ++i)
+                {
+                    itm = obj.childNodes[i];
+
+                    cool.metaStream.toShort(itm, spliter, arr);
+                }
+
+                arr.push("e");
+            }
+            else
+            {
+                arr.push("v");
+
+                if (type == "int")
+                {
+                    name += "-i";
+                }
+                else if (type == "float")
+                {
+                    name += "-f";
+                }
+                else if (type == "bool")
+                {
+                    name += "-b";
+                }
+
+                arr.push(name);
+            }
+        }
+        else if (tagName == "js-stream-for" || tagName == "js-stream-while")
+        {
+            name = obj.getAttribute("name");
+            type = obj.getAttribute("type");
+            
+            if (name == null || name == "")
+            {
+                throw tagName + ": The 'name' attribute is empty";
+            }
+
+            if (type == null || type == "")
+            {
+                throw tagName + ": The 'type' attribute is empty";
+            }
+
+            if (obj.childNodes.length > 0 && type != "object")
+            {
+                throw tagName + ": The 'type' must be 'object' than chields more one.";
+            }
+
+            if (tagName == "js-stream-for")
+            {
+                arr.push("f");
+            }
+            else
+            {
+                arr.push("w");
+
+                var sign = obj.getAttribute("name");
+
+                if (sign == null || sign == "")
+                {
+                    throw tagName + ": The 'sign' attribute is empty";
+                }
+
+                name += ":" + sign;
+            }
+
+            arr.push(name);
+
+            if (type == "object")
+            {
+                for (i = 0; i < obj.childNodes.length; ++i)
+                {
+                    itm = obj.childNodes[i];
+
+                    cool.metaStream.toShort(itm, spliter, arr);
+                }
+            }
+            else if (type == "int")
+            {
+                arr.push("-i");
+            }
+            else if (type == "bool")
+            {
+                arr.push("-b");
+            }
+            else if (type == "float")
+            {
+                arr.push("-f");
+            }
+            else if (type == "string")
+            {
+                arr.push("");
+            }
+
+            arr.push("e");
+        }
+
+        return "";
+    },
+
     booleanHt:
     {
         "true": true,
@@ -1020,7 +1214,7 @@ cool.cool.metaStream =
 
         for (var i = cur; i < meta.length; ++i)
         {
-            if (meta[i] == 'f' || meta[i] == 'w')
+            if (meta[i] == 'f' || meta[i] == 'w' || meta[i] == 'o')
             {
                 depf++;
             }
@@ -1047,26 +1241,6 @@ cool.cool.metaStream =
 //cool.parseCon("map.hasFlug == true && map.age == some.getAge(wer - (web * 4) + 10) || arr[5] != 'test' || cash[n + 89] == ver.ss + 530");
 
 /*
-
-Проблема вложенных условий
-
-- Каждое условие может иметь cancel экшен
-- Если условие вложенное то оно должно вызвать внутри себя Cancel?
--- С одной стороны условие работает и не должно вызывать Cancel
--- С другой стороны родительское условие отменяет его действие
-- Если предположить что дочерние условия будут вызывать свои Cancel то это будет иметь следующие последствия:
--- Не однозначность логики. Заключается в том что кодер должен был установить определенный атрибут именно в результате 
-данного условия, и хотел бы что бы его вообще не касался экшен или отмена
-
-Выход:
-- Вложенные условия будут срабатывать только если их парент содержит свойство isActive
-- Иначе они добавляют себя в список парента needList 
--- Э
-
-
-
-
-
 
 
 ------------------------------
