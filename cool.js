@@ -87,26 +87,27 @@
 
                 if (itm.tagName != null && itm.tagName.toLowerCase() == "js-stream-description")
                 {
-                    obj.metaIndex = i;
+                    obj.cool.metaIndex = i;
 
                     break;
                 }
             }
 
-            if (obj.metaIndex == null)
+            if (obj.cool.metaIndex == null)
             {
                 throw "js-ajax: The js-stream-description must be defined, because type='stream' was chosen.";
             }
             
-            obj.metaInline = obj.childNodes[obj.metaIndex].getAttribute("inline") != null;
+            obj.cool.metaInline = obj.childNodes[obj.cool.metaIndex].getAttribute("inline") != null;
 
-            if (!obj.metaInline)
+            if (!obj.cool.metaInline)
             {
-                obj.meta = cool.metaStream.toShort(obj.childNodes[obj.metaIndex]);
+                obj.cool.meta = cool.metaStream.toShort(obj.childNodes[obj.cool.metaIndex]);
             }
         }
 
         obj.cool.obj        = obj;
+        obj.cool.src        = src;
         obj.cool.type       = type;
         obj.cool.target     = target;
         obj.cool.display    = obj.style.display;
@@ -120,6 +121,8 @@
         obj.cool.count      = 0;
         obj.cool.action = function()
         {
+            var bp = 0;
+
             if (this.once && this.count == 0 || !this.once)
             {
                 var ajax = cool.ajax(this.method, this.src, this.data, this, function(xhr, tag)
@@ -144,7 +147,35 @@
                     }
                     else if (type == "stream")
                     {
-                        
+                        if (xhr.responseText.length == 0)
+                        {
+                            return;
+                        }
+
+                        var data = "";
+
+                        if (tag.metaInline)
+                        {
+                            var spliter = xhr.responseText[0];
+                            var ind = xhr.responseText.indexOf(spliter, 1);
+
+                            if (ind > -1)
+                            {
+                                tag.meta = xhr.responseText.substr(0, ind);
+
+                                data = xhr.responseText.substr(ind + 1);
+                            }
+                            else
+                            {
+                                throw "js-ajax: The inline metadata is wrond.";
+                            }
+                        }
+                        else
+                        {
+                            data = xhr.responseText;
+                        }
+
+                        cool.metaStream.parse(tag.meta, data, dt);
                     }
 
 
@@ -358,29 +389,52 @@
             itm.list.push(obj);
         }
 
-        obj.coolJs.conditional = con;
-        obj.coolJs.last = null;
-
-        var not = obj.getAttribute("not");
-
-        if (not == null || not == "")
+        obj.cool.conditional = con;
+        obj.cool.obj = obj;
+        obj.cool.display = obj.style.display;
+        obj.cool.isChanged = true;
+        obj.cool.isFlug = null;
+        obj.cool.action = function()
         {
-            obj.coolJs.not = cool.buildSet("dom:style.display = 'none'");
-        }
-        else
-        {
-            obj.coolJs.not = cool.buildSet(not);
-        }
-        
-        obj.coolJs.refresh = function(elm, path)
-        {
-            var flug = eval(elm.coolJs.conditional);
-
-            if (flug != elm.coolJs.last)
+            if (this.isChanged)
             {
-                elm.coolJs.not(elm);
+                this.refreshEx();
             }
         };
+        obj.cool.cancel = function()
+        {
+            this.obj.style.display = "none";
+            this.cancelBase();
+        };
+        obj.cool.refresh = function(elm, path)
+        {
+            this.isChanged = true;
+
+            this.refreshEx();
+        };
+        obj.cool.refreshEx = function()
+        {
+            if (this.parent.cool.isActive)
+            {
+                var flug = eval(this.conditional);
+
+                if (flug != this.isFlug)
+                {
+                    if (flug)
+                    {
+                        this.obj.style.display = this.display;
+                        this.actionBase();                        
+                    }
+                    else
+                    {
+                        this.cancel();
+                    }
+                }
+
+                this.isFlug = flug;
+                this.isChanged = false;
+            }
+        }
 
         //obj.coolJs.refresh();
     },
@@ -483,7 +537,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var arr = elm.querySelectorAll("js-if, js-load, js-page, js-ajax");
+        var arr = elm.querySelectorAll("js-load, js-page, js-ajax");//js-if, 
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -725,7 +779,7 @@
         
     },
 
-    //
+    // call than property changed
     changed : function(path)
     {
         if (cool.obHt[path] != null)
@@ -736,15 +790,9 @@
             {
                 var itm = ob.list[i];
 
-                itm.coolJs.refresh(itm, path);
+                itm.cool.refresh(itm, path);
             }
         }
-    },
-
-    //
-    refreshAll : function()
-    {
-        
     },
 
     // split string arr
@@ -983,6 +1031,21 @@ cool.metaStream =
 
                     break;
                 }
+                case 'i':
+                {
+                    name = meta[++cur];
+
+                    var sign = meta[++cur];
+
+                    if (obj[name] != sign)
+                    {
+                        var end = cool.metaStream.findEnd(meta, cur + 1);
+
+                        cur = end;
+                    }
+
+                    break;
+                }
             }
 
             // конец итерации цикла
@@ -1194,7 +1257,34 @@ cool.metaStream =
 
             arr.push("e");
         }
+        else if (tagName == "js-stream-if")
+        {
+            name = obj.getAttribute("name");
+            var value = obj.getAttribute("value");
+            
+            if (name == null || name == "")
+            {
+                throw tagName + ": The 'name' attribute is empty";
+            }
 
+            if (value == null || value == "")
+            {
+                throw tagName + ": The 'value' attribute is empty";
+            }
+            
+            arr.push("i");
+            arr.push(name);
+            arr.push(value);
+
+            for (i = 0; i < obj.childNodes.length; ++i)
+            {
+                itm = obj.childNodes[i];
+
+                cool.metaStream.toShort(itm, spliter, arr);
+            }
+
+            arr.push("e");
+        }
         return "";
     },
 
@@ -1214,7 +1304,7 @@ cool.metaStream =
 
         for (var i = cur; i < meta.length; ++i)
         {
-            if (meta[i] == 'f' || meta[i] == 'w' || meta[i] == 'o')
+            if (meta[i] == 'f' || meta[i] == 'w' || meta[i] == 'o' || meta[i] == 'i')
             {
                 depf++;
             }

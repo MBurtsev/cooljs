@@ -1,7 +1,7 @@
 *.pdb
-Cooljs/bin
-Cooljs/obj
-Cooljs/Web.Debug.config
-Cooljs/Web.Release.config
+bin
+obj
+Web.Debug.config
+Web.Release.config
 CoolJs.v12.suo
-Cooljs/CoolJs.csproj.user
+CoolJs.csproj.user
