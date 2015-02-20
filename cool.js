@@ -17,7 +17,8 @@
             "js-if": cool.tagIf,
             "js-load": cool.tagLoad,
             "js-page": cool.tagPage,
-            "js-ajax": cool.tagAjax
+            "js-ajax": cool.tagAjax,
+            "js-set": cool.tagSet
         },
         cool.jsA =
         {
@@ -44,6 +45,88 @@
     
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Tags processing
+
+    // js-set
+    tagSet : function(obj)
+    {
+        var name = obj.getAttribute("name");
+        var type = obj.getAttribute("type");
+        var cancel = obj.getAttribute("cancel");
+        var value = obj.getAttribute("value");
+
+        if (name == null || name == "")
+        {
+            throw "js-set: The 'name' attribute is empty";
+        }
+
+        if (value == null || value == "")
+        {
+            throw "js-set: The 'value' attribute is empty";
+        }
+
+        if (type == null || type == "")
+        {
+            throw "js-set: The 'type' attribute is empty";
+        }
+        else if (type != "int" && type != "float" && type != "bool" && type != "string" && type != "object")
+        {
+            throw "js-set: The 'type' attribute must be: int or float or bool or string or object";
+        }
+
+        if (type == "int")
+        {
+            obj.cool.value = parseInt(value);
+
+            if (cancel != null)
+            {
+                obj.cool.cancelValue = parseInt(cancel);
+            }
+        }
+        else if (type == "float")
+        {
+            obj.cool.value = parseFloat(value);
+
+            if (cancel != null)
+            {
+                obj.cool.cancelValue = parseFloat(cancel);
+            }
+        }
+        else if (type == "bool")
+        {
+            obj.cool.value = cool.parseBool[value];
+
+            if (cancel != null)
+            {
+                obj.cool.cancelValue = parseBool(cancel);
+            }
+        }
+        else if (type == "object")
+        {
+            obj.cool.value = JSON.parse(value);
+
+            if (cancel != null)
+            {
+                obj.cool.cancelValue = JSON.parse(cancel);
+            }
+        }
+
+        obj.cool.field = cool.createField(name);
+        obj.cool.action = function()
+        {
+            cool.setField(this.field, this.value);
+
+            this.actionBase();
+        }
+        obj.cool.cancel = function()
+        {
+            if (this.cancelValue != null)
+            {
+                cool.setField(this.field, this.cancelValue);
+            }
+            
+            this.cancelBase();
+        }
+    },
 
     // js-ajax
     tagAjax : function(obj)
@@ -416,23 +499,31 @@
         {
             if (this.parent.cool.isActive)
             {
-                var flug = eval(this.conditional);
-
-                if (flug != this.isFlug)
+                if (this.isChanged)
                 {
-                    if (flug)
-                    {
-                        this.obj.style.display = this.display;
-                        this.actionBase();                        
-                    }
-                    else
-                    {
-                        this.cancel();
-                    }
-                }
+                    var flug = eval(this.conditional);
 
-                this.isFlug = flug;
-                this.isChanged = false;
+                    if (flug != this.isFlug)
+                    {
+                        if (flug)
+                        {
+                            this.obj.style.display = this.display;
+                            this.actionBase();
+                        }
+                        else
+                        {
+                            this.cancel();
+                        }
+                    }
+
+                    this.isFlug = flug;
+                    this.isChanged = false;
+                }
+                else if (this.isFlug)
+                {
+                    this.obj.style.display = this.display;
+                    this.actionBase();
+                }
             }
         }
 
@@ -530,14 +621,194 @@
         return cool.ajax("POST", url, data, tag, callback);
     },
 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Field
+
+    createField : function(path)
+    {
+        var arr = path.split(".");
+        var field =
+        {
+            path: path, 
+            list : []
+        };
+
+        for (var i = 0; i < arr.length; ++i)
+        {
+            var itm = arr[i];
+            var ind = itm.indexOf("[");
+
+            if (ind == -1)
+            {
+                field.list.push(
+                {
+                    isArray : false,
+                    name: itm
+                });
+            }
+            else
+            {
+                var end = itm.lastIndexOf("]");
+
+                if (end == -1)
+                {
+                    throw ("Syntax error: closed brace ']' not found " + path);
+                }
+
+                var str = itm.substr(ind, end - ind);
+                var num = parseInt(str);
+
+                if (str == num.toString())
+                {
+                    field.list.push(
+                    {
+                        isArray: true,
+                        isIndexInt : true,
+                        name: itm.substr(0, ind),
+                        index : num
+                    });
+                }
+                else
+                {
+                    field.list.push(
+                    {
+                        isArray: true,
+                        isIndexInt : false,
+                        name: itm.substr(0, ind),
+                        index: cool.createField(str)
+                    });
+                }
+            }
+        }
+
+        return field;
+    },
+
+    setField : function(field, val)
+    {
+        var cur = window;
+
+        for (var i = 0; i < field.list.length; ++i)
+        {
+            var itm = field.list[i];
+            var last = i == field.list.length - 1;
+
+            if (itm.isArray)
+            {
+                if (cur[itm.name] == null)
+                {
+                    cur[itm.name] = [];
+                }
+
+                var ind = 0;
+                
+                if (itm.isIndexInt)
+                {
+                    ind = itm.index;
+                }
+                else
+                {
+                    var fval = cool.getField(itm.index);
+
+                    if (fval == null)
+                    {
+                        // todo throw here? or maybe create observe ?
+
+                        return;
+
+                        //ind = 0;
+                    }
+                    else
+                    {
+                        ind = fval;
+                    }
+                }
+
+                if (ind >= cur[itm.name].length)
+                {
+                    // todo throw here? or maybe create observe ?
+
+                    return;
+                }
+
+                if (last)
+                {
+                    cur[itm.name][ind] = val;
+                }
+                else
+                {
+                    cur = cur[itm.name][ind];
+                }
+            }
+            else
+            {
+                if (last)
+                {
+                    cur[itm.name] = val;
+                }
+                else
+                {
+                    cur = cur[itm.name];
+                }
+            }
+        }
+    },
+
+    // read field value 
+    getField : function(field)
+    {
+        var cur = window;
+
+        for (var i = 0; i < field.list.length; ++i)
+        {
+            var itm = field.list[i];
+
+            if (itm.isArray)
+            {
+                if (cur[itm.name] == null)
+                {
+                    return null;
+                }
+
+                var ind = 0;
+
+                if (itm.isIndexInt)
+                {
+                    ind = itm.index;
+                }
+                else
+                {
+                    ind = cool.getField(itm.index);
+
+                    if (ind == null)
+                    {
+                        return null;
+                    }
+                }
+
+                if (ind >= cur[itm.name].length)
+                {
+                    return null;
+                }
+
+                cur = cur[itm.name][ind];
+            }
+            else
+            {
+                cur = cur[itm.name];
+            }
+        }
+
+        return cur;
+    },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
-
+    
     // init dom tree
     processElement : function(elm)
     {
-        var arr = elm.querySelectorAll("js-load, js-page, js-ajax");//js-if, 
+        var arr = elm.querySelectorAll("js-set, js-load, js-page, js-ajax");//js-if, 
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -800,11 +1071,11 @@
     {
         for (var i = 0; i < sep.length; ++i)
         {
-           str =  str.split(sep[i]).join('▲');
+           str =  str.split(sep[i]).join('↔');
         }
 
         var ret = [];
-        var tmp = str.split('▲');
+        var tmp = str.split('↔');
 
         for (var j = 0; j < tmp.length; ++j)
         {
@@ -815,7 +1086,28 @@
         }
 
         return ret;
-    }
+    },
+
+    // parse boolean
+    parseBool: function(str)
+    {
+        if (cool[str] != null)
+        {
+            return cool[str];
+        }
+
+        return false;
+    },
+
+    booleanHt:
+    {
+        "true": true,
+        "True": true,
+        "1": true,
+        "false": false,
+        "False": false,
+        "0": false
+    },
 };
 
 Object.prototype.cool = null;
@@ -908,7 +1200,7 @@ cool.metaStream =
                         }
                         else if (name[name.length - 1] == 'b')
                         {
-                            val = cool.metaStream.booleanHt[val];
+                            val = cool.parseBool[val];
                         }
 
                         name = name.substr(0, name.length - 2);
@@ -1048,7 +1340,7 @@ cool.metaStream =
                 }
             }
 
-            // конец итерации цикла
+            // end of cycle
             if (node != null && node.end == cur + 1)
             {
                 var exit = false;
@@ -1286,16 +1578,6 @@ cool.metaStream =
             arr.push("e");
         }
         return "";
-    },
-
-    booleanHt:
-    {
-        "true": true,
-        "True": true,
-        "1": true,
-        "false": false,
-        "False": false,
-        "0": false
     },
 
     findEnd: function(meta, cur)
