@@ -102,26 +102,27 @@
         }
         else if (type == "object")
         {
-            obj.cool.value = JSON.parse(value);
+            eval("obj.cool.value = " + value);
 
             if (cancel != null)
             {
-                obj.cool.cancelValue = JSON.parse(cancel);
+                eval("obj.cool.cancelValue = " + cancel);
             }
         }
 
-        obj.cool.field = cool.createField(name);
+        obj.cool.type = type;
+        obj.cool.field = cool.createField(name, type == "object");
         obj.cool.action = function()
         {
-            cool.setField(this.field, this.value);
-
+            cool.applyField(this.field, this.value);
+            
             this.actionBase();
         }
         obj.cool.cancel = function()
         {
             if (this.cancelValue != null)
             {
-                cool.setField(this.field, this.cancelValue);
+                cool.applyField(this.field, this.cancelValue);
             }
             
             this.cancelBase();
@@ -162,8 +163,19 @@
             method = "GET";
         }
 
+        if (target == null)
+        {
+            obj.cool.target = cool.createField("", true);
+        }
+        else
+        {
+            obj.cool.target = cool.createField(target, true);
+        }
+
         if (type == "stream")
         {
+            var desk = null;
+
             for (var i = 0; i < obj.childNodes.length; ++i)
             {
                 var itm = obj.childNodes[i];
@@ -171,6 +183,8 @@
                 if (itm.tagName != null && itm.tagName.toLowerCase() == "js-stream-description")
                 {
                     obj.cool.metaIndex = i;
+
+                    desk = itm;
 
                     break;
                 }
@@ -181,18 +195,22 @@
                 throw "js-ajax: The js-stream-description must be defined, because type='stream' was chosen.";
             }
             
-            obj.cool.metaInline = obj.childNodes[obj.cool.metaIndex].getAttribute("inline") != null;
+            obj.cool.metaInline = desk.getAttribute("inline") != null;
 
             if (!obj.cool.metaInline)
             {
-                obj.cool.meta = cool.metaStream.toShort(obj.childNodes[obj.cool.metaIndex]);
+                obj.cool.meta = cool.metaStream.toShort(desk);
+            }
+
+            if (desk.getAttribute("declare") != null)
+            {
+                cool.metaStream.declare(obj.cool.meta, cool.gocField(obj.cool.target));
             }
         }
 
         obj.cool.obj        = obj;
         obj.cool.src        = src;
         obj.cool.type       = type;
-        obj.cool.target     = target;
         obj.cool.display    = obj.style.display;
         obj.cool.data       = data;
         obj.cool.method     = method;
@@ -261,7 +279,7 @@
                         cool.metaStream.parse(tag.meta, data, dt);
                     }
 
-
+                    cool.applyField(tag.target, dt);
                 });
 
                 if (this.request != null)
@@ -461,10 +479,11 @@
         for (var i = 0; i < arr.length; ++i)
         {
             var itm = arr[i];
+            var p = "window." + itm.path;
 
-            if (cool.obHt[itm.path] == null)
+            if (cool.obHt[p] == null)
             {
-                cool.obHt[itm.path] = itm;
+                cool.obHt[p] = itm;
 
                 itm.list = [];
             }
@@ -624,9 +643,20 @@
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Field
 
-    createField : function(path)
+    // create field from field path
+    createField : function(path, isObject)
     {
+        if (path == "")
+        {
+            path = "window";
+        }
+        else
+        {
+            path = "window." + path;
+        }
+
         var arr = path.split(".");
+
         var field =
         {
             path: path, 
@@ -643,7 +673,8 @@
                 field.list.push(
                 {
                     isArray : false,
-                    name: itm
+                    name: itm,
+                    isObject : isObject
                 });
             }
             else
@@ -665,7 +696,8 @@
                         isArray: true,
                         isIndexInt : true,
                         name: itm.substr(0, ind),
-                        index : num
+                        index : num,
+                        isObject : false
                     });
                 }
                 else
@@ -674,8 +706,9 @@
                     {
                         isArray: true,
                         isIndexInt : false,
+                        isObject : false,
                         name: itm.substr(0, ind),
-                        index: cool.createField(str)
+                        index: cool.createField(str, false)
                     });
                 }
             }
@@ -684,6 +717,7 @@
         return field;
     },
 
+    // set field value
     setField : function(field, val)
     {
         var cur = window;
@@ -733,7 +767,14 @@
 
                 if (last)
                 {
-                    cur[itm.name][ind] = val;
+                    if (typeof val == "object")
+                    {
+                        cool.applyFieldEx(val, cur[itm.name][ind]);
+                    }
+                    else
+                    {
+                        cur[itm.name][ind] = val;
+                    }
                 }
                 else
                 {
@@ -744,7 +785,14 @@
             {
                 if (last)
                 {
-                    cur[itm.name] = val;
+                    if (typeof val == "object")
+                    {
+                        cool.applyFieldEx(val, cur[itm.name]);
+                    }
+                    else
+                    {
+                        cur[itm.name] = val;
+                    }
                 }
                 else
                 {
@@ -802,18 +850,130 @@
         return cur;
     },
 
+    // get or create parent object from field
+    gocField : function(field, isObject)
+    {
+        var cur = window;
+
+        for (var i = 0; i < field.list.length; ++i)
+        {
+            var itm = field.list[i];
+            var last = i == field.list.length - 1;
+
+            if (itm.isArray)
+            {
+                if (cur[itm.name] == null)
+                {
+                    cur[itm.name] = [];
+                }
+
+                var ind = 0;
+
+                if (itm.isIndexInt)
+                {
+                    ind = itm.index;
+                }
+                else
+                {
+                    ind = cool.getField(itm.index);
+
+                    if (ind == null)
+                    {
+                        ind = 0;
+                    }
+                }
+
+                if (ind >= cur[itm.name].length)
+                {
+                    cur[itm.name][ind] = {};
+                }
+
+                cur = cur[itm.name][ind];
+            }
+            else
+            {
+                var t = typeof cur[itm.name];
+
+                if (t != "object")
+                {
+                    if (itm.isObject || !last)
+                    {
+                        cur[itm.name] = {};
+                    }
+                }
+
+                if (itm.isObject || !last)
+                {
+                    cur = cur[itm.name];
+                }
+            }
+        }
+
+        return cur;
+    },
+
+    // apply all obj fields to target fields, and signal of change.
+    applyField : function(field, obj)
+    {
+        var tar = cool.gocField(field);
+
+        cool.applyFieldEx(obj, tar);
+        cool.signalFieldChange(field.path, obj);
+    },
+    applyFieldEx : function(src, dst)
+    {
+        for (var p in src)
+        {
+            if (src.hasOwnProperty(p))
+            {
+                if (typeof src[p] == "object")
+                {
+                    if (dst[p] == null)
+                    {
+                        dst[p] = {};
+                    }
+
+                    applyFieldEx(src[p], dst[p]);
+                }
+                else
+                {
+                    dst[p] = src[p];
+                }
+            }
+        }
+    },
+    signalFieldChange : function(path, obj)
+    {
+        for (var p in obj)
+        {
+            if (obj.hasOwnProperty(p))
+            {
+                if (typeof obj[p] == "object")
+                {
+                    signalFieldChange(path + "." + p, obj[p]);
+                }
+                else
+                {
+                    cool.changed(path + "." + p);
+                }
+            }
+        }
+    },
+
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
     
     // init dom tree
     processElement : function(elm)
     {
-        var arr = elm.querySelectorAll("js-set, js-load, js-page, js-ajax");//js-if, 
+        var arr = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
         var itm = null;
-        
+        var name = "";
+
         ht[code] = elm;
 
         for (i = 0; i < arr.length; ++i)
@@ -830,6 +990,7 @@
         for (i = arr.length - 1; i >= 0; --i)
         {
             itm = arr[i];
+            name = itm.tagName.toLowerCase();
 
             var cur = itm.parentNode;
 
@@ -837,7 +998,15 @@
             {
                 if (cur.cool != null && ht[cur.cool.hash] != null)
                 {
-                    cur.cool.chields.push(itm);
+                    if (name == "js-set")
+                    {
+                        cur.cool.chields.splice(cur.cool.jssetCount++, 0, itm);
+                    }
+                    else
+                    {
+                        cur.cool.chields.push(itm);
+                    }
+
                     itm.cool.parent = cur;
 
                     break;
@@ -850,7 +1019,7 @@
         for (i = 0; i < arr.length; ++i)
         {
             itm = arr[i];
-            var name = itm.tagName.toLowerCase();
+            name = itm.tagName.toLowerCase();
 
             if (cool.jsF[name] != null)
             {
@@ -1120,6 +1289,7 @@ Object.prototype.cooljs = function()
             hash : cool.lastHash++,
             chields : [],
             isActive : false,
+            jssetCount: 0,
             action: function()
             {
                 this.actionBase();
@@ -1580,6 +1750,7 @@ cool.metaStream =
         return "";
     },
 
+    // find end of block position
     findEnd: function(meta, cur)
     {
         var depf = 0;
@@ -1606,7 +1777,102 @@ cool.metaStream =
         return meta.length - 1;
     },
 
-    console : []
+    // declaring top fields of data stream
+    declare: function(metaStr, objTar)
+    {
+        var meta = metaStr.split(':');
+        var name = "";
+        var has = false;
+
+        var stack = [];
+
+        stack.push({ obj: objTar, end : meta.length });
+
+        for (var cur = 1; cur < meta.length; ++cur)
+        {
+            var itm = stack[stack.length - 1];
+
+            if (cur >= itm.end)
+            {
+                stack.pop();
+            }
+
+            var obj = stack[stack.length - 1].obj;
+
+            switch (meta[cur])
+            {
+                case 'v':
+                {
+                    name = meta[++cur];
+                    has = name in obj;
+
+                    if (!has)
+                    {
+                        if (name.length > 1 && name[name.length - 2] == '-')
+                        {
+                            var n = name.substr(0, name.length - 2);
+
+                            if (name[name.length - 1] == 'i')
+                            {
+                                obj[n] = 0;
+                            }
+                            else if (name[name.length - 1] == 'f')
+                            {
+                                obj[n] = parseFloat("0");
+                            }
+                            else if (name[name.length - 1] == 'b')
+                            {
+                                obj[n] = false;
+                            }
+                        }
+                        else
+                        {
+                            obj[name] = "";
+                        }
+                    }
+
+                    break;
+                }
+                case 'w':
+                case 'f':
+                {
+                    name = meta[++cur];
+                    has = name in obj;
+
+                    if (!has)
+                    {
+                        obj[name] = [];
+                    }
+
+                    cur = cool.metaStream.findEnd(meta, cur + 1);
+
+                    break;
+                }
+                case 'o':
+                {
+                    name = meta[++cur];
+                    has = name in obj;
+
+                    if (!has)
+                    {
+                        obj[name] = {};
+                    }
+
+                    stack.push({ obj: obj[name], end: cool.metaStream.findEnd(meta, cur + 1) });
+                    
+                    break;
+                }
+                case 'i':
+                {
+                    // name and sign
+
+                    cur += 2;
+
+                    break;
+                }
+            }
+        }
+    }
 }
 
 
