@@ -180,7 +180,7 @@
             {
                 var itm = obj.childNodes[i];
 
-                if (itm.tagName != null && itm.tagName.toLowerCase() == "js-stream-description")
+                if (itm.tagName != null && itm.tagName.toLowerCase() == "js-ajax-stream")
                 {
                     obj._cool.metaIndex = i;
 
@@ -192,7 +192,7 @@
 
             if (obj._cool.metaIndex == null)
             {
-                throw "js-ajax: The js-stream-description must be defined, because type='stream' was chosen.";
+                throw "js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.";
             }
             
             obj._cool.metaInline = desk.getAttribute("inline") != null;
@@ -1577,7 +1577,7 @@ cool.metaStream =
         var name = "";
         var type = "";
 
-        if (tagName == "js-stream-description")
+        if (tagName == "js-ajax-stream")
         {
             var short1 = obj.getAttribute("short");
 
@@ -1590,7 +1590,7 @@ cool.metaStream =
 
             if (spliter == null || spliter == "")
             {
-                throw "js-stream-description: The 'spliter' attribute is empty";
+                throw "js-ajax-stream: The 'spliter' attribute is empty";
             }
             
             arr = [];
