@@ -1,7 +1,6 @@
 ﻿var cool =
 {
     lastHash: 1,
-    obHt: {},
     numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
     body : document.getElementsByTagName('BODY')[0],
     hashList : {},
@@ -19,11 +18,7 @@
             "js-page": cool.tagPage,
             "js-ajax": cool.tagAjax,
             "js-set": cool.tagSet
-        },
-        cool.jsA =
-        {
-            "js-click": cool.atrClick
-        }
+        };
 
         cool.initNavigator();
         cool.processElement(document);
@@ -38,9 +33,6 @@
         {
             cool.go(cool.defaultHash);
         }
-
-
-        //cool.processAtr("js-click");
     },
     
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -179,6 +171,7 @@
             for (var i = 0; i < obj.childNodes.length; ++i)
             {
                 var itm = obj.childNodes[i];
+                var tnm = itm.tagName == null ? "" : itm.tagName.toLowerCase();
 
                 if (itm.tagName != null && itm.tagName.toLowerCase() == "js-ajax-stream")
                 {
@@ -479,21 +472,28 @@
         for (var i = 0; i < arr.length; ++i)
         {
             var itm = arr[i];
-            var p = "window." + itm.path;
 
-            if (cool.obHt[p] == null)
-            {
-                cool.obHt[p] = itm;
-
-                itm.list = [];
-            }
-            else
-            {
-                itm = cool.obHt[p];
-            }
-
-            itm.list.push(obj);
+            cool.addToObserve(itm.path, obj);
         }
+
+        //for (var i = 0; i < arr.length; ++i)
+        //{
+        //    var itm = arr[i];
+        //    var p = "window." + itm.path;
+
+        //    if (cool.obHt[p] == null)
+        //    {
+        //        cool.obHt[p] = itm;
+
+        //        itm.list = [];
+        //    }
+        //    else
+        //    {
+        //        itm = cool.obHt[p];
+        //    }
+
+        //    itm.list.push(obj);
+        //}
 
         obj._cool.conditional = con;
         obj._cool.obj = obj;
@@ -551,6 +551,202 @@
         }
 
         //obj.coolJs.refresh();
+    },
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Attributes
+
+    // js-bind, js-read, js-write
+    atrBind : function(obj, isReadOnly, isWriteOnly)
+    {
+        obj.cooljs();
+
+        obj._cool.path = "";
+
+        if (isReadOnly)
+        {
+            obj._cool.path = obj.getAttribute("js-read");
+        }
+        else if (isWriteOnly)
+        {
+            obj._cool.path = obj.getAttribute("js-write");
+        }
+        else
+        {
+            obj._cool.path = obj.getAttribute("js-bind");
+        }
+
+        if (obj._cool.path == null || obj._cool.path == "")
+        {
+            throw obj.tagName + ": has empty 'js-bing' attribute.";
+        }
+
+        var tnm = obj.tagName.toLowerCase();
+        obj._cool.isInput = tnm == "input";
+        obj._cool.isTextaria = tnm == "textaria";
+        obj._cool.isSelect = tnm == "select";
+        obj._cool.isFloat = obj.hasAttribute("float");
+        obj._cool.lock1 = false;
+        obj._cool.lock2 = false;
+        obj._cool.isCheckbox = false;
+        obj._cool.isRadio = false;
+        obj._cool.isText = false;
+        obj._cool.isNumber = false;
+        obj._cool.field = cool.createField(obj._cool.path, false);
+        obj._cool.obj = obj;
+
+        // validate
+        if (obj._cool.isInput)
+        {
+            var type = obj.getAttribute("type");
+
+            if (type == null || type == "" || type == "text" || type == "password" || type == "email" || type == "url" || type == "date" || type == "month" || type == "week" || type == "time" || type == "datetime-local" || type == "search" || type == "color" || type == "tel")
+            {
+                obj._cool.isText = true;
+            }
+            else if (type == "checkbox")
+            {
+                obj._cool.isCheckbox = true;
+            }
+            else if (type == "radio")
+            {
+                obj._cool.isRadio = true;
+            }
+            else if ( type == "range" || type == "number")
+            {
+                obj._cool.isNumber = true;
+            }
+            else
+            {
+                throw "The input type='" + type + "' not supported.";
+            }
+        }
+        else if (obj._cool.isTextaria || obj._cool.isSelect)
+        {
+            obj._cool.isText = true;
+        }
+        else
+        {
+            throw "The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.";
+        }
+
+        // set observe
+        if (!isWriteOnly)
+        {
+            if (obj._cool.isInput)
+            {
+                if (obj._cool.isCheckbox)
+                {
+                    obj._cool.refreshEx = function()
+                    {
+                        this.obj.checked = cool.getField(this.field);
+                    };
+                }
+                else if (obj._cool.isRadio)
+                {
+                    obj._cool.refreshEx = function()
+                    {
+                        var tmp = cool.getField(this.field);
+
+                        if (this.obj.value == tmp)
+                        {
+                            this.obj.checked = true;
+                        }
+                    };                    
+                }
+                else if (obj._cool.isNumber || obj._cool.isText)
+                {
+                    obj._cool.refreshEx = function()
+                    {
+                        var tmp = cool.getField(this.field);
+
+                        this.obj.value = tmp;
+                    }; 
+                }
+            }
+            else
+            {
+                obj._cool.refreshEx = function()
+                {
+                    var tmp = cool.getField(this.field);
+
+                    this.obj.value = tmp;
+                }; 
+            }
+
+            obj._cool.refresh = function(elm, path)
+            {
+                if (!this.lock2)
+                {
+                    this.lock1 = true;
+                    this.refreshEx();
+                    this.lock1 = false;
+                }
+            };
+
+            cool.addToObserve(path);
+        }
+
+        // event changes
+        if (!isReadOnly)
+        {
+            if (obj._cool.isInput)
+            {
+                if (obj._cool.isCheckbox)
+                {
+                    obj._cool.getVal = function()
+                    {
+                        return this.checked;
+                    };
+                }
+                else if (obj._cool.isRadio)
+                {
+                    obj._cool.getVal = function()
+                    {
+                        if (this.checked)
+                        {
+                            return this.value;
+                        }
+
+                        return null;
+                    };                    
+                }
+                else if (obj._cool.isText)
+                {
+                    obj._cool.getVal = function()
+                    {
+                        return this.value;
+                    };                    
+                }
+                else if (obj._cool.isNumber)
+                {
+                    obj._cool.getVal = function()
+                    {
+                        var tmp = this._cool.isFloat ? parseFloat(this.value) : parseInt(this.value);
+
+                        return tmp;
+                    };                    
+                }
+            }
+
+            obj.addEventListener("change", function ()
+            {
+                if (!this._cool.lock1)
+                {
+                    this._cool.lock2 = true;
+
+                    var tmp = this._cool.getVal();
+
+                    if (tmp != null)
+                    {
+                        cool.setField(this._cool.field, tmp);
+                        cool.changed(obj._cool.path);
+                    }
+
+                    this._cool.lock2 = false;
+                }
+            });
+        }
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -647,7 +843,10 @@
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Field
+    // Fields and observe
+
+    // observe hashtable
+    obHt: {},
 
     // create field from field path
     createField : function(path, isObject)
@@ -926,6 +1125,8 @@
         cool.applyFieldEx(obj, tar);
         cool.signalFieldChange(field.path, obj);
     },
+
+    // 
     applyFieldEx : function(src, dst)
     {
         for (var p in src)
@@ -948,6 +1149,8 @@
             }
         }
     },
+
+    //
     signalFieldChange : function(path, obj)
     {
         for (var p in obj)
@@ -966,6 +1169,584 @@
         }
     },
 
+    // call than property changed
+    changed : function(path)
+    {
+        if (cool.obHt[path] != null)
+        {
+            var ob = cool.obHt[path];
+
+            for (var i = 0; i < ob.list.length; ++i)
+            {
+                var itm = ob.list[i];
+
+                itm._cool.refresh(itm, path);
+            }
+        }
+    },
+
+    // add field to observe
+    addToObserve : function(path, obj)
+    {
+        var p = "window." + path;
+
+        if (cool.obHt[p] == null)
+        {
+            cool.obHt[p] = { list: [] };
+        }
+
+        cool.obHt[p].list.push(obj);
+    },
+    
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Stream data protocol
+
+    metaStream :
+    {
+        // data parsing
+        parse: function(metaStr, data, root)
+        {
+            var spliter = metaStr[0];
+            var arr = data.split(spliter);
+
+            if (root == null)
+            {
+                root = {};
+            }
+
+            var meta = metaStr.split(':');
+            var cur = 1;
+            var pos = 0;
+            var name = "";
+            var node = null;
+            var obj = root;
+
+            while (cur < meta.length)
+            {
+                switch (meta[cur])
+                {
+                    case 'v':
+                    {
+                        var val = arr[pos++];
+
+                        name = meta[++cur];
+
+                        if (name.length > 1 && name[name.length - 2] == '-')
+                        {
+                            if (name[name.length - 1] == 'i')
+                            {
+                                val = parseInt(val);
+                            }
+                            else if (name[name.length - 1] == 'f')
+                            {
+                                val = parseFloat(val);
+                            }
+                            else if (name[name.length - 1] == 'b')
+                            {
+                                val = cool.parseBool[val];
+                            }
+
+                            name = name.substr(0, name.length - 2);
+                        }
+
+                        //cool.metaStream.console.push('name = ' + name + ", val = " + val);
+
+                        if (name.length == 0)
+                        {
+                            obj = val;
+                        }
+                        else
+                        {
+                            obj[name] = val;
+                        }
+
+                        break;
+                    }
+                    case 'f':
+                    {
+                        var tmp0 =
+                        {
+                            type: 'f',
+                            start: cur + 1,
+                            end: cool.metaStream.findEnd(meta, cur + 1),
+                            parent: null,
+                            count: arr[pos++],
+                            index: 0,
+                            arr: [],
+                            context: obj
+                        };
+
+                        name = meta[++cur];
+                        obj[name] = tmp0.arr;
+
+                        // skip
+                        if (tmp0.count == 0)
+                        {
+                            cur = tmp0.end;
+
+                            break;
+                        }
+
+                        if (node == null)
+                        {
+                            node = tmp0;
+                        }
+                        else
+                        {
+                            tmp0.parent = node;
+                            node = tmp0;
+                        }
+
+                        obj = {};
+
+                        break;
+                    }
+                    case 'w':
+                    {
+                        name = meta[++cur];
+
+                        var tmp1 =
+                        {
+                            type: 'w',
+                            start: cur + 1,
+                            end: cool.metaStream.findEnd(meta, cur + 1),
+                            parent: null,
+                            sign: meta[++cur],
+                            arr: [],
+                            context: obj
+                        };
+
+                        // skip
+                        if (tmp1.sign != arr[pos++])
+                        {
+                            cur = tmp1.end;
+                        }
+
+                        if (node == null)
+                        {
+                            node = tmp1;
+                        }
+                        else
+                        {
+                            tmp1.parent = node;
+                            node = tmp1;
+                        }
+
+                        obj[name] = node.arr;
+
+                        obj = {};
+
+                        break;
+                    }
+                    case 'o':
+                    {
+                        name = meta[++cur];
+
+                        var tmp2 =
+                        {
+                            type: 'o',
+                            start: cur + 1,
+                            end: cool.metaStream.findEnd(meta, cur + 1),
+                            parent: null,
+                            context: obj
+                        };
+
+                        if (node == null)
+                        {
+                            node = tmp2;
+                        }
+                        else
+                        {
+                            tmp2.parent = node;
+                            node = tmp2;
+                        }
+
+                        obj[name] = {};
+                        obj = obj[name];
+
+                        break;
+                    }
+                    case 'i':
+                    {
+                        name = meta[++cur];
+
+                        var sign = meta[++cur];
+
+                        if (obj[name] != sign)
+                        {
+                            var end = cool.metaStream.findEnd(meta, cur + 1);
+
+                            cur = end;
+                        }
+
+                        break;
+                    }
+                }
+
+                // end of cycle
+                if (node != null && node.end == cur + 1)
+                {
+                    var exit = false;
+
+                    if (node.type == 'f')
+                    {
+                        node.arr.push(obj);
+                        node.index++;
+
+                        if (node.index >= node.count)
+                        {
+                            exit = true;
+                        }
+                    }
+                    else if (node.type == 'w')
+                    {
+                        node.arr.push(obj);
+
+                        if (node.sign != arr[pos++])
+                        {
+                            exit = true;
+                        }
+                    }
+                    else if (node.type == 'o')
+                    {
+                        exit = true;
+                    }
+
+                    if (exit)
+                    {
+                        obj = node.context;
+                        node = node.parent;
+                    }
+                    else
+                    {
+                        obj = {};
+                        cur = node.start;
+                    }
+                }
+
+                cur++;
+            }
+
+            return root;
+        },
+
+        // get short string from decription data tags
+        toShort: function(obj, spliter, arr)
+        {
+            if (obj.tagName == null)
+            {
+                return "";
+            }
+
+            var tagName = obj.tagName.toLowerCase();
+            var i = 0;
+            var itm = null;
+            var name = "";
+            var type = "";
+
+            if (tagName == "js-ajax-stream")
+            {
+                var short1 = obj.getAttribute("short");
+
+                if (short1 != null)
+                {
+                    return short1;
+                }
+
+                spliter = obj.getAttribute("spliter");
+
+                if (spliter == null || spliter == "")
+                {
+                    throw "js-ajax-stream: The 'spliter' attribute is empty";
+                }
+
+                arr = [];
+
+                arr.push(spliter);
+
+                for (i = 0; i < obj.childNodes.length; ++i)
+                {
+                    itm = obj.childNodes[i];
+
+                    cool.metaStream.toShort(itm, spliter, arr);
+                }
+
+                var ret = arr.join(":");
+
+                return ret;
+            }
+            else if (tagName == "js-stream-var")
+            {
+                name = obj.getAttribute("name");
+                type = obj.getAttribute("type");
+
+                if (name == null || name == "")
+                {
+                    throw "js-stream-var: The 'name' attribute is empty";
+                }
+
+                if (type == null || type == "")
+                {
+                    throw "js-stream-var: The 'type' attribute is empty";
+                }
+
+                if (type == "object")
+                {
+                    arr.push("o");
+                    arr.push(name);
+
+                    for (i = 0; i < obj.childNodes.length; ++i)
+                    {
+                        itm = obj.childNodes[i];
+
+                        cool.metaStream.toShort(itm, spliter, arr);
+                    }
+
+                    arr.push("e");
+                }
+                else
+                {
+                    arr.push("v");
+
+                    if (type == "int")
+                    {
+                        name += "-i";
+                    }
+                    else if (type == "float")
+                    {
+                        name += "-f";
+                    }
+                    else if (type == "bool")
+                    {
+                        name += "-b";
+                    }
+
+                    arr.push(name);
+                }
+            }
+            else if (tagName == "js-stream-for" || tagName == "js-stream-while")
+            {
+                name = obj.getAttribute("name");
+                type = obj.getAttribute("type");
+
+                if (name == null || name == "")
+                {
+                    throw tagName + ": The 'name' attribute is empty";
+                }
+
+                if (type == null || type == "")
+                {
+                    throw tagName + ": The 'type' attribute is empty";
+                }
+
+                if (obj.childNodes.length > 0 && type != "object")
+                {
+                    throw tagName + ": The 'type' must be 'object' than chields more one.";
+                }
+
+                if (tagName == "js-stream-for")
+                {
+                    arr.push("f");
+                }
+                else
+                {
+                    arr.push("w");
+
+                    var sign = obj.getAttribute("name");
+
+                    if (sign == null || sign == "")
+                    {
+                        throw tagName + ": The 'sign' attribute is empty";
+                    }
+
+                    name += ":" + sign;
+                }
+
+                arr.push(name);
+
+                if (type == "object")
+                {
+                    for (i = 0; i < obj.childNodes.length; ++i)
+                    {
+                        itm = obj.childNodes[i];
+
+                        cool.metaStream.toShort(itm, spliter, arr);
+                    }
+                }
+                else if (type == "int")
+                {
+                    arr.push("-i");
+                }
+                else if (type == "bool")
+                {
+                    arr.push("-b");
+                }
+                else if (type == "float")
+                {
+                    arr.push("-f");
+                }
+                else if (type == "string")
+                {
+                    arr.push("");
+                }
+
+                arr.push("e");
+            }
+            else if (tagName == "js-stream-if")
+            {
+                name = obj.getAttribute("name");
+                var value = obj.getAttribute("value");
+
+                if (name == null || name == "")
+                {
+                    throw tagName + ": The 'name' attribute is empty";
+                }
+
+                if (value == null || value == "")
+                {
+                    throw tagName + ": The 'value' attribute is empty";
+                }
+
+                arr.push("i");
+                arr.push(name);
+                arr.push(value);
+
+                for (i = 0; i < obj.childNodes.length; ++i)
+                {
+                    itm = obj.childNodes[i];
+
+                    cool.metaStream.toShort(itm, spliter, arr);
+                }
+
+                arr.push("e");
+            }
+            return "";
+        },
+
+        // find end of block position
+        findEnd: function(meta, cur)
+        {
+            var depf = 0;
+
+            for (var i = cur; i < meta.length; ++i)
+            {
+                if (meta[i] == 'f' || meta[i] == 'w' || meta[i] == 'o' || meta[i] == 'i')
+                {
+                    depf++;
+                }
+                else if (meta[i] == 'e')
+                {
+                    if (depf > 0)
+                    {
+                        depf--;
+                    }
+                    else
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return meta.length - 1;
+        },
+
+        // declaring top fields of data stream
+        declare: function(metaStr, objTar)
+        {
+            var meta = metaStr.split(':');
+            var name = "";
+            var has = false;
+
+            var stack = [];
+
+            stack.push({ obj: objTar, end: meta.length });
+
+            for (var cur = 1; cur < meta.length; ++cur)
+            {
+                var itm = stack[stack.length - 1];
+
+                if (cur >= itm.end)
+                {
+                    stack.pop();
+                }
+
+                var obj = stack[stack.length - 1].obj;
+
+                switch (meta[cur])
+                {
+                    case 'v':
+                    {
+                        name = meta[++cur];
+                        has = name in obj;
+
+                        if (!has)
+                        {
+                            if (name.length > 1 && name[name.length - 2] == '-')
+                            {
+                                var n = name.substr(0, name.length - 2);
+
+                                if (name[name.length - 1] == 'i')
+                                {
+                                    obj[n] = 0;
+                                }
+                                else if (name[name.length - 1] == 'f')
+                                {
+                                    obj[n] = parseFloat("0");
+                                }
+                                else if (name[name.length - 1] == 'b')
+                                {
+                                    obj[n] = false;
+                                }
+                            }
+                            else
+                            {
+                                obj[name] = "";
+                            }
+                        }
+
+                        break;
+                    }
+                    case 'w':
+                    case 'f':
+                    {
+                        name = meta[++cur];
+                        has = name in obj;
+
+                        if (!has)
+                        {
+                            obj[name] = [];
+                        }
+
+                        cur = cool.metaStream.findEnd(meta, cur + 1);
+
+                        break;
+                    }
+                    case 'o':
+                    {
+                        name = meta[++cur];
+                        has = name in obj;
+
+                        if (!has)
+                        {
+                            obj[name] = {};
+                        }
+
+                        stack.push({ obj: obj[name], end: cool.metaStream.findEnd(meta, cur + 1) });
+
+                        break;
+                    }
+                    case 'i':
+                    {
+                        // name and sign
+
+                        cur += 2;
+
+                        break;
+                    }
+                }
+            }
+        }
+    },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
@@ -973,7 +1754,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var arr = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax");
+        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-event, [js-bind], [js-read], [js-write]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -982,35 +1763,57 @@
 
         ht[code] = elm;
 
+        var arr = [];
+
+        // filter tags and init base function
         for (i = 0; i < arr.length; ++i)
         {
-            itm = arr[i];
-            code = itm.cooljs().hash;
+            itm = tmp[i];
+            name = itm.tagName.toLowerCase();
 
-            if (ht[code] == null)
+            if (cool.jsF[name] != null)
             {
-                ht[code] = itm;
+                arr.push({obj : itm, name : name});
+
+                code = itm.cooljs().hash;
+
+                if (ht[code] == null)
+                {
+                    ht[code] = itm;
+                }
+            }
+            else if (itm.hasAttributes("js-bind"))
+            {
+                cool.atrBind(itm, false, false);
+            }
+            else if (itm.hasAttributes("js-read"))
+            {
+                cool.atrBind(itm, true, false);
+            }
+            else if (itm.hasAttributes("js-write"))
+            {
+                cool.atrBind(itm, false, true);
             }
         }
 
+        // build tag tree
         for (i = arr.length - 1; i >= 0; --i)
         {
             itm = arr[i];
-            name = itm.tagName.toLowerCase();
 
-            var cur = itm.parentNode;
+            var cur = itm.obj.parentNode;
 
             while (cur != null)
             {
                 if (cur._cool != null && ht[cur._cool.hash] != null)
                 {
-                    if (name == "js-set")
+                    if (itm.name == "js-set")
                     {
-                        cur._cool.chields.splice(cur._cool.jssetCount++, 0, itm);
+                        cur._cool.chields.splice(cur._cool.jssetCount++, 0, itm.obj);
                     }
                     else
                     {
-                        cur._cool.chields.push(itm);
+                        cur._cool.chields.push(itm.obj);
                     }
 
                     itm._cool.parent = cur;
@@ -1022,19 +1825,17 @@
             }
         }
 
+        // run init tags
         for (i = 0; i < arr.length; ++i)
         {
             itm = arr[i];
-            name = itm.tagName.toLowerCase();
 
-            if (cool.jsF[name] != null)
-            {
-                cool.jsF[name](itm);
-            }
+            cool.jsF[itm.name](itm.obj);
         }
 
         delete ht;
         delete arr;
+        delete tmp;
     },
 
     //
@@ -1225,22 +2026,6 @@
         
     },
 
-    // call than property changed
-    changed : function(path)
-    {
-        if (cool.obHt[path] != null)
-        {
-            var ob = cool.obHt[path];
-
-            for (var i = 0; i < ob.list.length; ++i)
-            {
-                var itm = ob.list[i];
-
-                itm._cool.refresh(itm, path);
-            }
-        }
-    },
-
     // split string arr
     split: function(str, sep)
     {
@@ -1333,553 +2118,6 @@ Object.prototype.cooljs = function()
 };
 
 window.onload = cool.init;
-
-cool.metaStream =
-{
-    // data parsing
-    parse: function(metaStr, data, root)
-    {
-        var spliter = metaStr[0];
-        var arr = data.split(spliter);
-
-        if (root == null)
-        {
-            root = {};
-        }
-
-        var meta = metaStr.split(':');
-        var cur = 1;
-        var pos = 0;
-        var name = "";
-        var node = null;
-        var obj = root;
-
-        while (cur < meta.length)
-        {
-            switch (meta[cur])
-            {
-                case 'v':
-                {
-                    var val = arr[pos++];
-
-                    name = meta[++cur];
-
-                    if (name.length > 1 && name[name.length - 2] == '-')
-                    {
-                        if (name[name.length - 1] == 'i')
-                        {
-                            val = parseInt(val);
-                        }
-                        else if (name[name.length - 1] == 'f')
-                        {
-                            val = parseFloat(val);
-                        }
-                        else if (name[name.length - 1] == 'b')
-                        {
-                            val = cool.parseBool[val];
-                        }
-
-                        name = name.substr(0, name.length - 2);
-                    }
-
-                    //cool.metaStream.console.push('name = ' + name + ", val = " + val);
-
-                    if (name.length == 0)
-                    {
-                        obj = val;
-                    }
-                    else
-                    {
-                        obj[name] = val;
-                    }
-
-                    break;
-                }
-                case 'f':
-                {
-                    var tmp0 =
-                    {
-                        type: 'f',
-                        start: cur + 1,
-                        end: cool.metaStream.findEnd(meta, cur + 1),
-                        parent: null,
-                        count: arr[pos++],
-                        index: 0,
-                        arr: [],
-                        context: obj
-                    };
-
-                    name = meta[++cur];
-                    obj[name] = tmp0.arr;
-
-                    // skip
-                    if (tmp0.count == 0)
-                    {
-                        cur = tmp0.end;
-
-                        break;
-                    }
-
-                    if (node == null)
-                    {
-                        node = tmp0;
-                    }
-                    else
-                    {
-                        tmp0.parent = node;
-                        node = tmp0;
-                    }
-
-                    obj = {};
-
-                    break;
-                }
-                case 'w':
-                {
-                    name = meta[++cur];
-
-                    var tmp1 =
-                    {
-                        type: 'w',
-                        start: cur + 1,
-                        end: cool.metaStream.findEnd(meta, cur + 1),
-                        parent: null,
-                        sign: meta[++cur],
-                        arr: [],
-                        context: obj
-                    };
-
-                    // skip
-                    if (tmp1.sign != arr[pos++])
-                    {
-                        cur = tmp1.end;
-                    }
-
-                    if (node == null)
-                    {
-                        node = tmp1;
-                    }
-                    else
-                    {
-                        tmp1.parent = node;
-                        node = tmp1;
-                    }
-
-                    obj[name] = node.arr;
-
-                    obj = {};
-
-                    break;
-                }
-                case 'o':
-                {
-                    name = meta[++cur];
-
-                    var tmp2 =
-                    {
-                        type: 'o',
-                        start: cur + 1,
-                        end: cool.metaStream.findEnd(meta, cur + 1),
-                        parent: null,
-                        context: obj
-                    };
-
-                    if (node == null)
-                    {
-                        node = tmp2;
-                    }
-                    else
-                    {
-                        tmp2.parent = node;
-                        node = tmp2;
-                    }
-                    
-                    obj[name] = {};
-                    obj = obj[name];
-
-                    break;
-                }
-                case 'i':
-                {
-                    name = meta[++cur];
-
-                    var sign = meta[++cur];
-
-                    if (obj[name] != sign)
-                    {
-                        var end = cool.metaStream.findEnd(meta, cur + 1);
-
-                        cur = end;
-                    }
-
-                    break;
-                }
-            }
-
-            // end of cycle
-            if (node != null && node.end == cur + 1)
-            {
-                var exit = false;
-
-                if (node.type == 'f')
-                {
-                    node.arr.push(obj);
-                    node.index++;
-
-                    if (node.index >= node.count)
-                    {
-                        exit = true;
-                    }
-                }
-                else if (node.type == 'w')
-                {
-                    node.arr.push(obj);
-
-                    if (node.sign != arr[pos++])
-                    {
-                        exit = true;
-                    }
-                }
-                else if (node.type == 'o')
-                {
-                    exit = true;
-                }
-
-                if (exit)
-                {
-                    obj = node.context;
-                    node = node.parent;
-                }
-                else
-                {
-                    obj = {};
-                    cur = node.start;
-                }
-            }
-
-            cur++;
-        }
-
-        return root;
-    },
-
-    // get short string from decription data tags
-    toShort : function(obj, spliter, arr)
-    {
-        if (obj.tagName == null)
-        {
-            return "";
-        }
-
-        var tagName = obj.tagName.toLowerCase();
-        var i = 0;
-        var itm = null;
-        var name = "";
-        var type = "";
-
-        if (tagName == "js-ajax-stream")
-        {
-            var short1 = obj.getAttribute("short");
-
-            if (short1 != null)
-            {
-                return short1;
-            }
-            
-            spliter = obj.getAttribute("spliter");
-
-            if (spliter == null || spliter == "")
-            {
-                throw "js-ajax-stream: The 'spliter' attribute is empty";
-            }
-            
-            arr = [];
-
-            arr.push(spliter);
-
-            for (i = 0; i < obj.childNodes.length; ++i)
-            {
-                itm = obj.childNodes[i];
-
-                cool.metaStream.toShort(itm, spliter, arr);
-            }
-
-            var ret = arr.join(":");
-
-            return ret;
-        }
-        else if (tagName == "js-stream-var")
-        {
-            name = obj.getAttribute("name");
-            type = obj.getAttribute("type");
-
-            if (name == null || name == "")
-            {
-                throw "js-stream-var: The 'name' attribute is empty";
-            }
-
-            if (type == null || type == "")
-            {
-                throw "js-stream-var: The 'type' attribute is empty";
-            }
-
-            if (type == "object")
-            {
-                arr.push("o");
-                arr.push(name);
-
-                for (i = 0; i < obj.childNodes.length; ++i)
-                {
-                    itm = obj.childNodes[i];
-
-                    cool.metaStream.toShort(itm, spliter, arr);
-                }
-
-                arr.push("e");
-            }
-            else
-            {
-                arr.push("v");
-
-                if (type == "int")
-                {
-                    name += "-i";
-                }
-                else if (type == "float")
-                {
-                    name += "-f";
-                }
-                else if (type == "bool")
-                {
-                    name += "-b";
-                }
-
-                arr.push(name);
-            }
-        }
-        else if (tagName == "js-stream-for" || tagName == "js-stream-while")
-        {
-            name = obj.getAttribute("name");
-            type = obj.getAttribute("type");
-            
-            if (name == null || name == "")
-            {
-                throw tagName + ": The 'name' attribute is empty";
-            }
-
-            if (type == null || type == "")
-            {
-                throw tagName + ": The 'type' attribute is empty";
-            }
-
-            if (obj.childNodes.length > 0 && type != "object")
-            {
-                throw tagName + ": The 'type' must be 'object' than chields more one.";
-            }
-
-            if (tagName == "js-stream-for")
-            {
-                arr.push("f");
-            }
-            else
-            {
-                arr.push("w");
-
-                var sign = obj.getAttribute("name");
-
-                if (sign == null || sign == "")
-                {
-                    throw tagName + ": The 'sign' attribute is empty";
-                }
-
-                name += ":" + sign;
-            }
-
-            arr.push(name);
-
-            if (type == "object")
-            {
-                for (i = 0; i < obj.childNodes.length; ++i)
-                {
-                    itm = obj.childNodes[i];
-
-                    cool.metaStream.toShort(itm, spliter, arr);
-                }
-            }
-            else if (type == "int")
-            {
-                arr.push("-i");
-            }
-            else if (type == "bool")
-            {
-                arr.push("-b");
-            }
-            else if (type == "float")
-            {
-                arr.push("-f");
-            }
-            else if (type == "string")
-            {
-                arr.push("");
-            }
-
-            arr.push("e");
-        }
-        else if (tagName == "js-stream-if")
-        {
-            name = obj.getAttribute("name");
-            var value = obj.getAttribute("value");
-            
-            if (name == null || name == "")
-            {
-                throw tagName + ": The 'name' attribute is empty";
-            }
-
-            if (value == null || value == "")
-            {
-                throw tagName + ": The 'value' attribute is empty";
-            }
-            
-            arr.push("i");
-            arr.push(name);
-            arr.push(value);
-
-            for (i = 0; i < obj.childNodes.length; ++i)
-            {
-                itm = obj.childNodes[i];
-
-                cool.metaStream.toShort(itm, spliter, arr);
-            }
-
-            arr.push("e");
-        }
-        return "";
-    },
-
-    // find end of block position
-    findEnd: function(meta, cur)
-    {
-        var depf = 0;
-
-        for (var i = cur; i < meta.length; ++i)
-        {
-            if (meta[i] == 'f' || meta[i] == 'w' || meta[i] == 'o' || meta[i] == 'i')
-            {
-                depf++;
-            }
-            else if (meta[i] == 'e')
-            {
-                if (depf > 0)
-                {
-                    depf--;
-                }
-                else
-                {
-                    return i;
-                }
-            }
-        }
-
-        return meta.length - 1;
-    },
-
-    // declaring top fields of data stream
-    declare: function(metaStr, objTar)
-    {
-        var meta = metaStr.split(':');
-        var name = "";
-        var has = false;
-
-        var stack = [];
-
-        stack.push({ obj: objTar, end : meta.length });
-
-        for (var cur = 1; cur < meta.length; ++cur)
-        {
-            var itm = stack[stack.length - 1];
-
-            if (cur >= itm.end)
-            {
-                stack.pop();
-            }
-
-            var obj = stack[stack.length - 1].obj;
-
-            switch (meta[cur])
-            {
-                case 'v':
-                {
-                    name = meta[++cur];
-                    has = name in obj;
-
-                    if (!has)
-                    {
-                        if (name.length > 1 && name[name.length - 2] == '-')
-                        {
-                            var n = name.substr(0, name.length - 2);
-
-                            if (name[name.length - 1] == 'i')
-                            {
-                                obj[n] = 0;
-                            }
-                            else if (name[name.length - 1] == 'f')
-                            {
-                                obj[n] = parseFloat("0");
-                            }
-                            else if (name[name.length - 1] == 'b')
-                            {
-                                obj[n] = false;
-                            }
-                        }
-                        else
-                        {
-                            obj[name] = "";
-                        }
-                    }
-
-                    break;
-                }
-                case 'w':
-                case 'f':
-                {
-                    name = meta[++cur];
-                    has = name in obj;
-
-                    if (!has)
-                    {
-                        obj[name] = [];
-                    }
-
-                    cur = cool.metaStream.findEnd(meta, cur + 1);
-
-                    break;
-                }
-                case 'o':
-                {
-                    name = meta[++cur];
-                    has = name in obj;
-
-                    if (!has)
-                    {
-                        obj[name] = {};
-                    }
-
-                    stack.push({ obj: obj[name], end: cool.metaStream.findEnd(meta, cur + 1) });
-                    
-                    break;
-                }
-                case 'i':
-                {
-                    // name and sign
-
-                    cur += 2;
-
-                    break;
-                }
-            }
-        }
-    }
-}
 
 
 //cool.parseCon("map.hasFlug == true && map.age == some.getAge(wer - (web * 4) + 10) || arr[5] != 'test' || cash[n + 89] == ver.ss + 530");
