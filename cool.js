@@ -553,6 +553,12 @@
         //obj.coolJs.refresh();
     },
 
+    // js-event
+    tagEvent: function(obj)
+    {
+
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
 
@@ -1126,7 +1132,7 @@
         cool.signalFieldChange(field.path, obj);
     },
 
-    // 
+    // only apply
     applyFieldEx : function(src, dst)
     {
         for (var p in src)
@@ -1150,7 +1156,7 @@
         }
     },
 
-    //
+    // signal of change each object field
     signalFieldChange : function(path, obj)
     {
         for (var p in obj)
@@ -1199,8 +1205,662 @@
     },
     
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Stream data protocol
+    // Selector query
 
+    // get elements by selector
+    compileSelector : function(query)
+    {
+        var arr = query.split(".");
+        var ret = [];
+        var s, e = 0;
+        var err = "Unknown operation: ";
+
+        for (var i = 0; i < arr.length; ++i)
+        {
+            var cmd = arr[i];
+
+            if (cmd.length == 0)
+            {
+                continue;
+            }
+
+            switch (cmd)
+            {
+                case "parent":
+                {
+                    ret.push(
+                    {
+                        cmd : "0"
+                    });
+
+                    continue;
+                }
+                case "push-all":
+                {
+                    ret.push(
+                    {
+                        cmd : "2"
+                    });
+
+                    continue;
+                }
+                case "back":
+                {
+                    ret.push(
+                    {
+                        cmd : "4"
+                    });
+
+                    continue;
+                }
+                case "back-tree":
+                {
+                    ret.push(
+                    {
+                        cmd : "5"
+                    });
+
+                    continue;
+                }
+                case "body":
+                {
+                    ret.push(
+                    {
+                        cmd : "8"
+                    });
+
+                    continue;
+                }
+                case "break":
+                {
+                    ret.push(
+                    {
+                        cmd : "9"
+                    });
+
+                    continue;
+                }
+                case "document":
+                {
+                    ret.push(
+                    {
+                        cmd : "a"
+                    });
+
+                    continue;
+                }
+                case "head":
+                {
+                    ret.push(
+                    {
+                        cmd : "b"
+                    });
+
+                    continue;
+                }
+                case "continue":
+                {
+                    ret.push(
+                    {
+                        cmd : "c"
+                    });
+
+                    continue;
+                }
+                case "next":
+                {
+                    ret.push(
+                    {
+                        cmd : "d"
+                    });
+
+                    continue;
+                }
+                case "next-tree":
+                {
+                    ret.push(
+                    {
+                        cmd : "e"
+                    });
+
+                    continue;
+                }
+                case "last":
+                {
+                    ret.push(
+                    {
+                        cmd : "h"
+                    });
+
+                    continue;
+                }
+                case "if":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "each":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "push":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "exit":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "range":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "log":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+                case "end":
+                {
+                    ret.push(
+                    {
+                        cmd : ""
+                    });
+
+                    continue;
+                }
+            }
+
+            var c0 = cmd[0];
+
+            switch (c0)
+            {
+                case "p":
+                {
+                    if (cmd.length > 8 && cmd.substr(0, 6) == "parent" && cmd[7] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "1",
+                            index : parseInt(cmd.substr(7, cmd.length - 8))
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;
+                }
+                case "c":
+                {
+                    if (cmd.length > 8 && cmd.substr(0, 6) == "chield" && cmd[7] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "3",
+                            index : parseInt(cmd.substr(7, cmd.length - 8))
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;                    
+
+                }
+                case "b":
+                {
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "back" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "6",
+                            index : parseInt(cmd.substr(5, cmd.length - 6))
+                        });                        
+                    }
+                    else if (cmd.length > 11 && cmd.substr(0, 9) == "back-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "7",
+                            index : parseInt(cmd.substr(10, cmd.length - 11))
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;                    
+
+                }
+                case "n":
+                {
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "next" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "f",
+                            index : parseInt(cmd.substr(5, cmd.length - 6))
+                        });                        
+                    }
+                    else if (cmd.length > 11 && cmd.substr(0, 9) == "next-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "g",
+                            index : parseInt(cmd.substr(10, cmd.length - 11))
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;                    
+
+                }
+                case "l":
+                {
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "last" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    {
+                        ret.push(
+                        {
+                            cmd : "i",
+                            index : parseInt(cmd.substr(5, cmd.length - 6))
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;                    
+                }
+                case "s":
+                {
+                    if (cmd.length > 10 && cmd.substr(0, 9) == "selector(" && cmd[cmd.length - 1] == ")")
+                    {
+                        ret.push(
+                        {
+                            cmd : "j",
+                            query : cmd.substr(9, cmd.length - 10)
+                        });                        
+                    }
+                    else if (cmd.length > 17 && cmd.substr(0, 13) == "selector-all(" && cmd[cmd.length - 1] == "]")
+                    {
+                        var ind = cmd.lastIndexOf(")");
+
+                        if (ind == -1)
+                        {
+                            throw "the ')' expected";
+                        }
+
+                        ret.push(
+                        {
+                            cmd: "l",
+                            query: cmd.substr(13, ind - 13),
+                            index : parseInt(cmd.substr(ind + 1, cmd.length - ind - 1))
+                        });                        
+                    }
+                    else if (cmd.length > 14 && cmd.substr(0, 13) == "selector-all(" && cmd[cmd.length - 1] == ")")
+                    {
+                        ret.push(
+                        {
+                            cmd : "k",
+                            query : cmd.substr(13, cmd.length - 14)
+                        });                        
+                    }
+                    else
+                    {
+                        throw err + cmd;
+                    }
+
+                    break;                    
+
+                }
+            }
+            
+        }
+
+        return ret;
+    },
+
+    // get elements by selector
+    getBySelector : function(prog, elm)
+    {
+        var ret = [];
+        var cur = elm;
+        var pos = 0;
+        var i = 0;
+        var tmp = null;
+
+        while (true)
+        {
+            var opr = prog[pos];
+
+            switch (opr.cmd)
+            {
+                case "0": // parent
+                {
+                    if (cur != document)
+                    {
+                        cur = cur.parentNode;
+                    }
+
+                    break;
+                }
+                case "1": // parent[n]
+                {
+                    for (i = 0; i < opr.index && cur != document; ++i)
+                    {
+                        cur = cur.parentNode;
+                    }
+
+                    break;
+                }
+                case "2": // push-all
+                {
+                    for (i = 0; i < cur.childNodes.length; ++i)
+                    {
+                        ret.push(cur.childNodes[i]);
+                    }
+
+                    break;
+                }
+                case "3": // chield[n]
+                {
+                    if (opr.index < cur.childNodes.length)
+                    {
+                        cur = cur.childNodes[opr.index];
+                    }
+
+                    break;
+                }
+                case "4": // back
+                {
+                    if (cur.previousSibling != null)
+                    {
+                        cur = cur.previousSibling;
+                    }
+
+                    break;
+                }
+                case "5": // back-tree
+                {
+                    if (cur.previousSibling != null)
+                    {
+                        cur = cur.previousSibling;
+                    }
+                    else
+                    {
+                        cur = cur.parentNode;
+                    }
+
+                    break;
+                }
+                case "6": // back[n]
+                {
+                    for (i = 0; i < opr.index; ++i)
+                    {
+                        if (cur.previousSibling != null)
+                        {
+                            cur = cur.previousSibling;
+                        }
+                    }
+
+                    break;
+                }
+                case "7": // back-tree[n]
+                {
+                    for (i = 0; i < opr.index; ++i)
+                    {
+                        if (cur.previousSibling != null)
+                        {
+                            cur = cur.previousSibling;
+                        }
+                        else
+                        {
+                            cur = cur.parentNode;
+                        }
+                    }
+
+                    break;
+                }
+                case "8" : // body
+                {
+                    cur = document.body;
+
+                    break;
+                }
+case "9": // break
+{
+
+    break;
+}
+                case "a": // document
+                {
+                    cur = document;
+
+                    break;
+                }
+                case "b": // head
+                {
+                    cur = document.head;
+
+                    break;
+                }
+case "c": // continue
+{
+
+    break;
+}
+                case "d": // next
+                {
+                    if (cur.nextSibling != null)
+                    {
+                        cur = cur.nextSibling;
+                    }
+
+                    break;
+                }
+                case "e": // next-tree
+                {
+                    if (cur.childNodes.length > 0)
+                    {
+                        cur = cur.childNodes[0];
+                    }
+                    else
+                    {
+                        while (cur != document)
+                        {
+                            if (cur.nextSibling != null)
+                            {
+                                cur = cur.nextSibling;
+
+                                break;
+                            }
+                            else
+                            {
+                                cur = cur.parentNode;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+                case "f": // next[n]
+                {
+                    for (i = 0; i < opr.index; ++i)
+                    {
+                        if (cur.nextSibling != null)
+                        {
+                            cur = cur.nextSibling;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+                case "g": // next-tree[n]
+                {
+                    for (i = 0; i < opr.index; ++i)
+                    {
+                        while (cur != document)
+                        {
+                            if (cur.nextSibling != null)
+                            {
+                                cur = cur.nextSibling;
+
+                                break;
+                            }
+                            else
+                            {
+                                cur = cur.parentNode;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+                case "h": // last
+                {
+                    if (cur.childNodes.length > 0)
+                    {
+                        cur = cur.childNodes[cur.childNodes.length - 1];
+                    }
+
+                    break;
+                }
+                case "i": // last[n]
+                {
+                    if (opr.index < cur.childNodes.length)
+                    {
+                        cur = cur.childNodes[cur.childNodes.length - opr.index];
+                    }
+                    else if (cur.childNodes.length > 0)
+                    {
+                        cur = cur.childNodes[0];
+                    }
+
+                    break;
+                }
+                case "j": // selector(query)
+                {
+                    cur = cur.querySelector(opr.query);
+
+                    break;
+                }
+                case "k": // selector-all(query)
+                {
+                    cur =
+                    {
+                        parentNode: cur,
+                        nextSibling: null,
+                        previousSibling: null,
+                        childNodes: cur.querySelectorAll(opr.query)
+                    };
+
+                    break;
+                }
+                case "l": // selector-all(query)[n]
+                {
+                    tmp = cur.querySelectorAll(opr.query);
+
+                    if (opr.index < tmp.length)
+                    {
+                        cur = tmp[opr.index];
+                    }
+                    
+                    break;
+                }
+case "m": // selector-all[n]
+{
+
+    break;
+}
+                case "if":
+                {
+
+                    break;
+                }
+                case "each":
+                {
+
+                    break;
+                }
+
+                case "push":
+                {
+
+                    break;
+                }
+                case "exit":
+                {
+
+                    break;
+                }
+                case "range":
+                {
+
+                    break;
+                }
+                case "var":
+                {
+
+                    break;
+                }
+                case "log":
+                {
+
+                    break;
+                }
+                case "end":
+                {
+
+                    break;
+                }
+            }
+        }
+
+        return ret;
+    },
+    
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Stream data protocol
     metaStream :
     {
         // data parsing
@@ -1747,10 +2407,10 @@
             }
         }
     },
-
+    
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
-    
+
     // init dom tree
     processElement : function(elm)
     {
