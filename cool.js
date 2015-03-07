@@ -17,7 +17,8 @@
             "js-load": cool.tagLoad,
             "js-page": cool.tagPage,
             "js-ajax": cool.tagAjax,
-            "js-set": cool.tagSet
+            "js-set": cool.tagSet,
+            "js-event": cool.tagEvent
         };
 
         cool.initNavigator();
@@ -556,8 +557,62 @@
     // js-event
     tagEvent: function(obj)
     {
+        var name = obj.getAttribute("name");
+        var select = obj.getAttribute("select");
+        var onactive = obj.hasAttribute("onactive");
 
+        if (name == null || name == "")
+        {
+            throw "js-event: The 'name' attribute is empty";
+        }
+
+        if (select == null || select == "")
+        {
+            select = "parent";
+        }
+
+        var prog = cool.compileSelector(select);
+        var arr = cool.getBySelector(prog, obj);
+
+        function initEvent(obj)
+        {
+            return function()
+            {
+                if (obj._cool.parent._cool.isActive)
+                {
+                    obj._cool.actionBase();
+                    obj._cool.eventActive = false;
+                }
+                else
+                {
+                    obj._cool.eventActive = true;
+                }
+            }
+        };
+        obj._cool.eventActive = false;
+        obj._cool.onactive = onactive;
+        obj._cool.action = function()
+        {
+            if (this.eventActive && this.onactive)
+            {
+                this.actionBase();
+            }
+
+            this.eventActive = false;
+        };
+
+        obj._cool.event = initEvent(obj);
+
+        for (var i = 0; i < arr.length; ++i)
+        {
+            var itm = arr[i];
+
+            itm.addEventListener(name, obj._cool.event);
+        }
     },
+
+    // js-style
+    //t
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
@@ -585,6 +640,10 @@
         if (obj._cool.path == null || obj._cool.path == "")
         {
             throw obj.tagName + ": has empty 'js-bing' attribute.";
+        }
+        else
+        {
+            obj._cool.path = "window." + obj._cool.path;
         }
 
         var tnm = obj.tagName.toLowerCase();
@@ -702,7 +761,7 @@
                 {
                     obj._cool.getVal = function()
                     {
-                        return this.checked;
+                        return this.obj.checked;
                     };
                 }
                 else if (obj._cool.isRadio)
@@ -711,7 +770,7 @@
                     {
                         if (this.checked)
                         {
-                            return this.value;
+                            return this.obj.value;
                         }
 
                         return null;
@@ -721,14 +780,14 @@
                 {
                     obj._cool.getVal = function()
                     {
-                        return this.value;
+                        return this.obj.value;
                     };                    
                 }
                 else if (obj._cool.isNumber)
                 {
                     obj._cool.getVal = function()
                     {
-                        var tmp = this._cool.isFloat ? parseFloat(this.value) : parseInt(this.value);
+                        var tmp = this.isFloat ? parseFloat(this.obj.value) : parseInt(this.obj.value);
 
                         return tmp;
                     };                    
@@ -937,6 +996,11 @@
         {
             var itm = field.list[i];
             var last = i == field.list.length - 1;
+
+            if (cur == null)
+            {
+                throw "The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.";
+            }
 
             if (itm.isArray)
             {
@@ -1567,7 +1631,7 @@
 
         while (true)
         {
-            var opr = prog[pos];
+            var opr = prog[pos++];
 
             switch (opr.cmd)
             {
@@ -1853,6 +1917,16 @@ case "m": // selector-all[n]
 
                     break;
                 }
+            }
+
+            if (pos >= prog.length)
+            {
+                if (cur != null)
+                {
+                    ret.push(cur);
+                }
+
+                break;
             }
         }
 
@@ -2426,7 +2500,7 @@ case "m": // selector-all[n]
         var arr = [];
 
         // filter tags and init base function
-        for (i = 0; i < arr.length; ++i)
+        for (i = 0; i < tmp.length; ++i)
         {
             itm = tmp[i];
             name = itm.tagName.toLowerCase();
@@ -2442,15 +2516,15 @@ case "m": // selector-all[n]
                     ht[code] = itm;
                 }
             }
-            else if (itm.hasAttributes("js-bind"))
+            else if (itm.getAttribute("js-bind") != null)
             {
                 cool.atrBind(itm, false, false);
             }
-            else if (itm.hasAttributes("js-read"))
+            else if (itm.getAttribute("js-read") != null)
             {
                 cool.atrBind(itm, true, false);
             }
-            else if (itm.hasAttributes("js-write"))
+            else if (itm.getAttribute("js-write") != null)
             {
                 cool.atrBind(itm, false, true);
             }
@@ -2476,7 +2550,7 @@ case "m": // selector-all[n]
                         cur._cool.chields.push(itm.obj);
                     }
 
-                    itm._cool.parent = cur;
+                    itm.obj._cool.parent = cur;
 
                     break;
                 }
