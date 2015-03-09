@@ -612,7 +612,62 @@
     },
 
     // js-style
-    //t
+    tagStyle: function(obj)
+    {
+        var name = obj.getAttribute("name");
+        var value = obj.getAttribute("value");
+        var select = obj.getAttribute("select");
+
+        if (name == null || name == "")
+        {
+            throw "js-event: The 'name' attribute is empty";
+        }
+
+        if (value == null || value == "")
+        {
+            throw "js-event: The 'value' attribute is empty";
+        }
+
+        if (select == null || select == "")
+        {
+            select = "parent";
+        }
+
+        obj._cool.prog = cool.compileSelector(select);
+        obj._cool.obj = obj;
+        obj._cool.name = name;
+        obj._cool.value = value;
+        obj._cool.cancelValue = obj.getAttribute("cancel");
+        obj._cool.action = function()
+        {
+            var arr = cool.getBySelector(this.prog, this.obj);
+
+            for (var i = 0; i < arr.length; ++i)
+            {
+                var itm = arr[i];
+
+                itm.style[name] = this.value;
+            }
+
+            this.actionBase();
+        };
+        obj._cool.cancel = function()
+        {
+            if (this.cancelValue != null)
+            {
+                var arr = cool.getBySelector(this.prog, this.obj);
+
+                for (var i = 0; i < arr.length; ++i)
+                {
+                    var itm = arr[i];
+
+                    itm.style[name] = this.cancelValue;
+                }                
+            }
+            
+            this.cancelBase();
+        }
+    },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
