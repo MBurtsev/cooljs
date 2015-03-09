@@ -18,9 +18,7 @@
             "js-page": cool.tagPage,
             "js-ajax": cool.tagAjax,
             "js-set": cool.tagSet,
-            "js-event": cool.tagEvent,
-            "js-several": cool.tagSeveral,
-            "js-style,": cool.tagStyle
+            "js-event": cool.tagEvent
         };
 
         cool.initNavigator();
@@ -618,7 +616,7 @@
     {
         var name = obj.getAttribute("name");
         var value = obj.getAttribute("value");
-        obj._cool.select = obj.getAttribute("select");
+        var select = obj.getAttribute("select");
 
         if (name == null || name == "")
         {
@@ -630,44 +628,23 @@
             throw "js-event: The 'value' attribute is empty";
         }
 
-        if (obj._cool.select == null || obj._cool.select == "")
+        if (select == null || select == "")
         {
-            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
-            obj._cool.select = "parent";
+            select = "parent";
         }
 
-        if (obj._cool.isSeveral)
-        {
-            obj._cool.prog = obj.parentNode._cool.getProg();
-        }
-        else
-        {
-            obj._cool.prog = cool.compileSelector(obj._cool.select);
-        }
-
-        //obj._cool.prog = cool.compileSelector(obj._cool.select);
+        obj._cool.prog = cool.compileSelector(select);
         obj._cool.obj = obj;
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
-        obj._cool.isAlways = obj.getAttribute("always") != null; 
         obj._cool.action = function()
         {
-            if (this.arr == null || this.isAlways)
+            var arr = cool.getBySelector(this.prog, this.obj);
+
+            for (var i = 0; i < arr.length; ++i)
             {
-                if (this.isSeveral)
-                {
-                    this.arr = this.obj.parentNode._cool.getArr();
-                }
-                else
-                {
-                    this.arr = cool.getBySelector(this.prog, this.obj);
-                }
-            }
-            
-            for (var i = 0; i < this.arr.length; ++i)
-            {
-                var itm = this.arr[i];
+                var itm = arr[i];
 
                 itm.style[name] = this.value;
             }
@@ -678,74 +655,17 @@
         {
             if (this.cancelValue != null)
             {
-                if (this.arr == null || this.isAlways)
-                {
-                    if (this.isSeveral)
-                    {
-                        this.arr = this.obj.parentNode._cool.getArr();
-                    }
-                    else
-                    {
-                        this.arr = cool.getBySelector(this.prog, this.obj);
-                    }
-                }
+                var arr = cool.getBySelector(this.prog, this.obj);
 
-                for (var i = 0; i < this.arr.length; ++i)
+                for (var i = 0; i < arr.length; ++i)
                 {
-                    var itm = this.arr[i];
+                    var itm = arr[i];
 
                     itm.style[name] = this.cancelValue;
                 }                
             }
             
             this.cancelBase();
-        }
-    },
-
-    // js-several
-    tagSeveral: function(obj)
-    {
-        obj._cool.select = obj.getAttribute("select");
-
-        if (obj._cool.select == null || obj._cool.select == "")
-        {
-            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
-            obj._cool.select = "parent";
-        }
-
-        obj._cool.obj = obj;
-        obj._cool.isAlways = obj.getAttribute("always") != null; 
-        obj._cool.getProg = function()
-        {
-            if (this.prog == null || this.isAlways)
-            {
-                if (this.isSeveral)
-                {
-                    this.prog = this.obj.parentNode._cool.getProg();
-                }
-                else
-                {
-                    this.prog = cool.compileSelector(this.select);
-                }
-            }
-
-            return this.prog;
-        }
-        obj._cool.getArr = function()
-        {
-            if (this.arr == null || this.isAlways)
-            {
-                if (this.isSeveral)
-                {
-                    this.arr = this.obj.parentNode._cool.getArr();
-                }
-                else
-                {
-                    this.arr = cool.getBySelector(this.getProg(), this.obj);
-                }
-            }
-
-            return this.arr;
         }
     },
 
@@ -2623,7 +2543,7 @@ case "m": // selector-all[n]
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, [js-bind], [js-read], [js-write]");
+        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-event, [js-bind], [js-read], [js-write]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
