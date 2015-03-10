@@ -20,7 +20,8 @@
             "js-set": cool.tagSet,
             "js-event": cool.tagEvent,
             "js-several": cool.tagSeveral,
-            "js-style": cool.tagStyle
+            "js-attribute": cool.tagStyle,
+            "js-style": cool.tagAttribute
         };
 
         cool.initNavigator();
@@ -645,7 +646,6 @@
             obj._cool.prog = cool.compileSelector(obj._cool.select);
         }
 
-        //obj._cool.prog = cool.compileSelector(obj._cool.select);
         obj._cool.obj = obj;
         obj._cool.name = name;
         obj._cool.value = value;
@@ -695,6 +695,94 @@
                     var itm = this.arr[i];
 
                     itm.style[name] = this.cancelValue;
+                }                
+            }
+            
+            this.cancelBase();
+        }
+    },
+
+    // js-attribute
+    tagAttribute: function(obj)
+    {
+        var name = obj.getAttribute("name");
+        var value = obj.getAttribute("value");
+        obj._cool.select = obj.getAttribute("select");
+
+        if (name == null || name == "")
+        {
+            return cool.logErr("js-event: The 'name' attribute is empty");
+        }
+
+        if (value == null || value == "")
+        {
+            return cool.logErr("js-event: The 'value' attribute is empty");
+        }
+
+        if (obj._cool.select == null || obj._cool.select == "")
+        {
+            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
+            obj._cool.select = "parent";
+        }
+
+        if (obj._cool.isSeveral)
+        {
+            obj._cool.prog = obj.parentNode._cool.getProg();
+        }
+        else
+        {
+            obj._cool.prog = cool.compileSelector(obj._cool.select);
+        }
+
+        obj._cool.obj = obj;
+        obj._cool.name = name;
+        obj._cool.value = value;
+        obj._cool.cancelValue = obj.getAttribute("cancel");
+        obj._cool.isAlways = obj.getAttribute("always") != null; 
+        obj._cool.action = function()
+        {
+            if (this.arr == null || this.isAlways)
+            {
+                if (this.isSeveral)
+                {
+                    this.arr = this.obj.parentNode._cool.getArr();
+                }
+                else
+                {
+                    this.arr = cool.getBySelector(this.prog, this.obj);
+                }
+            }
+            
+            for (var i = 0; i < this.arr.length; ++i)
+            {
+                var itm = this.arr[i];
+
+                itm[name] = this.value;
+            }
+
+            this.actionBase();
+        };
+        obj._cool.cancel = function()
+        {
+            if (this.cancelValue != null)
+            {
+                if (this.arr == null || this.isAlways)
+                {
+                    if (this.isSeveral)
+                    {
+                        this.arr = this.obj.parentNode._cool.getArr();
+                    }
+                    else
+                    {
+                        this.arr = cool.getBySelector(this.prog, this.obj);
+                    }
+                }
+
+                for (var i = 0; i < this.arr.length; ++i)
+                {
+                    var itm = this.arr[i];
+
+                    itm[name] = this.cancelValue;
                 }                
             }
             
@@ -1766,9 +1854,8 @@
 
         while (true)
         {
-            var opr = prog[pos++];
-
             var isLast = pos == prog.length - 1;
+            var opr = prog[pos++];
 
             switch (opr.cmd)
             {
@@ -2001,6 +2088,8 @@ case "c": // continue
                         {
                             ret.push(cur.childNodes[i]);
                         }
+
+                        cur = null;
                     }
 
                     break;
