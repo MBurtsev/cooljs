@@ -20,8 +20,8 @@
             "js-set": cool.tagSet,
             "js-event": cool.tagEvent,
             "js-several": cool.tagSeveral,
-            "js-attribute": cool.tagStyle,
-            "js-style": cool.tagAttribute
+            "js-attribute": cool.tagAttribute,
+            "js-style": cool.tagStyle
         };
 
         cool.initNavigator();
@@ -167,26 +167,33 @@
         {
             obj._cool.target = cool.createField(target, true);
         }
+        
+        var desk = null;
+
+        for (var i = 0; i < obj.childNodes.length; ++i)
+        {
+            var itm = obj.childNodes[i];
+            var tnm = itm.tagName == null ? "" : itm.tagName.toLowerCase();
+
+            if (tnm == "js-ajax-stream")
+            {
+                obj._cool.metaIndex = i;
+
+                desk = itm;
+            }
+            else if (tnm == "js-ajax-params")
+            {
+                obj._cool.paramsIndex = i;
+            }
+
+            if (obj._cool.metaIndex != null && obj._cool.paramsIndex != null)
+            {
+                break;
+            }
+        }
 
         if (type == "stream")
         {
-            var desk = null;
-
-            for (var i = 0; i < obj.childNodes.length; ++i)
-            {
-                var itm = obj.childNodes[i];
-                var tnm = itm.tagName == null ? "" : itm.tagName.toLowerCase();
-
-                if (itm.tagName != null && itm.tagName.toLowerCase() == "js-ajax-stream")
-                {
-                    obj._cool.metaIndex = i;
-
-                    desk = itm;
-
-                    break;
-                }
-            }
-
             if (obj._cool.metaIndex == null)
             {
                 return cool.logErr("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
