@@ -18,7 +18,9 @@
             "js-page": cool.tagPage,
             "js-ajax": cool.tagAjax,
             "js-set": cool.tagSet,
-            "js-event": cool.tagEvent
+            "js-event": cool.tagEvent,
+            "js-several": cool.tagSeveral,
+            "js-style": cool.tagStyle
         };
 
         cool.initNavigator();
@@ -49,21 +51,21 @@
 
         if (name == null || name == "")
         {
-            throw "js-set: The 'name' attribute is empty";
+            return cool.logErr("js-set: The 'name' attribute is empty");
         }
 
         if (value == null || value == "")
         {
-            throw "js-set: The 'value' attribute is empty";
+            return cool.logErr("js-set: The 'value' attribute is empty");
         }
 
         if (type == null || type == "")
         {
-            throw "js-set: The 'type' attribute is empty";
+            return cool.logErr("js-set: The 'type' attribute is empty");
         }
         else if (type != "int" && type != "float" && type != "bool" && type != "string" && type != "object")
         {
-            throw "js-set: The 'type' attribute must be: int or float or bool or string or object";
+            return cool.logErr("js-set: The 'type' attribute must be: int or float or bool or string or object");
         }
 
         if (type == "int")
@@ -130,16 +132,16 @@
 
         if (src == null || src == "")
         {
-            throw "js-ajax: The src attribute is empty";
+            return cool.logErr("js-ajax: The src attribute is empty");
         }
 
         if (type == null || type == "")
         {
-            throw "js-ajax: The type attribute is empty";
+            return cool.logErr("js-ajax: The type attribute is empty");
         }
         else if (type != "text" && type != "json" && type != "stream" && type != "xml")
         {
-            throw "js-ajax: The type attribute must be text or json or stream or xml";
+            return cool.logErr("js-ajax: The type attribute must be text or json or stream or xml");
         }
 
         var method = obj.getAttribute("method");
@@ -186,7 +188,7 @@
 
             if (obj._cool.metaIndex == null)
             {
-                throw "js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.";
+                return cool.logErr("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
             }
             
             obj._cool.metaInline = desk.getAttribute("inline") != null;
@@ -262,7 +264,7 @@
                             }
                             else
                             {
-                                throw "js-ajax: The inline metadata is wrond.";
+                                return cool.logErr("js-ajax: The inline metadata is wrond.");
                             }
                         }
                         else
@@ -303,7 +305,7 @@
 
         if (hash == null || hash == "")
         {
-            throw "js-page: The src attribute is empty";
+            return cool.logErr("js-page: The src attribute is empty");
         }
 
         var def = obj.getAttribute("default");
@@ -363,7 +365,7 @@
 
         if (src == null || src == "")
         {
-            throw "js-load: The src attribute is empty";
+            return cool.logErr("js-load: The src attribute is empty");
         }
 
         if (type == null || type == "")
@@ -382,7 +384,7 @@
 
         if (type == "")
         {
-            throw "js-load: Wrong type";
+            return cool.logErr("js-load: Wrong type");
         }
 
         obj._cool.type = type;
@@ -451,7 +453,7 @@
 
         if (select == null || select == "")
         {
-            throw "The select attribute is empty";
+            return cool.logErr("The select attribute is empty");
         }
 
         // 
@@ -465,7 +467,7 @@
 
         if (con == null || con == "")
         {
-            throw "The conditional attribute is empty";
+            return cool.logErr("The conditional attribute is empty");
         }
 
         var arr = cool.parseCon(con);
@@ -563,7 +565,7 @@
 
         if (name == null || name == "")
         {
-            throw "js-event: The 'name' attribute is empty";
+            return cool.logErr("js-event: The 'name' attribute is empty");
         }
 
         if (select == null || select == "")
@@ -616,35 +618,56 @@
     {
         var name = obj.getAttribute("name");
         var value = obj.getAttribute("value");
-        var select = obj.getAttribute("select");
+        obj._cool.select = obj.getAttribute("select");
 
         if (name == null || name == "")
         {
-            throw "js-event: The 'name' attribute is empty";
+            return cool.logErr("js-event: The 'name' attribute is empty");
         }
 
         if (value == null || value == "")
         {
-            throw "js-event: The 'value' attribute is empty";
+            return cool.logErr("js-event: The 'value' attribute is empty");
         }
 
-        if (select == null || select == "")
+        if (obj._cool.select == null || obj._cool.select == "")
         {
-            select = "parent";
+            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
+            obj._cool.select = "parent";
         }
 
-        obj._cool.prog = cool.compileSelector(select);
+        if (obj._cool.isSeveral)
+        {
+            obj._cool.prog = obj.parentNode._cool.getProg();
+        }
+        else
+        {
+            obj._cool.prog = cool.compileSelector(obj._cool.select);
+        }
+
+        //obj._cool.prog = cool.compileSelector(obj._cool.select);
         obj._cool.obj = obj;
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
+        obj._cool.isAlways = obj.getAttribute("always") != null; 
         obj._cool.action = function()
         {
-            var arr = cool.getBySelector(this.prog, this.obj);
-
-            for (var i = 0; i < arr.length; ++i)
+            if (this.arr == null || this.isAlways)
             {
-                var itm = arr[i];
+                if (this.isSeveral)
+                {
+                    this.arr = this.obj.parentNode._cool.getArr();
+                }
+                else
+                {
+                    this.arr = cool.getBySelector(this.prog, this.obj);
+                }
+            }
+            
+            for (var i = 0; i < this.arr.length; ++i)
+            {
+                var itm = this.arr[i];
 
                 itm.style[name] = this.value;
             }
@@ -655,17 +678,74 @@
         {
             if (this.cancelValue != null)
             {
-                var arr = cool.getBySelector(this.prog, this.obj);
-
-                for (var i = 0; i < arr.length; ++i)
+                if (this.arr == null || this.isAlways)
                 {
-                    var itm = arr[i];
+                    if (this.isSeveral)
+                    {
+                        this.arr = this.obj.parentNode._cool.getArr();
+                    }
+                    else
+                    {
+                        this.arr = cool.getBySelector(this.prog, this.obj);
+                    }
+                }
+
+                for (var i = 0; i < this.arr.length; ++i)
+                {
+                    var itm = this.arr[i];
 
                     itm.style[name] = this.cancelValue;
                 }                
             }
             
             this.cancelBase();
+        }
+    },
+
+    // js-several
+    tagSeveral: function(obj)
+    {
+        obj._cool.select = obj.getAttribute("select");
+
+        if (obj._cool.select == null || obj._cool.select == "")
+        {
+            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
+            obj._cool.select = "parent";
+        }
+
+        obj._cool.obj = obj;
+        obj._cool.isAlways = obj.getAttribute("always") != null; 
+        obj._cool.getProg = function()
+        {
+            if (this.prog == null || this.isAlways)
+            {
+                if (this.isSeveral)
+                {
+                    this.prog = this.obj.parentNode._cool.getProg();
+                }
+                else
+                {
+                    this.prog = cool.compileSelector(this.select);
+                }
+            }
+
+            return this.prog;
+        }
+        obj._cool.getArr = function()
+        {
+            if (this.arr == null || this.isAlways)
+            {
+                if (this.isSeveral)
+                {
+                    this.arr = this.obj.parentNode._cool.getArr();
+                }
+                else
+                {
+                    this.arr = cool.getBySelector(this.getProg(), this.obj);
+                }
+            }
+
+            return this.arr;
         }
     },
 
@@ -694,7 +774,7 @@
 
         if (obj._cool.path == null || obj._cool.path == "")
         {
-            throw obj.tagName + ": has empty 'js-bing' attribute.";
+            return cool.logErr(obj.tagName + ": has empty 'js-bing' attribute.");
         }
         else
         {
@@ -738,7 +818,7 @@
             }
             else
             {
-                throw "The input type='" + type + "' not supported.";
+                return cool.logErr("The input type='" + type + "' not supported.");
             }
         }
         else if (obj._cool.isTextaria || obj._cool.isSelect)
@@ -747,7 +827,7 @@
         }
         else
         {
-            throw "The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.";
+            return cool.logErr("The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.");
         }
 
         // set observe
@@ -1008,7 +1088,7 @@
 
                 if (end == -1)
                 {
-                    throw ("Syntax error: closed brace ']' not found " + path);
+                    return cool.logErr("Syntax error: closed brace ']' not found " + path);
                 }
 
                 var str = itm.substr(ind, end - ind);
@@ -1054,7 +1134,7 @@
 
             if (cur == null)
             {
-                throw "The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.";
+                return cool.logErr("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
             }
 
             if (itm.isArray)
@@ -1076,7 +1156,7 @@
 
                     if (fval == null)
                     {
-                        // todo throw here? or maybe create observe ?
+                        // todo return cool.logErr(here? or maybe create observe ?
 
                         return;
 
@@ -1090,7 +1170,7 @@
 
                 if (ind >= cur[itm.name].length)
                 {
-                    // todo throw here? or maybe create observe ?
+                    // todo return cool.logErr(here? or maybe create observe ?
 
                     return;
                 }
@@ -1534,7 +1614,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;
@@ -1551,7 +1631,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;                    
@@ -1577,7 +1657,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;                    
@@ -1603,7 +1683,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;                    
@@ -1621,7 +1701,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;                    
@@ -1642,7 +1722,7 @@
 
                         if (ind == -1)
                         {
-                            throw "the ')' expected";
+                            return cool.logErr("the ')' expected");
                         }
 
                         ret.push(
@@ -1662,7 +1742,7 @@
                     }
                     else
                     {
-                        throw err + cmd;
+                        return cool.logErr(err + cmd);
                     }
 
                     break;                    
@@ -1687,6 +1767,8 @@
         while (true)
         {
             var opr = prog[pos++];
+
+            var isLast = pos == prog.length - 1;
 
             switch (opr.cmd)
             {
@@ -1912,6 +1994,14 @@ case "c": // continue
                         previousSibling: null,
                         childNodes: cur.querySelectorAll(opr.query)
                     };
+
+                    if (isLast)
+                    {
+                        for (i = 0; i < cur.childNodes.length; ++i)
+                        {
+                            ret.push(cur.childNodes[i]);
+                        }
+                    }
 
                     break;
                 }
@@ -2246,7 +2336,7 @@ case "m": // selector-all[n]
 
                 if (spliter == null || spliter == "")
                 {
-                    throw "js-ajax-stream: The 'spliter' attribute is empty";
+                    return cool.logErr("js-ajax-stream: The 'spliter' attribute is empty");
                 }
 
                 arr = [];
@@ -2271,12 +2361,12 @@ case "m": // selector-all[n]
 
                 if (name == null || name == "")
                 {
-                    throw "js-stream-var: The 'name' attribute is empty";
+                    return cool.logErr("js-stream-var: The 'name' attribute is empty");
                 }
 
                 if (type == null || type == "")
                 {
-                    throw "js-stream-var: The 'type' attribute is empty";
+                    return cool.logErr("js-stream-var: The 'type' attribute is empty");
                 }
 
                 if (type == "object")
@@ -2320,17 +2410,17 @@ case "m": // selector-all[n]
 
                 if (name == null || name == "")
                 {
-                    throw tagName + ": The 'name' attribute is empty";
+                    return cool.logErr(tagName + ": The 'name' attribute is empty");
                 }
 
                 if (type == null || type == "")
                 {
-                    throw tagName + ": The 'type' attribute is empty";
+                    return cool.logErr(tagName + ": The 'type' attribute is empty");
                 }
 
                 if (obj.childNodes.length > 0 && type != "object")
                 {
-                    throw tagName + ": The 'type' must be 'object' than chields more one.";
+                    return cool.logErr(tagName + ": The 'type' must be 'object' than chields more one.");
                 }
 
                 if (tagName == "js-stream-for")
@@ -2345,7 +2435,7 @@ case "m": // selector-all[n]
 
                     if (sign == null || sign == "")
                     {
-                        throw tagName + ": The 'sign' attribute is empty";
+                        return cool.logErr(tagName + ": The 'sign' attribute is empty");
                     }
 
                     name += ":" + sign;
@@ -2388,12 +2478,12 @@ case "m": // selector-all[n]
 
                 if (name == null || name == "")
                 {
-                    throw tagName + ": The 'name' attribute is empty";
+                    return cool.logErr(tagName + ": The 'name' attribute is empty");
                 }
 
                 if (value == null || value == "")
                 {
-                    throw tagName + ": The 'value' attribute is empty";
+                    return cool.logErr(tagName + ": The 'value' attribute is empty");
                 }
 
                 arr.push("i");
@@ -2543,7 +2633,7 @@ case "m": // selector-all[n]
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-event, [js-bind], [js-read], [js-write]");
+        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, [js-bind], [js-read], [js-write]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -2625,6 +2715,14 @@ case "m": // selector-all[n]
         delete ht;
         delete arr;
         delete tmp;
+    },
+
+    // log exception
+    logErr : function(mess)
+    {
+        console.log(mess);
+
+        return null;
     },
 
     //
