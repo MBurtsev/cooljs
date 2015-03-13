@@ -510,11 +510,187 @@
 
         if (select == null || select == "")
         {
-            return cool.logErr("The select attribute is empty");
+            return cool.logErr("js-query: The 'select' attribute is empty");
         }
 
-        // 
+        // compile query
+        var arr = select.split(' ');
+        var prog = {};
 
+        for (var i = 0; i < arr.length; ++i)
+        {
+            var end;
+            var tmp;
+            var j = 0;
+
+            switch (arr[i])
+            {
+                case "From":
+                {
+                    if (prog.from != null)
+                    {
+                        return cool.logErr("js-query: Operator 'From' must defined only once.");
+                    }
+
+                    if (i != 1)
+                    {
+                        return cool.logErr("js-query: Operator 'From' must be first.");
+                    }
+
+                    prog.from =
+                    {
+                        path: arr[i + 1]
+                    };
+
+                    var ind = arr[0].indexOf(".");
+
+                    if (ind == -1)
+                    {
+                        prog.root = arr[0];
+                        prog.from.v = arr[0];
+                    }
+                    else
+                    {
+                        prog.root = arr[0].substr(0, ind);
+                        prog.from.v = arr[0].substr(ind + 1);
+                    }
+
+                    i++;
+                    
+                    break;
+                }
+                case "Join-full":
+                case "Join-right":
+                case "Join-left":
+                case "Join":
+                {
+                    if (prog.where != null || prog.order != null || prog.group != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Join' must defined after 'From'.");
+                    }
+
+                    if (prog.join == null)
+                    {
+                        prog.join = [];
+                    }
+
+                    var join =
+                    {
+                        type : arr[i++],
+                        v: arr[i++]
+                    }
+
+                    if (arr[i] != "On")
+                    {
+                        return cool.logErr("js-query: Operator 'Join' has format <... Join variable_name On conditionals ...>.");
+                    }
+
+                    end = cool.findNextOperator(i + 1, arr);
+                    tmp = [];
+                    
+                    for (j = i; j < end; ++j)
+                    {
+                        tmp.push(arr[j]);
+                    }
+
+                    join.conditional = tmp.join(' ');
+
+                    prog.join.push(join);
+
+                    break;
+                }
+                case "Where":
+                {
+                    if (prog.where != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Where' must defined only once.");
+                    }
+
+                    if (prog.order != null || prog.group != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
+                    }
+
+                    prog.where = {};
+
+                    end = cool.findNextOperator(i + 1, arr);
+                    tmp = [];
+                    
+                    for (j = i; j < end; ++j)
+                    {
+                        tmp.push(arr[j]);
+                    }
+
+                    prog.where.conditional = tmp.join(' ');
+
+                    break;
+                }
+                case "Order":
+                {
+                    if (prog.order != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Order' must defined only once.");
+                    }
+
+                    if (prog.group != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Order' must defined before 'Group'");
+                    }
+
+                    prog.order = [];
+
+                    end = cool.findNextOperator(i + 1, arr);
+                    tmp = [];
+                    
+                    for (j = i; j < end; ++j)
+                    {
+                        tmp.push(arr[j]);
+                    }
+
+                    tmp = tmp.join(' ').split(',');
+
+                    for (j = i; j < end; ++j)
+                    {
+                        prog.order.push(arr[j]);
+                    }
+
+                    break;
+                }
+                case "Group":
+                {
+                    if (prog.group != null)
+                    {
+                        return cool.logErr("js-query: Operator 'Group' must defined only once.");
+                    }
+
+                    prog.group = [];
+
+                    end = cool.findNextOperator(i + 1, arr);
+                    tmp = [];
+                    
+                    for (j = i; j < end; ++j)
+                    {
+                        tmp.push(arr[j]);
+                    }
+
+                    tmp = tmp.join(' ').split(',');
+
+                    for (j = i; j < end; ++j)
+                    {
+                        prog.group.push(arr[j]);
+                    }
+
+                    break;
+                }
+            }
+        }
+        
+        // build template
+
+
+
+
+        obj._cool.prog = prog;
     },
 
     // js-if
@@ -2774,6 +2950,20 @@ case "m": // selector-all[n]
     
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
+
+    // finding next query operator. Used on select query compile.
+    findNextOperator: function(pos, arr)
+    {
+        for (var i = pos; i < arr.length; ++i)
+        {
+            if (arr[i] == "Join" || arr[i] == "Join-left" || arr[i] == "Join-right" || arr[i] == "Join-full" || arr[i] == "Where" || arr[i] == "Order" || arr[i] == "Group")
+            {
+                return i;
+            }
+        }
+
+        return arr.length;
+    },
 
     // init dom tree
     processElement : function(elm)
