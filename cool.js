@@ -192,6 +192,31 @@
             }
         }
 
+        if (obj._cool.paramsIndex != null)
+        {
+            obj._cool.params = [];
+
+            var pars = obj.childNodes[obj._cool.paramsIndex];
+
+            for (var j = 0; j < pars.childNodes.length; ++j)
+            {
+                var par = pars.childNodes[j];
+
+                if (par.tagName != null && par.tagName.toLowerCase() == "js-ajax-param")
+                {
+                    var par_name = par.getAttribute("name");
+                    var par_value = par.getAttribute("value");
+
+                    if (par_name == null || par_value == null || par_name == "" || par_value == "")
+                    {
+                        cool.logErr("Ajax param have empty 'name/value' attribute.");
+                    }
+
+                    obj._cool.params.push({ name: par_name, value: cool.createField(par_value, false) });
+                }
+            }
+        }
+
         if (type == "stream")
         {
             if (obj._cool.metaIndex == null)
@@ -226,11 +251,35 @@
         obj._cool.count      = 0;
         obj._cool.action = function()
         {
-            var bp = 0;
-
             if (this.once && this.count == 0 || !this.once)
             {
-                var ajax = cool.ajax(this.method, this.src, this.data, this, function(xhr, tag)
+                var src_tmp = this.src;
+
+                if (this.params != null)
+                {
+                    if (src_tmp.indexOf("?") != -1)
+                    {
+                        src_tmp += "&";
+                    }
+                    else
+                    {
+                        src_tmp += "?";
+                    }
+
+                    for (var n = 0; n < this.params.length; ++n)
+                    {
+                        var par = this.params[n];
+
+                        src_tmp += par.name + "=" + cool.getField(par.value);
+
+                        if (n < this.params.length - 1)
+                        {
+                            src_tmp += "&";
+                        }
+                    }
+                }
+                
+                var ajax = cool.ajax(this.method, src_tmp, this.data, this, function(xhr, tag)
                 {
                     var dt = {};
 
