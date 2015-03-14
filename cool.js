@@ -2,13 +2,13 @@
 {
     lastHash: 1,
     numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
-    body : document.getElementsByTagName('BODY')[0],
-    hashList : {},
-    defaultHash : "",
-    lastUrlHash : "",
+    body: document.getElementsByTagName('BODY')[0],
+    hashList: {},
+    defaultHash: "",
+    lastUrlHash: "",
 
     // entry point
-    init : function()
+    init: function()
     {
         cool.jsF =
         {
@@ -38,12 +38,12 @@
             cool.go(cool.defaultHash);
         }
     },
-    
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Tags processing
 
     // js-set
-    tagSet : function(obj)
+    tagSet: function(obj)
     {
         var name = obj.getAttribute("name");
         var type = obj.getAttribute("type");
@@ -111,7 +111,7 @@
         obj._cool.action = function()
         {
             cool.applyField(this.field, this.value);
-            
+
             this.actionBase();
         }
         obj._cool.cancel = function()
@@ -120,13 +120,13 @@
             {
                 cool.applyField(this.field, this.cancelValue);
             }
-            
+
             this.cancelBase();
         }
     },
 
     // js-ajax
-    tagAjax : function(obj)
+    tagAjax: function(obj)
     {
         var src = obj.getAttribute("src");
         var type = obj.getAttribute("type");
@@ -167,7 +167,7 @@
         {
             obj._cool.target = cool.createField(target, true);
         }
-        
+
         var desk = null;
 
         for (var i = 0; i < obj.childNodes.length; ++i)
@@ -223,7 +223,7 @@
             {
                 return cool.logErr("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
             }
-            
+
             obj._cool.metaInline = desk.getAttribute("inline") != null;
 
             if (!obj._cool.metaInline)
@@ -237,18 +237,18 @@
             }
         }
 
-        obj._cool.obj        = obj;
-        obj._cool.src        = src;
-        obj._cool.type       = type;
-        obj._cool.display    = obj.style.display;
-        obj._cool.data       = data;
-        obj._cool.method     = method;
-        obj._cool.mock       = mock;
-        obj._cool.request    = request;
-        obj._cool.response   = response;
-        obj._cool.once       = once;
-        obj._cool.nocache    = nocache;
-        obj._cool.count      = 0;
+        obj._cool.obj = obj;
+        obj._cool.src = src;
+        obj._cool.type = type;
+        obj._cool.display = obj.style.display;
+        obj._cool.data = data;
+        obj._cool.method = method;
+        obj._cool.mock = mock;
+        obj._cool.request = request;
+        obj._cool.response = response;
+        obj._cool.once = once;
+        obj._cool.nocache = nocache;
+        obj._cool.count = 0;
         obj._cool.action = function()
         {
             if (this.once && this.count == 0 || !this.once)
@@ -278,7 +278,7 @@
                         }
                     }
                 }
-                
+
                 var ajax = cool.ajax(this.method, src_tmp, this.data, this, function(xhr, tag)
                 {
                     var dt = {};
@@ -356,7 +356,7 @@
     },
 
     // js-page
-    tagPage : function(obj)
+    tagPage: function(obj)
     {
         var hash = obj.getAttribute("hash");
 
@@ -516,13 +516,12 @@
         // compile query
         var arr = select.split(' ');
         var prog = {};
+        var tmp;
+        var end;
+        var j = 0;
 
         for (var i = 0; i < arr.length; ++i)
         {
-            var end;
-            var tmp;
-            var j = 0;
-
             switch (arr[i])
             {
                 case "From":
@@ -556,7 +555,7 @@
                     }
 
                     i++;
-                    
+
                     break;
                 }
                 case "Join-full":
@@ -576,7 +575,7 @@
 
                     var join =
                     {
-                        type : arr[i++],
+                        type: arr[i++],
                         v: arr[i++]
                     }
 
@@ -587,7 +586,7 @@
 
                     end = cool.findNextOperator(i + 1, arr);
                     tmp = [];
-                    
+
                     for (j = i; j < end; ++j)
                     {
                         tmp.push(arr[j]);
@@ -615,7 +614,7 @@
 
                     end = cool.findNextOperator(i + 1, arr);
                     tmp = [];
-                    
+
                     for (j = i; j < end; ++j)
                     {
                         tmp.push(arr[j]);
@@ -641,7 +640,7 @@
 
                     end = cool.findNextOperator(i + 1, arr);
                     tmp = [];
-                    
+
                     for (j = i; j < end; ++j)
                     {
                         tmp.push(arr[j]);
@@ -667,7 +666,7 @@
 
                     end = cool.findNextOperator(i + 1, arr);
                     tmp = [];
-                    
+
                     for (j = i; j < end; ++j)
                     {
                         tmp.push(arr[j]);
@@ -684,17 +683,101 @@
                 }
             }
         }
-        
+
         // build template
+        var fragments = [];
+        var values = [];
+        tmp = obj.innerHTML;
 
+        obj._cool.func = cool.getRandomString();
 
+        var func = "<script>function " + obj._cool.func + "(prog, data){var str = '';";
 
+        func += "";
 
+        for (var n = 0; n < tmp.length; ++n)
+        {
+            var sv = tmp.indexOf("{{", n);
+            var si = tmp.indexOf("#if", n);
+            var ev = 0;
+            var ei = 0;
+            var cmd = 0;
+
+            if (sv != -1 && si != -1)
+            {
+                if (sv < si)
+                {
+                    cmd = 1;
+                }
+                else
+                {
+                    cmd = 2;
+                }
+            }
+            else if (sv != -1)
+            {
+                cmd = 1;
+            }
+            else if (si != -1)
+            {
+                cmd = 2;
+            }
+            else
+            {
+                break;
+            }
+
+            if (cmd == 1)
+            {
+            }
+            else
+            {
+            }
+
+            var ied = 0;
+
+            if (ist == -1)
+            {
+                ist = tmp.indexOf("#if", n);
+
+                if (ist == -1)
+                {
+                    break;
+                }
+
+                ied = tmp.indexOf("#end", ist);
+
+                if (ied == -1)
+                {
+                    return cool.logErr("js-query: No closed #if.");
+                }
+            }
+        }
+
+        func += "return str; }</script>";
+
+        // actions
+        obj._cool.isAlways = obj.getAttribute("alwaysData") != null;
+        obj._cool.display = obj.style.display;
         obj._cool.prog = prog;
+        obj._cool.action = function()
+        {
+            if (this.data == null || this.isAlways)
+            {
+            }
+
+            this.obj.style.display = this.display;
+            this.actionBase();
+        }
+        obj._cool.cancel = function()
+        {
+            this.obj.style.display = "none";
+            this.cancelBase();
+        }
     },
 
     // js-if
-    tagIf: function (obj)
+    tagIf: function(obj)
     {
         var con = obj.getAttribute("conditional");
 
@@ -824,6 +907,7 @@
                 }
             }
         };
+
         obj._cool.eventActive = false;
         obj._cool.onactive = onactive;
         obj._cool.action = function()
@@ -882,7 +966,7 @@
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
-        obj._cool.isAlways = obj.getAttribute("always") != null; 
+        obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function()
         {
             if (this.arr == null || this.isAlways)
@@ -896,7 +980,7 @@
                     this.arr = cool.getBySelector(this.prog, this.obj);
                 }
             }
-            
+
             for (var i = 0; i < this.arr.length; ++i)
             {
                 var itm = this.arr[i];
@@ -927,9 +1011,9 @@
                     var itm = this.arr[i];
 
                     itm.style[name] = this.cancelValue;
-                }                
+                }
             }
-            
+
             this.cancelBase();
         }
     },
@@ -970,7 +1054,7 @@
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
-        obj._cool.isAlways = obj.getAttribute("always") != null; 
+        obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function()
         {
             if (this.arr == null || this.isAlways)
@@ -984,7 +1068,7 @@
                     this.arr = cool.getBySelector(this.prog, this.obj);
                 }
             }
-            
+
             for (var i = 0; i < this.arr.length; ++i)
             {
                 var itm = this.arr[i];
@@ -1015,9 +1099,9 @@
                     var itm = this.arr[i];
 
                     itm[name] = this.cancelValue;
-                }                
+                }
             }
-            
+
             this.cancelBase();
         }
     },
@@ -1034,7 +1118,7 @@
         }
 
         obj._cool.obj = obj;
-        obj._cool.isAlways = obj.getAttribute("always") != null; 
+        obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.getProg = function()
         {
             if (this.prog == null || this.isAlways)
@@ -1073,7 +1157,7 @@
     // Attributes
 
     // js-bind, js-read, js-write
-    atrBind : function(obj, isReadOnly, isWriteOnly)
+    atrBind: function(obj, isReadOnly, isWriteOnly)
     {
         obj.cooljs();
 
@@ -1132,7 +1216,7 @@
             {
                 obj._cool.isRadio = true;
             }
-            else if ( type == "range" || type == "number")
+            else if (type == "range" || type == "number")
             {
                 obj._cool.isNumber = true;
             }
@@ -1172,7 +1256,7 @@
                         {
                             this.obj.checked = true;
                         }
-                    };                    
+                    };
                 }
                 else if (obj._cool.isNumber || obj._cool.isText)
                 {
@@ -1181,7 +1265,7 @@
                         var tmp = cool.getField(this.field);
 
                         this.obj.value = tmp;
-                    }; 
+                    };
                 }
             }
             else
@@ -1191,7 +1275,7 @@
                     var tmp = cool.getField(this.field);
 
                     this.obj.value = tmp;
-                }; 
+                };
             }
 
             obj._cool.refresh = function(elm, path)
@@ -1229,14 +1313,14 @@
                         }
 
                         return null;
-                    };                    
+                    };
                 }
                 else if (obj._cool.isText)
                 {
                     obj._cool.getVal = function()
                     {
                         return this.obj.value;
-                    };                    
+                    };
                 }
                 else if (obj._cool.isNumber)
                 {
@@ -1245,11 +1329,11 @@
                         var tmp = this.isFloat ? parseFloat(this.obj.value) : parseInt(this.obj.value);
 
                         return tmp;
-                    };                    
+                    };
                 }
             }
 
-            obj.addEventListener("change", function ()
+            obj.addEventListener("change", function()
             {
                 if (!this._cool.lock1)
                 {
@@ -1273,7 +1357,7 @@
     // Navigator
 
     // for change page
-    go : function(src)
+    go: function(src)
     {
         if (window.location.hash != src)
         {
@@ -1282,17 +1366,17 @@
     },
 
     // init navigator enveroupment
-    initNavigator : function()
+    initNavigator: function()
     {
         window.addEventListener("hashchange", function()
-        {
-            cool.setPage();
-        }, 
-        false);  
+            {
+                cool.setPage();
+            },
+            false);
     },
 
     // activate page
-    setPage : function()
+    setPage: function()
     {
         var i = 0;
         var itm = null;
@@ -1320,21 +1404,21 @@
 
                 itm._cool.actionNav();
             }
-        }        
+        }
     },
-    
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Ajax
 
     // Ajax request helper todo make headers    XMLHttpRequest.setRequestHeader(name, value)
-    ajax : function (method, url, data, tag, callback)
+    ajax: function(method, url, data, tag, callback)
     {
         var obj = new XMLHttpRequest();
 
         //obj.responseType = "text";
         obj.open(method, url, true);
         obj.setRequestHeader('Content-Type', 'text/plain');
-        obj.onreadystatechange = function ()
+        obj.onreadystatechange = function()
         {
             if (obj.readyState == 4)
             {
@@ -1346,18 +1430,18 @@
         {
             obj.send(this._cool.data);
         }
-        
+
         return obj;
     },
 
     // ajax short for get
-    ajaxGet : function(url, tag, callback)
+    ajaxGet: function(url, tag, callback)
     {
         return cool.ajax("GET", url, null, tag, callback);
     },
 
     // ajax short for post
-    ajaxPost: function (url, data, tag, callback)
+    ajaxPost: function(url, data, tag, callback)
     {
         return cool.ajax("POST", url, data, tag, callback);
     },
@@ -1369,7 +1453,7 @@
     obHt: {},
 
     // create field from field path
-    createField : function(path, isObject)
+    createField: function(path, isObject)
     {
         if (path == "")
         {
@@ -1384,8 +1468,8 @@
 
         var field =
         {
-            path: path, 
-            list : []
+            path: path,
+            list: []
         };
 
         for (var i = 0; i < arr.length; ++i)
@@ -1397,9 +1481,9 @@
             {
                 field.list.push(
                 {
-                    isArray : false,
+                    isArray: false,
                     name: itm,
-                    isObject : isObject
+                    isObject: isObject
                 });
             }
             else
@@ -1419,10 +1503,10 @@
                     field.list.push(
                     {
                         isArray: true,
-                        isIndexInt : true,
+                        isIndexInt: true,
                         name: itm.substr(0, ind),
-                        index : num,
-                        isObject : false
+                        index: num,
+                        isObject: false
                     });
                 }
                 else
@@ -1430,8 +1514,8 @@
                     field.list.push(
                     {
                         isArray: true,
-                        isIndexInt : false,
-                        isObject : false,
+                        isIndexInt: false,
+                        isObject: false,
                         name: itm.substr(0, ind),
                         index: cool.createField(str, false)
                     });
@@ -1443,7 +1527,7 @@
     },
 
     // set field value
-    setField : function(field, val)
+    setField: function(field, val)
     {
         var cur = window;
 
@@ -1465,7 +1549,7 @@
                 }
 
                 var ind = 0;
-                
+
                 if (itm.isIndexInt)
                 {
                     ind = itm.index;
@@ -1533,7 +1617,7 @@
     },
 
     // read field value 
-    getField : function(field)
+    getField: function(field)
     {
         var cur = window;
 
@@ -1581,7 +1665,7 @@
     },
 
     // get or create parent object from field
-    gocField : function(field, isObject)
+    gocField: function(field, isObject)
     {
         var cur = window;
 
@@ -1643,7 +1727,7 @@
     },
 
     // apply all obj fields to target fields, and signal of change.
-    applyField : function(field, obj)
+    applyField: function(field, obj)
     {
         var tar = cool.gocField(field);
 
@@ -1652,7 +1736,7 @@
     },
 
     // only apply
-    applyFieldEx : function(src, dst)
+    applyFieldEx: function(src, dst)
     {
         for (var p in src)
         {
@@ -1676,7 +1760,7 @@
     },
 
     // signal of change each object field
-    signalFieldChange : function(path, obj)
+    signalFieldChange: function(path, obj)
     {
         for (var p in obj)
         {
@@ -1695,7 +1779,7 @@
     },
 
     // call than property changed
-    changed : function(path)
+    changed: function(path)
     {
         if (cool.obHt[path] != null)
         {
@@ -1711,7 +1795,7 @@
     },
 
     // add field to observe
-    addToObserve : function(path, obj)
+    addToObserve: function(path, obj)
     {
         var p = "window." + path;
 
@@ -1722,16 +1806,17 @@
 
         cool.obHt[p].list.push(obj);
     },
-    
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Selector query
 
     // get elements by selector
-    compileSelector : function(query)
+    compileSelector: function(query)
     {
         var arr = query.split(".");
         var ret = [];
-        var s, e = 0;
+        var s,
+            e = 0;
         var err = "Unknown operation: ";
 
         for (var i = 0; i < arr.length; ++i)
@@ -1749,7 +1834,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "0"
+                        cmd: "0"
                     });
 
                     continue;
@@ -1758,7 +1843,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "2"
+                        cmd: "2"
                     });
 
                     continue;
@@ -1767,7 +1852,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "4"
+                        cmd: "4"
                     });
 
                     continue;
@@ -1776,7 +1861,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "5"
+                        cmd: "5"
                     });
 
                     continue;
@@ -1785,7 +1870,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "8"
+                        cmd: "8"
                     });
 
                     continue;
@@ -1794,7 +1879,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "9"
+                        cmd: "9"
                     });
 
                     continue;
@@ -1803,7 +1888,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "a"
+                        cmd: "a"
                     });
 
                     continue;
@@ -1812,7 +1897,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "b"
+                        cmd: "b"
                     });
 
                     continue;
@@ -1821,7 +1906,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "c"
+                        cmd: "c"
                     });
 
                     continue;
@@ -1830,7 +1915,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "d"
+                        cmd: "d"
                     });
 
                     continue;
@@ -1839,7 +1924,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "e"
+                        cmd: "e"
                     });
 
                     continue;
@@ -1848,7 +1933,7 @@
                 {
                     ret.push(
                     {
-                        cmd : "h"
+                        cmd: "h"
                     });
 
                     continue;
@@ -1857,7 +1942,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1866,7 +1951,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1875,7 +1960,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1884,7 +1969,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1893,7 +1978,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1902,7 +1987,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1911,7 +1996,7 @@
                 {
                     ret.push(
                     {
-                        cmd : ""
+                        cmd: ""
                     });
 
                     continue;
@@ -1928,9 +2013,9 @@
                     {
                         ret.push(
                         {
-                            cmd : "1",
-                            index : parseInt(cmd.substr(7, cmd.length - 8))
-                        });                        
+                            cmd: "1",
+                            index: parseInt(cmd.substr(7, cmd.length - 8))
+                        });
                     }
                     else
                     {
@@ -1945,16 +2030,16 @@
                     {
                         ret.push(
                         {
-                            cmd : "3",
-                            index : parseInt(cmd.substr(7, cmd.length - 8))
-                        });                        
+                            cmd: "3",
+                            index: parseInt(cmd.substr(7, cmd.length - 8))
+                        });
                     }
                     else
                     {
                         return cool.logErr(err + cmd);
                     }
 
-                    break;                    
+                    break;
 
                 }
                 case "b":
@@ -1963,24 +2048,24 @@
                     {
                         ret.push(
                         {
-                            cmd : "6",
-                            index : parseInt(cmd.substr(5, cmd.length - 6))
-                        });                        
+                            cmd: "6",
+                            index: parseInt(cmd.substr(5, cmd.length - 6))
+                        });
                     }
                     else if (cmd.length > 11 && cmd.substr(0, 9) == "back-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
-                            cmd : "7",
-                            index : parseInt(cmd.substr(10, cmd.length - 11))
-                        });                        
+                            cmd: "7",
+                            index: parseInt(cmd.substr(10, cmd.length - 11))
+                        });
                     }
                     else
                     {
                         return cool.logErr(err + cmd);
                     }
 
-                    break;                    
+                    break;
 
                 }
                 case "n":
@@ -1989,24 +2074,24 @@
                     {
                         ret.push(
                         {
-                            cmd : "f",
-                            index : parseInt(cmd.substr(5, cmd.length - 6))
-                        });                        
+                            cmd: "f",
+                            index: parseInt(cmd.substr(5, cmd.length - 6))
+                        });
                     }
                     else if (cmd.length > 11 && cmd.substr(0, 9) == "next-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
-                            cmd : "g",
-                            index : parseInt(cmd.substr(10, cmd.length - 11))
-                        });                        
+                            cmd: "g",
+                            index: parseInt(cmd.substr(10, cmd.length - 11))
+                        });
                     }
                     else
                     {
                         return cool.logErr(err + cmd);
                     }
 
-                    break;                    
+                    break;
 
                 }
                 case "l":
@@ -2015,16 +2100,16 @@
                     {
                         ret.push(
                         {
-                            cmd : "i",
-                            index : parseInt(cmd.substr(5, cmd.length - 6))
-                        });                        
+                            cmd: "i",
+                            index: parseInt(cmd.substr(5, cmd.length - 6))
+                        });
                     }
                     else
                     {
                         return cool.logErr(err + cmd);
                     }
 
-                    break;                    
+                    break;
                 }
                 case "s":
                 {
@@ -2032,9 +2117,9 @@
                     {
                         ret.push(
                         {
-                            cmd : "j",
-                            query : cmd.substr(9, cmd.length - 10)
-                        });                        
+                            cmd: "j",
+                            query: cmd.substr(9, cmd.length - 10)
+                        });
                     }
                     else if (cmd.length > 17 && cmd.substr(0, 13) == "selector-all(" && cmd[cmd.length - 1] == "]")
                     {
@@ -2049,34 +2134,33 @@
                         {
                             cmd: "l",
                             query: cmd.substr(13, ind - 13),
-                            index : parseInt(cmd.substr(ind + 1, cmd.length - ind - 1))
-                        });                        
+                            index: parseInt(cmd.substr(ind + 1, cmd.length - ind - 1))
+                        });
                     }
                     else if (cmd.length > 14 && cmd.substr(0, 13) == "selector-all(" && cmd[cmd.length - 1] == ")")
                     {
                         ret.push(
                         {
-                            cmd : "k",
-                            query : cmd.substr(13, cmd.length - 14)
-                        });                        
+                            cmd: "k",
+                            query: cmd.substr(13, cmd.length - 14)
+                        });
                     }
                     else
                     {
                         return cool.logErr(err + cmd);
                     }
 
-                    break;                    
+                    break;
 
                 }
             }
-            
         }
 
         return ret;
     },
 
     // get elements by selector
-    getBySelector : function(prog, elm)
+    getBySelector: function(prog, elm)
     {
         var ret = [];
         var cur = elm;
@@ -2177,17 +2261,17 @@
 
                     break;
                 }
-                case "8" : // body
+                case "8": // body
                 {
                     cur = document.body;
 
                     break;
                 }
-case "9": // break
-{
+                case "9": // break
+                {
 
-    break;
-}
+                    break;
+                }
                 case "a": // document
                 {
                     cur = document;
@@ -2200,11 +2284,11 @@ case "9": // break
 
                     break;
                 }
-case "c": // continue
-{
+                case "c": // continue
+                {
 
-    break;
-}
+                    break;
+                }
                 case "d": // next
                 {
                     if (cur.nextSibling != null)
@@ -2334,14 +2418,14 @@ case "c": // continue
                     {
                         cur = tmp[opr.index];
                     }
-                    
+
                     break;
                 }
-case "m": // selector-all[n]
-{
+                case "m": // selector-all[n]
+                {
 
-    break;
-}
+                    break;
+                }
                 case "if":
                 {
 
@@ -2398,10 +2482,10 @@ case "m": // selector-all[n]
 
         return ret;
     },
-    
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Stream data protocol
-    metaStream :
+    metaStream:
     {
         // data parsing
         parse: function(metaStr, data, root)
@@ -2947,9 +3031,322 @@ case "m": // selector-all[n]
             }
         }
     },
-    
+
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Tree
+
+    // creating AVL tree
+    createTree: function(comparer, isUniqure)
+    {
+        var tree = { root : null, isUniqure : isUniqure};
+
+        tree.add = function(obj)
+        {
+            if (this.root == null)
+            {
+                this.root = cool.createNode(obj, null, null);
+
+                return;
+            }
+
+            var stack = [];
+            var left = [];
+            var cur = root;
+
+            // adding
+            while (true)
+            {
+                stack.push(cur);
+
+                var cmp = comparer.compare(obj, cur);
+
+                // left
+                if (cmp < 0)
+                {
+                    if (cur.left == null)
+                    {
+                        cur.left = cool.createNode(obj, null, null);
+
+                        break;
+                    }
+                    else
+                    {
+                        left.push(true);
+
+                        cur = cur.left;
+                    }
+                }
+                // right
+                else if (cmp > 0)
+                {
+                    if (cur.right == null)
+                    {
+                        cur.right = cool.createNode(obj, null, null);
+
+                        break;
+                    }
+                    else
+                    {
+                        left.push(false);
+
+                        cur = cur.right;
+                    }
+                }
+                // exist
+                else
+                {
+                    if (this.isUniqure)
+                    {
+                        while (cur.next != null)
+                        {
+                            cur = cur.next;
+                        }
+
+                        cur.next = obj;
+                    }
+
+                    return;
+                }
+            }
+
+            //balance
+            for (var i = stack.length - 1; i >= 0; ++i)
+            {
+                var node = stack[i];
+
+                if (left[i])
+                {
+                    node.balance--;
+                }
+                else
+                {
+                    node.balance++;
+                }
+
+                if (node.balance > 1)
+                {
+                    var rl = node.right.left;
+
+                    if (node.right.balance < 0)
+                    {
+                        var rll = node.right.left.left;
+                        var rlr = node.right.left.right;
+
+                        if (this.root == node)
+                        {
+                            this.root = rl;
+                        }
+                        else
+                        {
+                            if (left[i])
+                            {
+                                stack[i - 1].left = rl;
+                            }
+                            else
+                            {
+                                stack[i - 1].right = rl;
+                            }
+                        }
+
+                        if (rl.balance == 1)
+                        {
+                            node.balance = -1;
+                            node.right.balance = 0;
+                        }
+                        else
+                        {
+                            node.balance = 0;
+                            node.right.balance = 1;
+                        }
+
+                        rl.balance = 0;
+                        rl.left = node;
+                        rl.right = node.right;
+                        node.right.left = rlr;
+                        node.right = rll;
+                    }
+                    else
+                    {
+                        if (this.root == node)
+                        {
+                            this.root = node.right;
+                        }
+                        else
+                        {
+                            if (left[i])
+                            {
+                                stack[i - 1].left = node.right;
+                            }
+                            else
+                            {
+                                stack[i - 1].right = node.right;
+                            }
+                        }
+
+                        node.balance = 0;
+                        node.right.balance = 0;
+
+                        node.right.left = node;
+                        node.right = rl;
+                    }
+
+                    break;
+                }
+                else if (node.balance < -1)
+                {
+                    var lr = node.left.right;
+
+                    if (node.left.balance < 0)
+                    {
+                        var lrr = node.left.right.right;
+                        var lrl = node.left.right.left;
+
+                        if (this.root == node)
+                        {
+                            this.root = lr;
+                        }
+                        else
+                        {
+                            if (left[i])
+                            {
+                                stack[i - 1].left = lr;
+                            }
+                            else
+                            {
+                                stack[i - 1].right = lr;
+                            }
+                        }
+
+                        if (lr.balance == 1)
+                        {
+                            node.balance = -1;
+                            node.left.balance = 0;
+                        }
+                        else
+                        {
+                            node.balance = 0;
+                            node.left.balance = 1;
+                        }
+
+                        lr.balance = 0;
+                        lr.right = node;
+                        lr.left = node.left;
+                        node.left.right = lrl;
+                        node.left = lrr;
+                    }
+                    else
+                    {
+                        if (this.root == node)
+                        {
+                            this.root = node.left;
+                        }
+                        else
+                        {
+                            if (left[i])
+                            {
+                                stack[i - 1].left = node.left;
+                            }
+                            else
+                            {
+                                stack[i - 1].right = node.left;
+                            }
+                        }
+
+                        node.balance = 0;
+                        node.left.balance = 0;
+
+                        node.left.right = node;
+                        node.left = lr;
+                    }
+
+                    break;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        };
+
+        tree.getEnum = function()
+        {
+            var obj =
+            {
+                t : this,
+                cur : null,
+                stack:[],
+                next : function()
+                {
+                    if (this.cur == null)
+                    {
+                        this.cur = this.t.root;
+                        this.stack.push(this.cur);
+
+                        while (this.cur.left != null)
+                        {
+                            this.cur = this.cur.left;
+
+                            this.stack.push(this.cur);
+                        }
+                    }
+                    else
+                    {
+                        if (this.cur.right != null)
+                        {
+                            this.cur = this.cur.right;
+                            this.stack.push(this.cur);
+
+                            while (this.cur.left != null)
+                            {
+                                this.cur = this.cur.left;
+
+                                this.stack.push(this.cur);
+                            }
+                        }
+                        else
+                        {
+                            while (true)
+                            {
+                                this.cur = this.stack.pop();
+                                var last = this.stack[this.stack.length - 1];
+
+                                if (last.left == this.cur)
+                                {
+                                    this.cur = this.stack.pop();
+                                    
+                                    break;
+                                }
+                                else if (last == this.t.root)
+                                {
+                                    this.cur = null;
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    return this.cur;
+                }
+            };
+
+            return obj;
+        };
+    },
+
+    createNode: function(data, left, right)
+    {
+        return { data: data, left: left, right : right, balance : 0};
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
+
+    //
+    getRandomString : function()
+    {
+        return (performance.now().toString(36) + Math.random().toString(36)).split(".").join("_");
+    },
 
     // finding next query operator. Used on select query compile.
     findNextOperator: function(pos, arr)
