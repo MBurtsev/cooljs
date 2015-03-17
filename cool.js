@@ -6,6 +6,7 @@
     hashList: {},
     defaultHash: "",
     lastUrlHash: "",
+    outPos: 0,
 
     // entry point
     init: function()
@@ -52,21 +53,21 @@
 
         if (name == null || name == "")
         {
-            return cool.logErr("js-set: The 'name' attribute is empty");
+            return console.log("js-set: The 'name' attribute is empty");
         }
 
         if (value == null || value == "")
         {
-            return cool.logErr("js-set: The 'value' attribute is empty");
+            return console.log("js-set: The 'value' attribute is empty");
         }
 
         if (type == null || type == "")
         {
-            return cool.logErr("js-set: The 'type' attribute is empty");
+            return console.log("js-set: The 'type' attribute is empty");
         }
         else if (type != "int" && type != "float" && type != "bool" && type != "string" && type != "object")
         {
-            return cool.logErr("js-set: The 'type' attribute must be: int or float or bool or string or object");
+            return console.log("js-set: The 'type' attribute must be: int or float or bool or string or object");
         }
 
         if (type == "int")
@@ -133,16 +134,16 @@
 
         if (src == null || src == "")
         {
-            return cool.logErr("js-ajax: The src attribute is empty");
+            return console.log("js-ajax: The src attribute is empty");
         }
 
         if (type == null || type == "")
         {
-            return cool.logErr("js-ajax: The type attribute is empty");
+            return console.log("js-ajax: The type attribute is empty");
         }
         else if (type != "text" && type != "json" && type != "stream" && type != "xml")
         {
-            return cool.logErr("js-ajax: The type attribute must be text or json or stream or xml");
+            return console.log("js-ajax: The type attribute must be text or json or stream or xml");
         }
 
         var method = obj.getAttribute("method");
@@ -209,7 +210,7 @@
 
                     if (par_name == null || par_value == null || par_name == "" || par_value == "")
                     {
-                        cool.logErr("Ajax param have empty 'name/value' attribute.");
+                        console.log("Ajax param have empty 'name/value' attribute.");
                     }
 
                     obj._cool.params.push({ name: par_name, value: cool.createField(par_value, false) });
@@ -221,7 +222,7 @@
         {
             if (obj._cool.metaIndex == null)
             {
-                return cool.logErr("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
+                return console.log("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
             }
 
             obj._cool.metaInline = desk.getAttribute("inline") != null;
@@ -321,7 +322,7 @@
                             }
                             else
                             {
-                                return cool.logErr("js-ajax: The inline metadata is wrond.");
+                                return console.log("js-ajax: The inline metadata is wrond.");
                             }
                         }
                         else
@@ -362,7 +363,7 @@
 
         if (hash == null || hash == "")
         {
-            return cool.logErr("js-page: The src attribute is empty");
+            return console.log("js-page: The src attribute is empty");
         }
 
         var def = obj.getAttribute("default");
@@ -422,7 +423,7 @@
 
         if (src == null || src == "")
         {
-            return cool.logErr("js-load: The src attribute is empty");
+            return console.log("js-load: The src attribute is empty");
         }
 
         if (type == null || type == "")
@@ -441,7 +442,7 @@
 
         if (type == "")
         {
-            return cool.logErr("js-load: Wrong type");
+            return console.log("js-load: Wrong type");
         }
 
         obj._cool.type = type;
@@ -510,15 +511,35 @@
 
         if (select == null || select == "")
         {
-            return cool.logErr("js-query: The 'select' attribute is empty");
+            return console.log("js-query: The 'select' attribute is empty");
         }
-
+        
         // compile query
         var arr = select.split(' ');
         var prog = {};
         var tmp;
         var end;
         var j = 0;
+        var ind = 0;
+        var str = ['(', ')', '[', ']', '==', '!=', '&&', '||', '<=', '>=', '<<', '>>', '<', '>', '+', '-', '/', '*', '&', '^'];
+
+        for (cool.outPos = 0; cool.outPos < arr.length; ++cool.outPos)
+        {
+            var itm = arr[cool.outPos];
+
+            if (itm == "")
+            {
+                arr.splice(cool.outPos, 1);
+                cool.outPos--;
+
+                continue;
+            }
+
+            for (var j = 0; j < str.length; ++j)
+            {
+                cool.splitAndInsert(arr, str[j]);
+            }
+        }
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -528,21 +549,19 @@
                 {
                     if (prog.from != null)
                     {
-                        return cool.logErr("js-query: Operator 'From' must defined only once.");
+                        return console.log("js-query: Operator 'From' must defined only once.");
                     }
 
                     if (i != 1)
                     {
-                        return cool.logErr("js-query: Operator 'From' must be first.");
+                        return console.log("js-query: Operator 'From' must be first.");
                     }
 
                     prog.from =
                     {
-                        path: arr[i + 1]
+                        field : cool.createField(arr[i + 1], true)
                     };
-
-                    var ind = arr[0].indexOf(".");
-
+                    ind = arr[0].indexOf(".");
                     if (ind == -1)
                     {
                         prog.root = arr[0];
@@ -565,36 +584,130 @@
                 {
                     if (prog.where != null || prog.order != null || prog.group != null)
                     {
-                        return cool.logErr("js-query: Operator 'Join' must defined after 'From'.");
+                        return console.log("js-query: Operator 'Join' must defined after 'From'.");
                     }
 
                     if (prog.join == null)
                     {
-                        prog.join = [];
+                        prog.join = 
+                        {
+                            list : []
+                        };
                     }
 
                     var join =
                     {
                         type: arr[i++],
-                        v: arr[i++]
+                        field: cool.createField(arr[i++]),
+                        conditional:
+                        {
+                             expressions: []
+                        }
                     }
 
-                    if (arr[i] != "On")
+                    if (arr[i++] != "As")
                     {
-                        return cool.logErr("js-query: Operator 'Join' has format <... Join variable_name On conditionals ...>.");
+                        return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'As' required.");
                     }
 
-                    end = cool.findNextOperator(i + 1, arr);
-                    tmp = [];
+                    join.v = arr[i++];
+                    join.vField = join.v.split(".");
+                    join.vRoot = join.vField[0];
+
+                    if (arr[i++] != "On")
+                    {
+                        return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'On' required.");
+                    }
+
+                    end = cool.findNextOperator(i, arr);
+                    var cur_exp = {};
+                    var isLeft = true;
 
                     for (j = i; j < end; ++j)
                     {
-                        tmp.push(arr[j]);
+                        switch (arr[j])
+                        {
+                            case "!=":
+                            case "==":
+                            case "<=":
+                            case ">=":
+                            case ">":
+                            case "<":
+                            {
+                                cur_exp.type = arr[j];
+                                isLeft = false;
+
+                                break;
+                            }
+                            case "||":
+                            case "&&":
+                            {
+                                join.conditional.expressions.push(cur_exp);
+                                cur_exp = {};
+                                isLeft = true;
+
+                                break;
+                            }
+                            case "(":
+                            case ")":
+                            {
+                                //brace
+
+                                break;
+                            }
+                            case "[":
+                            case "]":
+                            {
+                                // array
+
+                                break;
+                            }
+                            case "<<":
+                            case ">>":
+                            case "*":
+                            case "/":
+                            case "+":
+                            case "-":
+                            case "&":
+                            case "^":
+                            {
+                                // operators
+
+                                break;
+                            }
+                            default :
+                            {
+                                tmp = { v : arr[j], vField : arr[j].split(".")};
+                                
+                                if (isLeft)
+                                {
+                                    cur_exp.left = tmp;
+                                }
+                                else
+                                {
+                                    cur_exp.right = tmp;
+                                }
+
+                                break;    
+                            }
+                        }
                     }
 
-                    join.conditional = tmp.join(' ');
+                    if (cur_exp.left != null)
+                    {
+                        join.conditional.expressions.push(cur_exp);
+                    }
 
-                    prog.join.push(join);
+                    join.conditional.isSimple = join.conditional.expressions.length == 1;
+
+                    //join.conditional = tmp.join(' ');
+
+                    prog.join.list.push(join);
+
+                    //function a(comp, obj)
+                    //{
+                    //    return comp.user.id > obj.code;
+                    //}
 
                     break;
                 }
@@ -602,12 +715,12 @@
                 {
                     if (prog.where != null)
                     {
-                        return cool.logErr("js-query: Operator 'Where' must defined only once.");
+                        return console.log("js-query: Operator 'Where' must defined only once.");
                     }
 
                     if (prog.order != null || prog.group != null)
                     {
-                        return cool.logErr("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
+                        return console.log("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
                     }
 
                     prog.where = {};
@@ -628,12 +741,12 @@
                 {
                     if (prog.order != null)
                     {
-                        return cool.logErr("js-query: Operator 'Order' must defined only once.");
+                        return console.log("js-query: Operator 'Order' must defined only once.");
                     }
 
                     if (prog.group != null)
                     {
-                        return cool.logErr("js-query: Operator 'Order' must defined before 'Group'");
+                        return console.log("js-query: Operator 'Order' must defined before 'Group'");
                     }
 
                     prog.order = [];
@@ -659,7 +772,7 @@
                 {
                     if (prog.group != null)
                     {
-                        return cool.logErr("js-query: Operator 'Group' must defined only once.");
+                        return console.log("js-query: Operator 'Group' must defined only once.");
                     }
 
                     prog.group = [];
@@ -691,68 +804,68 @@
 
         obj._cool.func = cool.getRandomString();
 
-        var func = "<script>function " + obj._cool.func + "(prog, data){var str = '';";
+        var func = "<script>function " + obj._cool.func + "(prog, item){var str = '';";
 
         func += "";
 
-        for (var n = 0; n < tmp.length; ++n)
-        {
-            var sv = tmp.indexOf("{{", n);
-            var si = tmp.indexOf("#if", n);
-            var ev = 0;
-            var ei = 0;
-            var cmd = 0;
+        //for (var n = 0; n < tmp.length; ++n)
+        //{
+        //    var sv = tmp.indexOf("{{", n);
+        //    var si = tmp.indexOf("#if", n);
+        //    var ev = 0;
+        //    var ei = 0;
+        //    var cmd = 0;
 
-            if (sv != -1 && si != -1)
-            {
-                if (sv < si)
-                {
-                    cmd = 1;
-                }
-                else
-                {
-                    cmd = 2;
-                }
-            }
-            else if (sv != -1)
-            {
-                cmd = 1;
-            }
-            else if (si != -1)
-            {
-                cmd = 2;
-            }
-            else
-            {
-                break;
-            }
+        //    if (sv != -1 && si != -1)
+        //    {
+        //        if (sv < si)
+        //        {
+        //            cmd = 1;
+        //        }
+        //        else
+        //        {
+        //            cmd = 2;
+        //        }
+        //    }
+        //    else if (sv != -1)
+        //    {
+        //        cmd = 1;
+        //    }
+        //    else if (si != -1)
+        //    {
+        //        cmd = 2;
+        //    }
+        //    else
+        //    {
+        //        break;
+        //    }
 
-            if (cmd == 1)
-            {
-            }
-            else
-            {
-            }
+        //    if (cmd == 1)
+        //    {
+        //    }
+        //    else
+        //    {
+        //    }
 
-            var ied = 0;
+        //    var ied = 0;
 
-            if (ist == -1)
-            {
-                ist = tmp.indexOf("#if", n);
+        //    if (ist == -1)
+        //    {
+        //        ist = tmp.indexOf("#if", n);
 
-                if (ist == -1)
-                {
-                    break;
-                }
+        //        if (ist == -1)
+        //        {
+        //            break;
+        //        }
 
-                ied = tmp.indexOf("#end", ist);
+        //        ied = tmp.indexOf("#end", ist);
 
-                if (ied == -1)
-                {
-                    return cool.logErr("js-query: No closed #if.");
-                }
-            }
-        }
+        //        if (ied == -1)
+        //        {
+        //            return console.log("js-query: No closed #if.");
+        //        }
+        //    }
+        //}
 
         func += "return str; }</script>";
 
@@ -762,8 +875,24 @@
         obj._cool.prog = prog;
         obj._cool.action = function()
         {
-            if (this.data == null || this.isAlways)
+            if (this.tree == null || this.isAlways)
             {
+                this.prog.from.src = cool.getField(this.prog.from.field);
+
+                if (this.prog.from.src == null)
+                {
+                    return console.log("js-query: From's field " + this.prog.from.field.path + " is underfined.");
+                }
+
+                var cmp = 
+                {
+                    compare : function()
+                    {
+                        
+                    }
+                };
+
+
             }
 
             this.obj.style.display = this.display;
@@ -776,6 +905,61 @@
         }
     },
 
+    computeData : function(prog)
+    {
+        var comp = [];
+        var main = cool.getField(prog.from.field);
+
+        if (prog.join != null)
+        {
+            // init main
+            for (var i = 0; i < main.length; ++i)
+            {
+                var tmp = {};
+
+                tmp[prog.from.v] = main[i];
+
+                comp.push(tmp);
+            }
+
+            // compute joins
+            for (var j = 0; j < prog.join.list.length; ++j)
+            {
+                var join = prog.join.list[j];
+                var count = comp.length;
+
+                if (join.data == null)
+                {
+                    join.data = cool.getField(join.field);
+                }
+
+                for (var c = 0; c < count; ++c)
+                {
+                    var com = comp[c];
+
+                    for (var d = 0; d < join.data; ++c)
+                    {
+                        if (eval(join.conditional))
+                        {
+                            if (com[join.v] == null)
+                            {
+                                com[join.v] = join.data[d];
+                            }
+                            else
+                            {
+                                var new_rec = cool.cloneObj(com);
+
+                                new_rec[join.v] = join.data[d];
+
+                                comp.push(new_rec);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+
     // js-if
     tagIf: function(obj)
     {
@@ -783,7 +967,7 @@
 
         if (con == null || con == "")
         {
-            return cool.logErr("The conditional attribute is empty");
+            return console.log("The conditional attribute is empty");
         }
 
         var arr = cool.parseCon(con);
@@ -881,7 +1065,7 @@
 
         if (name == null || name == "")
         {
-            return cool.logErr("js-event: The 'name' attribute is empty");
+            return console.log("js-event: The 'name' attribute is empty");
         }
 
         if (select == null || select == "")
@@ -939,12 +1123,12 @@
 
         if (name == null || name == "")
         {
-            return cool.logErr("js-event: The 'name' attribute is empty");
+            return console.log("js-event: The 'name' attribute is empty");
         }
 
         if (value == null || value == "")
         {
-            return cool.logErr("js-event: The 'value' attribute is empty");
+            return console.log("js-event: The 'value' attribute is empty");
         }
 
         if (obj._cool.select == null || obj._cool.select == "")
@@ -1027,12 +1211,12 @@
 
         if (name == null || name == "")
         {
-            return cool.logErr("js-event: The 'name' attribute is empty");
+            return console.log("js-event: The 'name' attribute is empty");
         }
 
         if (value == null || value == "")
         {
-            return cool.logErr("js-event: The 'value' attribute is empty");
+            return console.log("js-event: The 'value' attribute is empty");
         }
 
         if (obj._cool.select == null || obj._cool.select == "")
@@ -1178,7 +1362,7 @@
 
         if (obj._cool.path == null || obj._cool.path == "")
         {
-            return cool.logErr(obj.tagName + ": has empty 'js-bing' attribute.");
+            return console.log(obj.tagName + ": has empty 'js-bing' attribute.");
         }
         else
         {
@@ -1222,7 +1406,7 @@
             }
             else
             {
-                return cool.logErr("The input type='" + type + "' not supported.");
+                return console.log("The input type='" + type + "' not supported.");
             }
         }
         else if (obj._cool.isTextaria || obj._cool.isSelect)
@@ -1231,7 +1415,7 @@
         }
         else
         {
-            return cool.logErr("The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.");
+            return console.log("The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.");
         }
 
         // set observe
@@ -1492,7 +1676,7 @@
 
                 if (end == -1)
                 {
-                    return cool.logErr("Syntax error: closed brace ']' not found " + path);
+                    return console.log("Syntax error: closed brace ']' not found " + path);
                 }
 
                 var str = itm.substr(ind, end - ind);
@@ -1538,7 +1722,7 @@
 
             if (cur == null)
             {
-                return cool.logErr("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
+                return console.log("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
             }
 
             if (itm.isArray)
@@ -1560,7 +1744,7 @@
 
                     if (fval == null)
                     {
-                        // todo return cool.logErr(here? or maybe create observe ?
+                        // todo return console.log(here? or maybe create observe ?
 
                         return;
 
@@ -1574,7 +1758,7 @@
 
                 if (ind >= cur[itm.name].length)
                 {
-                    // todo return cool.logErr(here? or maybe create observe ?
+                    // todo return console.log(here? or maybe create observe ?
 
                     return;
                 }
@@ -1749,7 +1933,7 @@
                         dst[p] = {};
                     }
 
-                    applyFieldEx(src[p], dst[p]);
+                    cool.applyFieldEx(src[p], dst[p]);
                 }
                 else
                 {
@@ -1768,7 +1952,7 @@
             {
                 if (typeof obj[p] == "object")
                 {
-                    signalFieldChange(path + "." + p, obj[p]);
+                    cool.signalFieldChange(path + "." + p, obj[p]);
                 }
                 else
                 {
@@ -2019,7 +2203,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2036,7 +2220,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2062,7 +2246,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2088,7 +2272,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2106,7 +2290,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2127,7 +2311,7 @@
 
                         if (ind == -1)
                         {
-                            return cool.logErr("the ')' expected");
+                            return console.log("the ')' expected");
                         }
 
                         ret.push(
@@ -2147,7 +2331,7 @@
                     }
                     else
                     {
-                        return cool.logErr(err + cmd);
+                        return console.log(err + cmd);
                     }
 
                     break;
@@ -2741,7 +2925,7 @@
 
                 if (spliter == null || spliter == "")
                 {
-                    return cool.logErr("js-ajax-stream: The 'spliter' attribute is empty");
+                    return console.log("js-ajax-stream: The 'spliter' attribute is empty");
                 }
 
                 arr = [];
@@ -2766,12 +2950,12 @@
 
                 if (name == null || name == "")
                 {
-                    return cool.logErr("js-stream-var: The 'name' attribute is empty");
+                    return console.log("js-stream-var: The 'name' attribute is empty");
                 }
 
                 if (type == null || type == "")
                 {
-                    return cool.logErr("js-stream-var: The 'type' attribute is empty");
+                    return console.log("js-stream-var: The 'type' attribute is empty");
                 }
 
                 if (type == "object")
@@ -2815,17 +2999,17 @@
 
                 if (name == null || name == "")
                 {
-                    return cool.logErr(tagName + ": The 'name' attribute is empty");
+                    return console.log(tagName + ": The 'name' attribute is empty");
                 }
 
                 if (type == null || type == "")
                 {
-                    return cool.logErr(tagName + ": The 'type' attribute is empty");
+                    return console.log(tagName + ": The 'type' attribute is empty");
                 }
 
                 if (obj.childNodes.length > 0 && type != "object")
                 {
-                    return cool.logErr(tagName + ": The 'type' must be 'object' than chields more one.");
+                    return console.log(tagName + ": The 'type' must be 'object' than chields more one.");
                 }
 
                 if (tagName == "js-stream-for")
@@ -2840,7 +3024,7 @@
 
                     if (sign == null || sign == "")
                     {
-                        return cool.logErr(tagName + ": The 'sign' attribute is empty");
+                        return console.log(tagName + ": The 'sign' attribute is empty");
                     }
 
                     name += ":" + sign;
@@ -2883,12 +3067,12 @@
 
                 if (name == null || name == "")
                 {
-                    return cool.logErr(tagName + ": The 'name' attribute is empty");
+                    return console.log(tagName + ": The 'name' attribute is empty");
                 }
 
                 if (value == null || value == "")
                 {
-                    return cool.logErr(tagName + ": The 'value' attribute is empty");
+                    return console.log(tagName + ": The 'value' attribute is empty");
                 }
 
                 arr.push("i");
@@ -3033,13 +3217,14 @@
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Tree
+    // Tree and Data
 
     // creating AVL tree
     createTree: function(comparer, isUniqure)
     {
         var tree = { root : null, isUniqure : isUniqure};
 
+        // adding node to tree
         tree.add = function(obj)
         {
             if (this.root == null)
@@ -3268,6 +3453,7 @@
             }
         };
 
+        // getting enumeration class
         tree.getEnum = function()
         {
             var obj =
@@ -3334,15 +3520,102 @@
         };
     },
 
+    // 
     createNode: function(data, left, right)
     {
         return { data: data, left: left, right : right, balance : 0};
     },
 
+    // clone object
+    cloneObj: function(src)
+    {
+        var dst = {};
+
+        for (var p in src)
+        {
+            if (src.hasOwnProperty(p))
+            {
+                if (typeof src[p] == "object")
+                {
+                    if (dst[p] == null)
+                    {
+                        dst[p] = {};
+                    }
+
+                    cool.applyFieldEx(src[p], dst[p]);
+                }
+                else
+                {
+                    dst[p] = src[p];
+                }
+            }
+        }
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
 
-    //
+    // split and insert
+    splitAndInsert: function(arr, str)
+    {
+        var itm = arr[cool.outPos];
+        var ind = itm.indexOf(str);
+        var last = -1;
+        var flug = false;
+
+        if (itm == str)
+        {
+            cool.outPos++;
+
+            return false;
+        }
+
+        if (ind == 0)
+        {
+            arr[cool.outPos++] = str;
+
+            flug = true;
+        }
+        else if (ind > 0)
+        {
+            arr[cool.outPos++] = itm.substr(0, ind);
+            arr.splice(cool.outPos++, 0, str);
+
+            flug = true;
+        }
+
+        while (flug)
+        {
+            last = ind;
+            ind = itm.indexOf(str, ind + 1);
+
+            if (ind == -1)
+            {
+                break;
+            }
+
+            if (ind - last == 1)
+            {
+                arr.splice(cool.outPos++, 0, str);
+            }
+            else
+            {
+                arr.splice(cool.outPos++, 0, itm.substr(last + 1, ind - last - 1));
+                arr.splice(cool.outPos++, 0, str);
+            }
+        }
+
+        if (last > -1 && itm.length - last > 1)
+        {
+            arr.splice(cool.outPos++, 0, itm.substr(last + 1));
+
+            flug = true;
+        }
+
+        return flug;
+    },
+
+    // random string for function name
     getRandomString : function()
     {
         return (performance.now().toString(36) + Math.random().toString(36)).split(".").join("_");
@@ -3365,7 +3638,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, [js-bind], [js-read], [js-write]");
+        var tmp = elm.querySelectorAll("js-set, js-query, js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, [js-bind], [js-read], [js-write]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -3375,6 +3648,7 @@
         ht[code] = elm;
 
         var arr = [];
+        var atr = [];
 
         // filter tags and init base function
         for (i = 0; i < tmp.length; ++i)
@@ -3395,15 +3669,36 @@
             }
             else if (itm.getAttribute("js-bind") != null)
             {
-                cool.atrBind(itm, false, false);
+                atr.push(
+                {
+                    itm: itm,
+                    func: function()
+                    {
+                        cool.atrBind(this.itm, false, false);
+                    }
+                });
             }
             else if (itm.getAttribute("js-read") != null)
             {
-                cool.atrBind(itm, true, false);
+                atr.push(
+                {
+                    itm: itm,
+                    func: function()
+                    {
+                        cool.atrBind(this.itm, true, false);
+                    }
+                });
             }
             else if (itm.getAttribute("js-write") != null)
             {
-                cool.atrBind(itm, false, true);
+                atr.push(
+                {
+                    itm: itm,
+                    func: function()
+                    {
+                        cool.atrBind(this.itm, false, true);
+                    }
+                });
             }
         }
 
@@ -3416,6 +3711,15 @@
 
             while (cur != null)
             {
+                var tg = cur.tagName != null ? cur.tagName.toLowerCase() : "";
+
+                if (tg == "js-query" || cur._cool == true)
+                {
+                    itm._cool = true;
+
+                    break;
+                }
+
                 if (cur._cool != null && ht[cur._cool.hash] != null)
                 {
                     if (itm.name == "js-set")
@@ -3436,6 +3740,29 @@
             }
         }
 
+        // build attributes
+        var atr_run = [];
+
+        for (i = 0; i < atr.length; ++i)
+        {
+            itm = atr[i].itm;
+
+            while (itm.parentNode != null)
+            {
+                if (itm._cool != null)
+                {
+                    if (itm._cool != true && itm.tagName.toLowerCase() != "js-query")
+                    {
+                        atr_run.push(atr[i]);
+                    }
+
+                    break;
+                }
+
+                itm = itm.parentNode;
+            }
+        }
+
         // run init tags
         for (i = 0; i < arr.length; ++i)
         {
@@ -3444,17 +3771,20 @@
             cool.jsF[itm.name](itm.obj);
         }
 
+        // run init atr's
+        for (i = 0; i < atr_run.length; ++i)
+        {
+            itm = atr_run[i];
+
+            itm.cooljs();
+            itm.func();
+        }
+
         delete ht;
         delete arr;
         delete tmp;
-    },
-
-    // log exception
-    logErr : function(mess)
-    {
-        console.log(mess);
-
-        return null;
+        delete atr;
+        delete atr_run;
     },
 
     //
@@ -3692,7 +4022,7 @@
 Object.prototype._cool = null;
 Object.prototype.cooljs = function()
 {
-    if (this._cool == null)
+    if (this._cool == null || this._cool == true)
     {
         this._cool =
         {
@@ -3737,64 +4067,3 @@ Object.prototype.cooljs = function()
 };
 
 window.onload = cool.init;
-
-
-//cool.parseCon("map.hasFlug == true && map.age == some.getAge(wer - (web * 4) + 10) || arr[5] != 'test' || cash[n + 89] == ver.ss + 530");
-
-/*
-
-
-------------------------------
-
-if (flug)               - отслеживание переменной
-if (some.flug)          - отслеживание изменения объекта some и его поля flug
-if (arr[5])             - отслеживание изменения массива arr и его значения с индексом 5 (если меняется что то другое то пофиг)
-if (arr[index])         - отслеживается изменение переменной index, отслеживается массив arr, отслеживается значение arr[index]
-if (arr[3].flug)        - отслеживается массив arr, отслеживается объект arr[3], отслеживается поле arr[3].flug
-if (arr[index].flug)    - отслеживается arr, index, arr[index], arr[index].flug
-
-
-
-arr[5] - отслеживаю а arr[5 + index] - не отслеживаю, отслеживаю только arr и index
-
-мысль если отслеживается arr[index], а изменился arr[3], где index == 3, тогда должно быть срабатывание.
-
-иными словами при отслеживании условий, я должен запоминать использованный индекс? Не нужно запоминать, потому что сработает изменение
-index, условие перезапустится и так.
-
-
-map.hasFlug
-map.age
-wer
-arr - a
-cash - a
-n
-ver.ss
-web
-
-
-*/
-
-    //processTag: function(tag)
-    //{
-    //    var arr = document.getElementsByTagName(tag);
-
-    //    for (var i = 0; i < arr.length; ++i)
-    //    {
-    //        var itm = arr[i];
-
-    //        cool.jsF[itm.tagName.toLowerCase()](itm);
-    //    }
-    //},
-
-    //processAtr: function (atr)
-    //{
-    //    var arr = document.querySelectorAll('[' + atr + ']');
-
-    //    for (var i = 0; i < arr.length; ++i)
-    //    {
-    //        var itm = arr[i];
-
-    //        cool.jsA[atr](itm);
-    //    }
-    //},
