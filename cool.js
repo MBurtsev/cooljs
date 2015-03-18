@@ -101,6 +101,11 @@
         {
             eval("obj._cool.value = " + value);
 
+            if (obj._cool.value instanceof Array)
+            {
+                type = "array";
+            }
+
             if (cancel != null)
             {
                 eval("obj._cool.cancelValue = " + cancel);
@@ -108,7 +113,7 @@
         }
 
         obj._cool.type = type;
-        obj._cool.field = cool.createField(name, type == "object");
+        obj._cool.field = cool.createField(name, type == "object", type == "array");
         obj._cool.action = function()
         {
             cool.applyField(this.field, this.value);
@@ -561,7 +566,9 @@
                     {
                         field : cool.createField(arr[i + 1], true)
                     };
+
                     ind = arr[0].indexOf(".");
+
                     if (ind == -1)
                     {
                         prog.root = arr[0];
@@ -623,8 +630,12 @@
                     var cur_exp = {};
                     var isLeft = true;
 
+                    join.conditional.str = "";
+
                     for (j = i; j < end; ++j)
                     {
+                        tmp = null;
+
                         switch (arr[j])
                         {
                             case "!=":
@@ -678,19 +689,39 @@
                             default :
                             {
                                 tmp = { v : arr[j], vField : arr[j].split(".")};
-                                
+
+                                var isSelf = tmp.vField[0] == join.vField[0];
+
                                 if (isLeft)
                                 {
                                     cur_exp.left = tmp;
+                                    cur_exp.isSelfLeft = isSelf;
                                 }
                                 else
                                 {
                                     cur_exp.right = tmp;
+                                    cur_exp.isSelfRight = isSelf;
+                                }
+                                
+                                if (!isSelf)
+                                {
+                                    tmp = prog.root + "." + arr[j];
+                                }
+                                else
+                                {
+                                    tmp = null;
                                 }
 
                                 break;    
                             }
                         }
+
+                        if (tmp == null)
+                        {
+                            tmp = arr[j];
+                        }
+
+                        join.conditional.str += tmp;
                     }
 
                     if (cur_exp.left != null)
@@ -699,15 +730,16 @@
                     }
 
                     join.conditional.isSimple = join.conditional.expressions.length == 1;
+                    join.conditional.func = cool.getRandomString();
 
-                    //join.conditional = tmp.join(' ');
+                    var scr = document.createElement('script');
 
+                    scr.type = 'text/javascript';
+                    scr.text = "document['" + join.conditional.func + "'] = function(" + prog.root + ", " + join.vField[0] + "){return " + join.conditional.str + ";}";
+
+                    document.getElementsByTagName('body')[0].appendChild(scr);
+                    
                     prog.join.list.push(join);
-
-                    //function a(comp, obj)
-                    //{
-                    //    return comp.user.id > obj.code;
-                    //}
 
                     break;
                 }
@@ -802,11 +834,7 @@
         var values = [];
         tmp = obj.innerHTML;
 
-        obj._cool.func = cool.getRandomString();
 
-        var func = "<script>function " + obj._cool.func + "(prog, item){var str = '';";
-
-        func += "";
 
         //for (var n = 0; n < tmp.length; ++n)
         //{
@@ -867,7 +895,6 @@
         //    }
         //}
 
-        func += "return str; }</script>";
 
         // actions
         obj._cool.isAlways = obj.getAttribute("alwaysData") != null;
@@ -877,22 +904,7 @@
         {
             if (this.tree == null || this.isAlways)
             {
-                this.prog.from.src = cool.getField(this.prog.from.field);
-
-                if (this.prog.from.src == null)
-                {
-                    return console.log("js-query: From's field " + this.prog.from.field.path + " is underfined.");
-                }
-
-                var cmp = 
-                {
-                    compare : function()
-                    {
-                        
-                    }
-                };
-
-
+                this.tree = cool.computeData(this.prog);
             }
 
             this.obj.style.display = this.display;
@@ -902,61 +914,6 @@
         {
             this.obj.style.display = "none";
             this.cancelBase();
-        }
-    },
-
-    computeData : function(prog)
-    {
-        var comp = [];
-        var main = cool.getField(prog.from.field);
-
-        if (prog.join != null)
-        {
-            // init main
-            for (var i = 0; i < main.length; ++i)
-            {
-                var tmp = {};
-
-                tmp[prog.from.v] = main[i];
-
-                comp.push(tmp);
-            }
-
-            // compute joins
-            for (var j = 0; j < prog.join.list.length; ++j)
-            {
-                var join = prog.join.list[j];
-                var count = comp.length;
-
-                if (join.data == null)
-                {
-                    join.data = cool.getField(join.field);
-                }
-
-                for (var c = 0; c < count; ++c)
-                {
-                    var com = comp[c];
-
-                    for (var d = 0; d < join.data; ++c)
-                    {
-                        if (eval(join.conditional))
-                        {
-                            if (com[join.v] == null)
-                            {
-                                com[join.v] = join.data[d];
-                            }
-                            else
-                            {
-                                var new_rec = cool.cloneObj(com);
-
-                                new_rec[join.v] = join.data[d];
-
-                                comp.push(new_rec);
-                            }
-                        }
-                    }
-                }
-            }
         }
     },
 
@@ -1637,7 +1594,7 @@
     obHt: {},
 
     // create field from field path
-    createField: function(path, isObject)
+    createField: function(path, isObject, isArray)
     {
         if (path == "")
         {
@@ -1660,14 +1617,15 @@
         {
             var itm = arr[i];
             var ind = itm.indexOf("[");
+            var isLast = arr.length - i - 1 == 0;
 
             if (ind == -1)
             {
                 field.list.push(
                 {
-                    isArray: false,
                     name: itm,
-                    isObject: isObject
+                    isObject: isObject || !isLast,
+                    isArray: isArray && isLast
                 });
             }
             else
@@ -1849,7 +1807,7 @@
     },
 
     // get or create parent object from field
-    gocField: function(field, isObject)
+    gocField: function(field)
     {
         var cur = window;
 
@@ -1863,6 +1821,13 @@
                 if (cur[itm.name] == null)
                 {
                     cur[itm.name] = [];
+                }
+
+                if (last)
+                {
+                    cur = cur[itm.name];
+
+                    break;
                 }
 
                 var ind = 0;
@@ -1922,24 +1887,34 @@
     // only apply
     applyFieldEx: function(src, dst)
     {
-        for (var p in src)
+        if (src instanceof Array)
         {
-            if (src.hasOwnProperty(p))
+            for (var i = 0; i < src.length; ++i)
             {
-                if (typeof src[p] == "object")
-                {
-                    if (dst[p] == null)
-                    {
-                        dst[p] = {};
-                    }
-
-                    cool.applyFieldEx(src[p], dst[p]);
-                }
-                else
-                {
-                    dst[p] = src[p];
-                }
+                dst.push(src[i]);
             }
+        }
+        else
+        {
+            for (var p in src)
+            {
+                if (src.hasOwnProperty(p))
+                {
+                    if (typeof src[p] == "object")
+                    {
+                        if (dst[p] == null)
+                        {
+                            dst[p] = {};
+                        }
+
+                        cool.applyFieldEx(src[p], dst[p]);
+                    }
+                    else
+                    {
+                        dst[p] = src[p];
+                    }
+                }
+            }            
         }
     },
 
@@ -3520,7 +3495,7 @@
         };
     },
 
-    // 
+    // create node of tree
     createNode: function(data, left, right)
     {
         return { data: data, left: left, right : right, balance : 0};
@@ -3549,6 +3524,91 @@
                     dst[p] = src[p];
                 }
             }
+        }
+    },
+
+    // computing for select query
+    computeData : function(prog)
+    {
+        var comp = [];
+        var main = cool.getField(prog.from.field);
+
+        if (main == null)
+        {
+            return console.log("js-query: From's field " + this.prog.from.field.path + " is underfined.");
+        }
+
+        if (prog.join != null)
+        {
+            // init main
+            for (var i = 0; i < main.length; ++i)
+            {
+                var tmp = {};
+
+                tmp[prog.from.v] = main[i];
+
+                comp.push(tmp);
+            }
+
+            // compute joins
+            for (var j = 0; j < prog.join.list.length; ++j)
+            {
+                var join = prog.join.list[j];
+                var count = comp.length;
+
+                if (join.data == null)
+                {
+                    join.data = cool.getField(join.field);
+                }
+
+                if (join.data == null)
+                {
+                    return console.log("js-query: Join field " + join.conditional.str + " is underfined.");
+                }
+
+                for (var c = 0; c < count; ++c)
+                {
+                    var com = comp[c];
+
+                    for (var d = 0; d < join.data.length; ++d)
+                    {
+                        var new_rec;
+
+                        if (document[join.conditional.func](com, join.data[d]))
+                        {
+                            if (com[join.v] == null)
+                            {
+                                com[join.v] = join.data[d];
+                            }
+                            else
+                            {
+                                new_rec = cool.cloneObj(com);
+                                new_rec[join.v] = join.data[d];
+
+                                comp.push(new_rec);
+                            }
+                        }
+                        else if (join.type == "Join-right" || join.type == "Join-full")
+                        {
+                            new_rec = {};
+                            new_rec[join.v] = join.data[d];
+
+                            comp.push(new_rec);
+                        }
+                    }
+
+                    if ((join.type == "Join" || join.type == "Join-right") && com[join.v] == null)
+                    {
+                        comp.slice(c--, 1);
+                        count--;
+                    }
+                }
+            }
+        }
+        // without joins
+        else
+        {
+            
         }
     },
 
