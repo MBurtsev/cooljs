@@ -548,6 +548,7 @@
 
         for (var i = 0; i < arr.length; ++i)
         {
+            var scr;
             switch (arr[i])
             {
                 case "From":
@@ -605,11 +606,7 @@
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++]),
-                        conditional:
-                        {
-                             expressions: []
-                        }
+                        field: cool.createField(arr[i++])
                     }
 
                     if (arr[i++] != "As")
@@ -627,119 +624,20 @@
                     }
 
                     end = cool.findNextOperator(i, arr);
-                    var cur_exp = {};
-                    var isLeft = true;
 
-                    join.conditional.str = "";
+                    cool.createConditional(prog, join, arr, i, end);
+                    
+                    prog.join.list.push(join);
 
-                    for (j = i; j < end; ++j)
-                    {
-                        tmp = null;
-
-                        switch (arr[j])
-                        {
-                            case "!=":
-                            case "==":
-                            case "<=":
-                            case ">=":
-                            case ">":
-                            case "<":
-                            {
-                                cur_exp.type = arr[j];
-                                isLeft = false;
-
-                                break;
-                            }
-                            case "||":
-                            case "&&":
-                            {
-                                join.conditional.expressions.push(cur_exp);
-                                cur_exp = {};
-                                isLeft = true;
-
-                                break;
-                            }
-                            case "(":
-                            case ")":
-                            {
-                                //brace
-
-                                break;
-                            }
-                            case "[":
-                            case "]":
-                            {
-                                // array
-
-                                break;
-                            }
-                            case "<<":
-                            case ">>":
-                            case "*":
-                            case "/":
-                            case "+":
-                            case "-":
-                            case "&":
-                            case "^":
-                            {
-                                // operators
-
-                                break;
-                            }
-                            default :
-                            {
-                                tmp = { v : arr[j], vField : arr[j].split(".")};
-
-                                var isSelf = tmp.vField[0] == join.vField[0];
-
-                                if (isLeft)
-                                {
-                                    cur_exp.left = tmp;
-                                    cur_exp.isSelfLeft = isSelf;
-                                }
-                                else
-                                {
-                                    cur_exp.right = tmp;
-                                    cur_exp.isSelfRight = isSelf;
-                                }
-                                
-                                if (!isSelf)
-                                {
-                                    tmp = prog.root + "." + arr[j];
-                                }
-                                else
-                                {
-                                    tmp = null;
-                                }
-
-                                break;    
-                            }
-                        }
-
-                        if (tmp == null)
-                        {
-                            tmp = arr[j];
-                        }
-
-                        join.conditional.str += tmp;
-                    }
-
-                    if (cur_exp.left != null)
-                    {
-                        join.conditional.expressions.push(cur_exp);
-                    }
-
-                    join.conditional.isSimple = join.conditional.expressions.length == 1;
                     join.conditional.func = cool.getRandomString();
-
-                    var scr = document.createElement('script');
-
+                    scr = document.createElement('script');
                     scr.type = 'text/javascript';
                     scr.text = "document['" + join.conditional.func + "'] = function(" + prog.root + ", " + join.vField[0] + "){return " + join.conditional.str + ";}";
 
                     document.getElementsByTagName('body')[0].appendChild(scr);
-                    
-                    prog.join.list.push(join);
+
+
+                    i = end - 1;
 
                     break;
                 }
@@ -755,17 +653,25 @@
                         return console.log("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
                     }
 
-                    prog.where = {};
-
-                    end = cool.findNextOperator(i + 1, arr);
-                    tmp = [];
-
-                    for (j = i; j < end; ++j)
+                    prog.where =
                     {
-                        tmp.push(arr[j]);
-                    }
+                        v : prog.root,
+                        vField : [prog.root]
+                    };
 
-                    prog.where.conditional = tmp.join(' ');
+                    end = cool.findNextOperator(++i, arr);
+                    
+                    cool.createConditional(prog, prog.where, arr, i, end);
+
+                    prog.where.conditional.func = cool.getRandomString();
+                    
+                    scr = document.createElement('script');
+                    scr.type = 'text/javascript';
+                    scr.text = "document['" + prog.where.conditional.func + "'] = function(" + prog.root + "){return " + prog.where.conditional.str + ";}";
+
+                    document.getElementsByTagName('body')[0].appendChild(scr);
+
+                    i = end - 1;
 
                     break;
                 }
@@ -781,9 +687,9 @@
                         return console.log("js-query: Operator 'Order' must defined before 'Group'");
                     }
 
-                    prog.order = [];
+                    prog.order = { func : cool.getRandomString()};
 
-                    end = cool.findNextOperator(i + 1, arr);
+                    end = cool.findNextOperator(++i, arr);
                     tmp = [];
 
                     for (j = i; j < end; ++j)
@@ -791,38 +697,95 @@
                         tmp.push(arr[j]);
                     }
 
-                    tmp = tmp.join(' ').split(',');
+                    tmp = tmp.join('').split(',');
 
-                    for (j = i; j < end; ++j)
+                    var f_str = "document['" + prog.order.func + "'] = function(a, b) { ";
+                    var c_str = "return ";
+
+                    var p = 0;
+
+                    for (j = 0; j < tmp.length; ++j)
                     {
-                        prog.order.push(arr[j]);
+                        itm = tmp[j];
+
+                        var op = ">";
+
+                        if (itm[0] == "!")
+                        {
+                            op = "<";
+
+                            itm = itm.substr(1);
+                        }
+                        
+                        ind = itm.indexOf(".", 0);
+
+                        if (ind > -1)
+                        {
+                            str = itm.substr(0, ind);
+
+                            if (str == prog.root)
+                            {
+                                itm = itm.substr(ind + 1);
+                            }
+                        }
+
+                        f_str += "var c" + p + " = a." + itm + " " + op + " b." + itm + " ? 1 : 0;";
+
+                        p++;
                     }
+
+                    p--;
+
+                    for (j = p; j >= 0; --j)
+                    {
+                        if (j > 0)
+                        {
+                            c_str += "(";
+                        }
+
+                        c_str += "c" + (p - j);
+
+                        if (j > 0)
+                        {
+                            c_str +=" << " + j + ") + ";
+                        }
+                    }
+
+                    f_str += c_str + ";}";
+
+                    scr = document.createElement('script');
+                    scr.type = 'text/javascript';
+                    scr.text = f_str;
+
+                    document.getElementsByTagName('body')[0].appendChild(scr);
+
+                    i = end - 1;
 
                     break;
                 }
                 case "Group":
                 {
-                    if (prog.group != null)
-                    {
-                        return console.log("js-query: Operator 'Group' must defined only once.");
-                    }
+                    //if (prog.group != null)
+                    //{
+                    //    return console.log("js-query: Operator 'Group' must defined only once.");
+                    //}
 
-                    prog.group = [];
+                    //prog.group = [];
 
-                    end = cool.findNextOperator(i + 1, arr);
-                    tmp = [];
+                    //end = cool.findNextOperator(i + 1, arr);
+                    //tmp = [];
 
-                    for (j = i; j < end; ++j)
-                    {
-                        tmp.push(arr[j]);
-                    }
+                    //for (j = i; j < end; ++j)
+                    //{
+                    //    tmp.push(arr[j]);
+                    //}
 
-                    tmp = tmp.join(' ').split(',');
+                    //tmp = tmp.join(' ').split(',');
 
-                    for (j = i; j < end; ++j)
-                    {
-                        prog.group.push(arr[j]);
-                    }
+                    //for (j = i; j < end; ++j)
+                    //{
+                    //    prog.group.push(arr[j]);
+                    //}
 
                     break;
                 }
@@ -3211,22 +3174,24 @@
 
             var stack = [];
             var left = [];
-            var cur = root;
+            var cur = this.root;
 
             // adding
             while (true)
             {
                 stack.push(cur);
 
-                var cmp = comparer.compare(obj, cur);
+                var cmp = comparer.compare(obj, cur.data);
 
                 // left
                 if (cmp < 0)
                 {
+                    left.push(true);
+
                     if (cur.left == null)
                     {
                         cur.left = cool.createNode(obj, null, null);
-
+                        
                         break;
                     }
                     else
@@ -3239,6 +3204,8 @@
                 // right
                 else if (cmp > 0)
                 {
+                    left.push(false);
+
                     if (cur.right == null)
                     {
                         cur.right = cool.createNode(obj, null, null);
@@ -3270,7 +3237,7 @@
             }
 
             //balance
-            for (var i = stack.length - 1; i >= 0; ++i)
+            for (var i = stack.length - 1; i >= 0; --i)
             {
                 var node = stack[i];
 
@@ -3421,7 +3388,7 @@
 
                     break;
                 }
-                else
+                else if (node.balance == 0)
                 {
                     break;
                 }
@@ -3487,12 +3454,19 @@
                         }
                     }
 
-                    return this.cur;
+                    if (this.cur != null)
+                    {
+                        return this.cur.data;
+                    }
+
+                    return null;
                 }
             };
 
             return obj;
         };
+
+        return tree;
     },
 
     // create node of tree
@@ -3525,6 +3499,134 @@
                 }
             }
         }
+    },
+
+    // 
+    createConditional: function(prog, obj, arr, start, end)
+    {
+        obj.conditional =
+        {
+            expressions: [],
+            str : ""
+        };
+
+        var cur_exp = {};
+        var isLeft = true;
+
+        for (var j = start; j < end; ++j)
+        {
+            var tmp = null;
+
+            switch (arr[j])
+            {
+                case "!=":
+                case "==":
+                case "<=":
+                case ">=":
+                case ">":
+                case "<":
+                {
+                    cur_exp.type = arr[j];
+                    isLeft = false;
+
+                    break;
+                }
+                case "||":
+                case "&&":
+                {
+                    obj.conditional.expressions.push(cur_exp);
+                    cur_exp = {};
+                    isLeft = true;
+
+                    break;
+                }
+                case "(":
+                case ")":
+                {
+                    //brace
+
+                    break;
+                }
+                case "[":
+                case "]":
+                {
+                    // array
+
+                    break;
+                }
+                case "<<":
+                case ">>":
+                case "*":
+                case "/":
+                case "+":
+                case "-":
+                case "&":
+                case "^":
+                {
+                    // operators
+
+                    break;
+                }
+                default:
+                {
+                    tmp = { v: arr[j], vField: arr[j].split(".") };
+
+                    var isSelf = obj.vField != null && tmp.vField[0] == obj.vField[0];
+                    var isInt = false;
+                    var isString = false;
+                    
+                    if (parseInt(arr[j]).toString() == arr[j])
+                    {
+                        isInt = true;
+                    }
+
+                    if (arr[j][0] == "'" || arr[j][0] == "\"")
+                    {
+                        isString = true;
+                    }
+
+                    if (isLeft)
+                    {
+                        cur_exp.left = tmp;
+                        cur_exp.left.isInt = isInt;
+                        cur_exp.left.isString = isString;
+                        cur_exp.isSelfLeft = isSelf;
+                    }
+                    else
+                    {
+                        cur_exp.right = tmp;
+                        cur_exp.right.isInt = isInt;
+                        cur_exp.right.isString = isString;
+                        cur_exp.isSelfRight = isSelf;
+                    }
+
+                    if (!isSelf && !isInt && !isString)
+                    {
+                        tmp = prog.root + "." + arr[j];
+                    }
+                    else
+                    {
+                        tmp = null;
+                    }
+
+                    break;
+                }
+            }
+
+            if (tmp == null)
+            {
+                tmp = arr[j];
+            }
+
+            obj.conditional.str += tmp;
+        }
+
+        if (cur_exp.left != null)
+        {
+            obj.conditional.expressions.push(cur_exp);
+        }
+
+        obj.conditional.isSimple = obj.conditional.expressions.length == 1;
     },
 
     // computing for select query
@@ -3599,7 +3701,7 @@
 
                     if ((join.type == "Join" || join.type == "Join-right") && com[join.v] == null)
                     {
-                        comp.slice(c--, 1);
+                        comp.splice(c--, 1);
                         count--;
                     }
                 }
@@ -3610,6 +3712,28 @@
         {
             
         }
+
+        // Where
+        if (prog.where != null)
+        {
+            for (var e = 0; e < comp.length; ++e)
+            {
+                tmp = comp[e];
+
+                if (!document[prog.where.conditional.func](tmp))
+                {
+                    comp.splice(e--, 1);
+                }
+            }
+        }
+
+        // Order
+        if (prog.order != null)
+        {
+            comp.sort(document[prog.order.func]);
+        }
+
+        return comp;
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4076,7 +4200,7 @@
         "false": false,
         "False": false,
         "0": false
-    },
+    }
 };
 
 Object.prototype._cool = null;
