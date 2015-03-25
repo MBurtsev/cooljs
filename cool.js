@@ -792,82 +792,84 @@
             }
         }
 
-        // build template
-        var fragments = [];
-        var values = [];
-        tmp = obj.innerHTML;
+        obj._cool.prog = prog;
 
+        // getting js-query's stack
+        var cur = obj._cool;
 
+        obj._cool.stack = [];
 
-        //for (var n = 0; n < tmp.length; ++n)
-        //{
-        //    var sv = tmp.indexOf("{{", n);
-        //    var si = tmp.indexOf("#if", n);
-        //    var ev = 0;
-        //    var ei = 0;
-        //    var cmd = 0;
+        while (cur.parent != null)
+        {
+            tmp = cur.parent;
+            cur = cur.parent._cool;
 
-        //    if (sv != -1 && si != -1)
-        //    {
-        //        if (sv < si)
-        //        {
-        //            cmd = 1;
-        //        }
-        //        else
-        //        {
-        //            cmd = 2;
-        //        }
-        //    }
-        //    else if (sv != -1)
-        //    {
-        //        cmd = 1;
-        //    }
-        //    else if (si != -1)
-        //    {
-        //        cmd = 2;
-        //    }
-        //    else
-        //    {
-        //        break;
-        //    }
+            if (cur.tagName == "js-query-item")
+            {
+                obj._cool.parentQueryItem = tmp;
 
-        //    if (cmd == 1)
-        //    {
-        //    }
-        //    else
-        //    {
-        //    }
+                break;
+            }
+        }
 
-        //    var ied = 0;
+        obj._cool.rootMap = {};
+        obj._cool.rootMap[obj._cool.prog.root] = true;
 
-        //    if (ist == -1)
-        //    {
-        //        ist = tmp.indexOf("#if", n);
+        if (obj._cool.parentQueryItem != null)
+        {
+            obj._cool.parentQueryItem._cool.initMap(obj._cool.rootMap);
+        }
 
-        //        if (ist == -1)
-        //        {
-        //            break;
-        //        }
+        // compile template decodeURIComponent(obj.innerHTML) unescape(obj.innerHTML)
+        obj._cool.template = cool.buildTemplate(obj.innerHTML, obj._cool.rootMap);
 
-        //        ied = tmp.indexOf("#end", ist);
-
-        //        if (ied == -1)
-        //        {
-        //            return console.log("js-query: No closed #if.");
-        //        }
-        //    }
-        //}
-
-
+        // clear
+        obj.innerHTML = "";
+        
         // actions
+        obj._cool.obj = obj;
         obj._cool.isAlways = obj.getAttribute("alwaysData") != null;
         obj._cool.display = obj.style.display;
-        obj._cool.prog = prog;
+        obj._cool.firstDone = false;
         obj._cool.action = function()
         {
-            if (this.tree == null || this.isAlways)
+            if (this.data == null || this.isAlways)
             {
-                this.tree = cool.computeData(this.prog);
+                this.data = cool.computeData(this.prog);
+            }
+
+            if (this.data != null && (this.firstDone || this.isAlways))
+            {
+                this.firstDone = true;
+
+                if (this.parentQueryItem != null)
+                {
+                    this.parentQueryItem._cool.fillMap(this.rootMap);
+                }
+
+                obj.innerHTML = "";
+
+                for (var i = 0; i < this.data.length; ++i)
+                {
+                    var itm = this.data[i];
+
+                    this.rootMap[this.prog.root] = itm;
+                    this.rootMap.args = [];
+
+                    for (var o in this.rootMap)
+                    {
+                        if (this.rootMap.hasOwnProperty(o))
+                        {
+                            this.rootMap.args.push(this.rootMap[o]);
+                        }
+                    }
+
+                    var elm = cool.makeQueryItem(this.template, this.rootMap, true);
+
+                    this.obj.applyElement(elm);
+                }
+
+                // ..
             }
 
             this.obj.style.display = this.display;
@@ -877,6 +879,26 @@
         {
             this.obj.style.display = "none";
             this.cancelBase();
+        }
+    },
+
+    // js-query-item
+    tagQueryItem : function(obj)
+    {
+        obj._cool.obj = obj;
+        obj._cool.initMap = function(map)
+        {
+            if (this.parent._cool.parentQueryItem != null)
+            {
+                this.parent._cool.parentQueryItem._cool.initMap(map);
+            }
+        }
+        obj._cool.filltMap = function(map)
+        {
+            if (this.parent._cool.parentQueryItem != null)
+            {
+                this.parent._cool.parentQueryItem._cool.filltMap(map);
+            }
         }
     },
 
@@ -1722,9 +1744,12 @@
     },
 
     // read field value 
-    getField: function(field)
+    getField: function(field, cur)
     {
-        var cur = window;
+        if (cur == window)
+        {
+            cur = window;
+        }
 
         for (var i = 0; i < field.list.length; ++i)
         {
@@ -1854,7 +1879,18 @@
         {
             for (var i = 0; i < src.length; ++i)
             {
-                dst.push(src[i]);
+                if (typeof src[i] == "object")
+                {
+                    var tmp = {};
+
+                    cool.applyFieldEx(src[i], tmp);
+
+                    dst.push(tmp);
+                }
+                else
+                {
+                    dst.push(src[i]);
+                }
             }
         }
         else
@@ -3155,7 +3191,7 @@
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Tree and Data
+    // Templating and Data
 
     // creating AVL tree
     createTree: function(comparer, isUniqure)
@@ -3478,27 +3514,50 @@
     // clone object
     cloneObj: function(src)
     {
-        var dst = {};
+        var dst;
 
-        for (var p in src)
+        if (src instanceof Array)
         {
-            if (src.hasOwnProperty(p))
-            {
-                if (typeof src[p] == "object")
-                {
-                    if (dst[p] == null)
-                    {
-                        dst[p] = {};
-                    }
+            dst = [];
 
-                    cool.applyFieldEx(src[p], dst[p]);
+            for (var i = 0; i < src.length; ++i)
+            {
+                if (typeof src[i] == "object")
+                {
+                    dst.push(cool.cloneObj(src[i]));
                 }
                 else
                 {
-                    dst[p] = src[p];
+                    dst.push(src[i]);
                 }
             }
         }
+        else
+        {
+            dst = {};
+
+            for (var p in src)
+            {
+                if (src.hasOwnProperty(p))
+                {
+                    if (typeof src[p] == "object")
+                    {
+                        if (dst[p] == null)
+                        {
+                            dst[p] = {};
+                        }
+
+                        cool.applyFieldEx(src[p], dst[p]);
+                    }
+                    else
+                    {
+                        dst[p] = src[p];
+                    }
+                }
+            }
+        }
+
+        return dst;
     },
 
     // 
@@ -3736,6 +3795,410 @@
         return comp;
     },
 
+    // make element from template
+    makeQueryItem : function(tmp, roots, flug)
+    {
+        var arr = [];
+
+        for (var i = 0; i < tmp.list.length; ++i)
+        {
+            var itm = tmp.list[i];
+
+            // text
+            if (itm.type == 0)
+            {
+                arr.push(itm.text);
+            }
+            // #if #else block
+            else if (itm.type == 1)
+            {
+                if (itm.conditional.selfVars)
+                {
+                    if (document[itm.func].apply(window, roots.args))
+                    {
+                        arr.push(cool.makeQueryItem(itm.main_block, roots, false));
+                    }
+                    else if (itm.else_block != null)
+                    {
+                        arr.push(cool.makeQueryItem(itm.else_block, roots, false));
+                    }
+                }
+                else
+                {
+                    arr.push("#if");
+                    arr.push(cool.makeQueryItem(itm.conditional, roots, false));
+                    arr.push("#");
+                    arr.push(cool.makeQueryItem(itm.main_block, roots, false));
+
+                    if (itm.else_block != null)
+                    {
+                        arr.push("#else");
+                        arr.push(cool.makeQueryItem(itm.else_block, roots, false));
+                    }
+
+                    arr.push("#end");
+                }
+            }
+            // #script #else block
+            else if (itm.type == 2)
+            {
+                if (itm.prog.selfVars)
+                {
+                    var res1 = document[itm.func].apply(window, roots.args);
+
+                    if (res1 != null)
+                    {
+                        arr.push(res1);
+                    }
+                }
+                else
+                {
+                    arr.push("#script");
+                    arr.push(cool.makeQueryItem(itm.prog, roots, false));
+                    arr.push("#end");
+                }
+            }
+            // variable
+            else if (itm.type == 3)
+            {
+                if (itm.selfVar)
+                {
+                    var res2 = cool.getField({ list: itm.vField }, roots[itm.vField[0]]);
+
+                    if (res2 != null)
+                    {
+                        arr.push(res2);
+                    }
+                    else
+                    {
+                        arr.push("null");
+                    }
+                }
+                else
+                {
+                    arr.push("{{");
+                    arr.push(itm.text);
+                    arr.push("}}");
+                }
+            }
+        }
+
+        var str = arr.join("");
+
+        if (flug)
+        {
+            var elm = document.createElement("js-query-item");
+
+            elm.innerHTML = str;
+
+            document.applyElement(elm);
+
+            return elm;
+        }
+        else
+        {
+            return str;
+        }
+    },
+
+    // build js-query template
+    buildTemplate : function(str, roots)
+    {
+        var tmp = { list: [], selfVars : true};
+
+        // parse #if #else #end
+        for (var i = 0; i < str.length; ++i)
+        {
+            var ind0 = str.indexOf("#if", i);
+
+            if (ind0 == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                }); 
+
+                break;
+            }
+
+            var ind1 = str.indexOf("#", ind0 + 1);
+
+            if (ind1 == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                }); 
+
+                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The close conditional char '#' not found.");
+
+                break;
+            }
+
+            var ind2 = str.indexOf("#end", ind1 + 1);
+
+            if (ind2 == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                });   
+
+                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The '#end' of block #if-#end not found.");
+
+                break;
+            }
+
+            // text space
+            tmp.list.push(
+            {
+                type: 0,
+                text: str.substr(i, ind0 - i)
+            });
+            
+            var ind3 = str.indexOf("#else", ind1 + 1);
+            var text0 = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
+
+            var obj1 =
+            {
+                type: 1,
+                conditional: text0
+            };
+
+            if (ind3 != -1 && ind3 < ind2)
+            {
+                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind3 - ind1 - 1), roots);
+                obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, ind2 - ind3 - 5), roots);
+            }
+            else
+            {
+                obj1.main_block = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
+                obj1.else_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1), roots);
+            }
+                
+            if (obj1.conditional.selfVars)
+            {
+                obj1.func = cool.getRandomString();
+
+                var args0 = "";
+
+                for (var m in roots)
+                {
+                    if (roots.hasOwnProperty(m))
+                    {
+                        args0 += m + ", ";
+                    }
+                }
+
+                var scr0 = document.createElement('script');
+
+                scr0.type = 'text/javascript';
+                scr0.text = "document['" + obj1.func + "'] = function(" + args0.substr(0, args0.length - 2) + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
+
+                document.getElementsByTagName('body')[0].appendChild(scr0);
+            }
+            
+            tmp.list.push(obj1);
+
+            i = ind2 + 3;
+        }
+
+        // parse #script #end
+        for (var j = 0; j < tmp.list.length; ++j)
+        {
+            var itm0 = tmp.list[j];
+
+            if (itm0.type == 0)
+            {
+                itm0 = tmp.list.splice(j, 1)[0];
+
+                for (var k = 0; k < itm0.text.length; ++k)
+                {
+                    var ind4 = itm0.text.indexOf("#script", k);
+
+                    if (ind4 == -1)
+                    {
+                        tmp.list.splice(j, 0,
+                        {
+                            type : 0,
+                            text: itm0.text.substr(k)
+                        }); 
+
+                        break;
+                    }
+
+                    var ind5 = itm0.text.indexOf("#end", ind4);
+
+                    if (ind5 == -1)
+                    {
+                        tmp.list.splice(j, 0,
+                        {
+                            type : 0,
+                            text: itm0.text.substr(k)
+                        }); 
+
+                        console.log("js-query template warning at " + k + "char: Possible wrong #script syntax. The '#end' of block #script-#end not found.");
+
+                        break;
+                    }
+
+                    // text space
+                    tmp.list.splice(j++, 0,
+                    {
+                        type: 0,
+                        text: itm0.text.substr(k, ind4 - k)
+                    });
+                    
+                    var text = itm0.text.substr(ind4 + 7, ind5 - ind4 - 7);
+                    var prog = cool.buildTemplate(text, roots);
+                    var func = null;
+
+                    if (prog.selfVars)
+                    {
+                        func = cool.getRandomString();
+
+                        var args1 = "";
+
+                        for (var l in roots)
+                        {
+                            if (roots.hasOwnProperty(l))
+                            {
+                                args1 += l + ", ";
+                            }
+                        }
+
+                        var scr1 = document.createElement('script');
+
+                        scr1.type = 'text/javascript';
+                        scr1.text = "document['" + func + "'] = function(" + args1.substr(0, args1.length - 2) + "){" + cool.concateTmpFrag(prog) + ";}";
+
+                        document.getElementsByTagName('body')[0].appendChild(scr1);
+                    }
+                    
+                    tmp.list.splice(j++, 0,
+                    {
+                        type : 2,
+                        prog: prog,
+                        text: text,
+                        func : func
+                    }); 
+
+                    k = ind5 + 3;
+                }
+            }
+        }
+
+        // parse variables
+        for (var n = 0; n < tmp.list.length; ++n)
+        {
+            var itm1 = tmp.list[n];
+
+            if (itm1.type == 0)
+            {
+                itm1 = tmp.list.splice(n, 1)[0];
+
+                for (var r = 0; r < itm1.text.length; ++r)
+                {
+                    var ind6 = itm1.text.indexOf("{{", r);
+
+                    if (ind6 == -1)
+                    {
+                        tmp.list.splice(n, 0,
+                        {
+                            type: 0,
+                            text: itm1.text.substr(r)
+                        });
+
+                        break;
+                    }
+
+                    var ind7 = itm1.text.indexOf("}}", ind6);
+
+                    if (ind7 == -1)
+                    {
+                        tmp.list.splice(n, 0,
+                        {
+                            type: 0,
+                            text: itm1.text.substr(r)
+                        });
+
+                        console.log("js-query template warning at " + r + "char: Possible wrong {{...}} syntax. Closing braces '}}' not found.");
+
+                        break;
+                    }
+
+                    // text space
+                    tmp.list.splice(n++, 0,
+                    {
+                        type: 0,
+                        text: itm1.text.substr(r, ind6 - r)
+                    });
+
+                    var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
+                    var vField = text2.split(".");
+                    var selfVar = roots[vField[0]] != null;
+
+                    tmp.selfVars = tmp.selfVars && selfVar;
+
+                    tmp.list.splice(n++, 0,
+                    {
+                        type: 3,
+                        text: text2,
+                        vField: vField,
+                        selfVar: selfVar
+                    });
+
+                    r = ind7 + 1;
+                }
+            }
+        }
+
+        return tmp;
+    },
+
+    // concate template fragments
+    concateTmpFrag : function(frag)
+    {
+        var str = "";
+
+        for (var i = 0; i < frag.list.length; ++i)
+        {
+            var itm = frag.list[i];
+
+            // text
+            if (itm.type == 0)
+            {
+                str += itm.text;
+            }
+            // #if-#end
+            else if (itm.type == 1)
+            {
+                str += "if (" + cool.concateTmpFrag(itm.conditional) + " ) ";
+                str += "{ " + cool.concateTmpFrag(itm.main_block) + " } ";
+
+                if (itm.else_block != null)
+                {
+                    str += "else { " + cool.concateTmpFrag(itm.else_block) + " } ";
+                }
+            }
+            // #script-#end
+            else if (itm.type == 2)
+            {
+                str += cool.concateTmpFrag(itm.prog);
+            }
+            // #var
+            else if (itm.type == 3)
+            {
+                str += itm.text;
+            }
+        }
+
+        return str;
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Helpers
 
@@ -3845,6 +4308,8 @@
                 arr.push({obj : itm, name : name});
 
                 code = itm.cooljs().hash;
+
+                itm._cool.tagName = name;
 
                 if (ht[code] == null)
                 {
@@ -4211,6 +4676,8 @@ Object.prototype.cooljs = function()
         this._cool =
         {
             hash : cool.lastHash++,
+            tagName : null,
+            parent : null,
             chields : [],
             isActive : false,
             jssetCount: 0,
