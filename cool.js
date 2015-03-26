@@ -820,15 +820,15 @@
             obj._cool.parentQueryItem._cool.initMap(obj._cool.rootMap);
         }
 
-        // compile template decodeURIComponent(obj.innerHTML) unescape(obj.innerHTML)
-        obj._cool.template = cool.buildTemplate(obj.innerHTML, obj._cool.rootMap);
+        // compile template 
+        obj._cool.template = cool.buildTemplate(cool.decodeEntities(obj.innerHTML), obj._cool.rootMap);
 
         // clear
         obj.innerHTML = "";
         
         // actions
         obj._cool.obj = obj;
-        obj._cool.isAlways = obj.getAttribute("alwaysData") != null;
+        obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.display = obj.style.display;
         obj._cool.firstDone = false;
         obj._cool.action = function()
@@ -838,7 +838,7 @@
                 this.data = cool.computeData(this.prog);
             }
 
-            if (this.data != null && (this.firstDone || this.isAlways))
+            if (this.data != null && (!this.firstDone || this.isAlways))
             {
                 this.firstDone = true;
 
@@ -858,7 +858,7 @@
 
                     for (var o in this.rootMap)
                     {
-                        if (this.rootMap.hasOwnProperty(o))
+                        if (this.rootMap.hasOwnProperty(o) && o != "args")
                         {
                             this.rootMap.args.push(this.rootMap[o]);
                         }
@@ -866,10 +866,12 @@
 
                     var elm = cool.makeQueryItem(this.template, this.rootMap, true);
 
-                    this.obj.applyElement(elm);
+                    this.obj.appendChild(elm);
                 }
 
                 // ..
+
+                this.firstDone = true;
             }
 
             this.obj.style.display = this.display;
@@ -969,11 +971,11 @@
             {
                 if (this.isChanged)
                 {
-                    var flug = eval(this.conditional);
+                    var flag = eval(this.conditional);
 
-                    if (flug != this.isFlug)
+                    if (flag != this.isFlug)
                     {
-                        if (flug)
+                        if (flag)
                         {
                             this.obj.style.display = this.display;
                             this.actionBase();
@@ -984,7 +986,7 @@
                         }
                     }
 
-                    this.isFlug = flug;
+                    this.isFlug = flag;
                     this.isChanged = false;
                 }
                 else if (this.isFlug)
@@ -1579,21 +1581,41 @@
     obHt: {},
 
     // create field from field path
-    createField: function(path, isObject, isArray)
+    createField: function(path, isObject, isArray, isRelative)
     {
-        if (path == "")
+        if (isObject == null)
         {
-            path = "window";
+            isObject = false;
         }
-        else
+
+        if (isArray == null)
         {
-            path = "window." + path;
+            isArray = false;
+        }
+
+        if (isRelative == null)
+        {
+            isRelative = false;
+        }
+
+        if (!isRelative)
+        {
+            if (path == "")
+            {
+                path = "window";
+            }
+            else
+            {
+                path = "window." + path;
+            }
         }
 
         var arr = path.split(".");
 
         var field =
         {
+            isRelative : isRelative,
+            offset : 0,
             path: path,
             list: []
         };
@@ -1658,7 +1680,7 @@
     {
         var cur = window;
 
-        for (var i = 0; i < field.list.length; ++i)
+        for (var i = field.offset; i < field.list.length; ++i)
         {
             var itm = field.list[i];
             var last = i == field.list.length - 1;
@@ -1746,12 +1768,12 @@
     // read field value 
     getField: function(field, cur)
     {
-        if (cur == window)
+        if (cur == null)
         {
             cur = window;
         }
 
-        for (var i = 0; i < field.list.length; ++i)
+        for (var i = field.offset; i < field.list.length; ++i)
         {
             var itm = field.list[i];
 
@@ -3796,7 +3818,7 @@
     },
 
     // make element from template
-    makeQueryItem : function(tmp, roots, flug)
+    makeQueryItem : function(tmp, roots, flag)
     {
         var arr = [];
 
@@ -3863,7 +3885,7 @@
             {
                 if (itm.selfVar)
                 {
-                    var res2 = cool.getField({ list: itm.vField }, roots[itm.vField[0]]);
+                    var res2 = cool.getField(itm.vField, roots[itm.vField.list[0].name]);
 
                     if (res2 != null)
                     {
@@ -3885,13 +3907,11 @@
 
         var str = arr.join("");
 
-        if (flug)
+        if (flag)
         {
             var elm = document.createElement("js-query-item");
 
             elm.innerHTML = str;
-
-            document.applyElement(elm);
 
             return elm;
         }
@@ -3904,6 +3924,8 @@
     // build js-query template
     buildTemplate : function(str, roots)
     {
+        //str = unescape(str);
+
         var tmp = { list: [], selfVars : true};
 
         // parse #if #else #end
@@ -4138,8 +4160,10 @@
                     });
 
                     var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
-                    var vField = text2.split(".");
-                    var selfVar = roots[vField[0]] != null;
+                    var vField = cool.createField(text2, false, false, true);
+                    var selfVar = roots[vField.list[0].name] != null;
+
+                    vField.offset = 1;
 
                     tmp.selfVars = tmp.selfVars && selfVar;
 
@@ -4208,7 +4232,7 @@
         var itm = arr[cool.outPos];
         var ind = itm.indexOf(str);
         var last = -1;
-        var flug = false;
+        var flag = false;
 
         if (itm == str)
         {
@@ -4221,17 +4245,17 @@
         {
             arr[cool.outPos++] = str;
 
-            flug = true;
+            flag = true;
         }
         else if (ind > 0)
         {
             arr[cool.outPos++] = itm.substr(0, ind);
             arr.splice(cool.outPos++, 0, str);
 
-            flug = true;
+            flag = true;
         }
 
-        while (flug)
+        while (flag)
         {
             last = ind;
             ind = itm.indexOf(str, ind + 1);
@@ -4256,10 +4280,10 @@
         {
             arr.splice(cool.outPos++, 0, itm.substr(last + 1));
 
-            flug = true;
+            flag = true;
         }
 
-        return flug;
+        return flag;
     },
 
     // random string for function name
@@ -4544,19 +4568,19 @@
         }
         
         // number
-        var flug = true;
+        var flag = true;
         
         for (var i = 0; i < itm.length; ++i)
         {
             if (!cool.numHt[itm[i]])
             {
-                flug = false;
+                flag = false;
 
                 break;
             }
         }
 
-        if (flug)
+        if (flag)
         {
             return false;
         }
@@ -4657,6 +4681,30 @@
         return false;
     },
 
+    // unescape
+    decodeEntities : function(str)
+    {
+        if (cool.patternEntities == null)
+        {
+            cool.patternEntities = /&(?:#x[a-f0-9]+|#[0-9]+|[a-z0-9]+);?/ig;
+        }
+
+        if (cool.elementEntities == null)
+        {
+            cool.elementEntities = document.createElement('div');
+        }
+
+        var tmp = str.replace(cool.patternEntities, function(m)
+        {
+            cool.elementEntities.innerHTML = m;
+
+            return cool.elementEntities.innerText;
+        });
+
+        return tmp;
+    },
+
+    //
     booleanHt:
     {
         "true": true,
