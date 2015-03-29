@@ -177,9 +177,9 @@
 
         var desk = null;
 
-        for (var i = 0; i < obj.childNodes.length; ++i)
+        for (var i = 0; i < obj.children.length; ++i)
         {
-            var itm = obj.childNodes[i];
+            var itm = obj.children[i];
             var tnm = itm.tagName == null ? "" : itm.tagName.toLowerCase();
 
             if (tnm == "js-ajax-stream")
@@ -203,11 +203,11 @@
         {
             obj._cool.params = [];
 
-            var pars = obj.childNodes[obj._cool.paramsIndex];
+            var pars = obj.children[obj._cool.paramsIndex];
 
-            for (var j = 0; j < pars.childNodes.length; ++j)
+            for (var j = 0; j < pars.children.length; ++j)
             {
-                var par = pars.childNodes[j];
+                var par = pars.children[j];
 
                 if (par.tagName != null && par.tagName.toLowerCase() == "js-ajax-param")
                 {
@@ -455,50 +455,69 @@
         obj._cool.src = src;
         obj._cool.obj = obj;
         obj._cool.display = obj.style.display;
+        obj._cool.isAlways = obj.getAttribute("always") != null;
+        obj._cool.firstDone = false;
         obj._cool.action = function()
         {
             this.obj.style.display = this.display;
 
-            switch (this.type)
+            if (this.isAlways || !this.firstDone)
             {
-                case "js":
+                switch (this.type)
                 {
-                    var script = document.createElement('script');
-
-                    script.src = this.src;
-
-                    obj.appendChild(script);
-
-                    break;
-                }
-                case "css":
-                {
-                    var link = document.createElement('link');
-
-                    link.rel = 'stylesheet';
-                    link.type = 'text/css';
-                    link.href = this.src;
-                    obj.appendChild(link);
-
-                    break;
-                }
-                case "html":
-                {
-                    cool.ajaxGet(this.src, this.obj, function(http, tag)
+                    case "js":
                     {
-                        tag.innerHTML = http.responseText;
+                        var script = document.createElement('script');
 
-                        cool.processElement(tag);
-                        tag._cool.actionBase();
-                    }).go();
+                        script.src = this.src;
 
-                    break;
+                        obj.appendChild(script);
+
+                        obj._cool.firstDone = true;
+
+                        break;
+                    }
+                    case "css":
+                    {
+                        var link = document.createElement('link');
+
+                        link.rel = 'stylesheet';
+                        link.type = 'text/css';
+                        link.href = this.src;
+                        obj.appendChild(link);
+                        
+                        obj._cool.firstDone = true;
+
+                        break;
+                    }
+                    case "html":
+                    {
+                        cool.ajaxGet(this.src, this.obj, function(http, tag)
+                        {
+                            var tmp = http.responseText.replace("<js-query", "<script type='js-query'").replace("</js-query", "</script");
+
+                            tag._cool.clear();
+                            tag.innerHTML = tmp;
+
+                            cool.processElement(tag);
+                            tag._cool.actionBase();
+
+                            obj._cool.firstDone = true;
+
+                        }).go();
+
+                        break;
+                    }
+                    case "com":
+                    {
+
+                        break;
+                    }
                 }
-                case "com":
-                {
-
-                    break;
-                }
+            }
+            else
+            {
+                this.obj._cool.actionBase();
             }
         }
         obj._cool.cancel = function()
@@ -860,8 +879,6 @@
 
         obj._cool.template.pl_start = pl_start;
         obj._cool.template.pl_end = pl_end;
-
-
         
         // actions
         obj._cool.obj = obj;
@@ -883,6 +900,8 @@
                 {
                     this.parentQueryItem._cool.fillMap(this.rootMap);
                 }
+
+                this.clear();
 
                 // clear
                 if (!this.isScript)
@@ -936,10 +955,12 @@
 
                     this.targetObject.innerHTML = arr.join("");
 
-                    this.obj.parentNode.appendChild(this.targetObject);
+                    this.obj.parentNode.insertBefore(this.targetObject, this.obj);
                 }
 
                 obj.innerHTML = arr.join("");
+
+                cool.processElement(obj);
 
                 this.firstDone = true;
             }
@@ -1986,7 +2007,15 @@
         {
             for (var i = 0; i < src.length; ++i)
             {
-                if (typeof src[i] == "object")
+                if (src[i] instanceof Array)
+                {
+                    var arr = [];
+
+                    dst.push(arr);
+
+                    cool.applyFieldEx(src[i], arr);
+                }
+                else if (typeof src[i] == "object")
                 {
                     var tmp = {};
 
@@ -2006,7 +2035,13 @@
             {
                 if (src.hasOwnProperty(p))
                 {
-                    if (typeof src[p] == "object")
+                    if (src[p] instanceof Array)
+                    {
+                        dst[p] = [];
+
+                        cool.applyFieldEx(src[p], dst[p]);
+                    }
+                    else if (typeof src[p] == "object")
                     {
                         if (dst[p] == null)
                         {
@@ -2460,36 +2495,36 @@
                 }
                 case "2": // push-all
                 {
-                    for (i = 0; i < cur.childNodes.length; ++i)
+                    for (i = 0; i < cur.children.length; ++i)
                     {
-                        ret.push(cur.childNodes[i]);
+                        ret.push(cur.children[i]);
                     }
 
                     break;
                 }
                 case "3": // chield[n]
                 {
-                    if (opr.index < cur.childNodes.length)
+                    if (opr.index < cur.children.length)
                     {
-                        cur = cur.childNodes[opr.index];
+                        cur = cur.children[opr.index];
                     }
 
                     break;
                 }
                 case "4": // back
                 {
-                    if (cur.previousSibling != null)
+                    if (cur.previousElementSibling != null)
                     {
-                        cur = cur.previousSibling;
+                        cur = cur.previousElementSibling;
                     }
 
                     break;
                 }
                 case "5": // back-tree
                 {
-                    if (cur.previousSibling != null)
+                    if (cur.previousElementSibling != null)
                     {
-                        cur = cur.previousSibling;
+                        cur = cur.previousElementSibling;
                     }
                     else
                     {
@@ -2502,9 +2537,9 @@
                 {
                     for (i = 0; i < opr.index; ++i)
                     {
-                        if (cur.previousSibling != null)
+                        if (cur.previousElementSibling != null)
                         {
-                            cur = cur.previousSibling;
+                            cur = cur.previousElementSibling;
                         }
                     }
 
@@ -2514,9 +2549,9 @@
                 {
                     for (i = 0; i < opr.index; ++i)
                     {
-                        if (cur.previousSibling != null)
+                        if (cur.previousElementSibling != null)
                         {
-                            cur = cur.previousSibling;
+                            cur = cur.previousElementSibling;
                         }
                         else
                         {
@@ -2556,26 +2591,26 @@
                 }
                 case "d": // next
                 {
-                    if (cur.nextSibling != null)
+                    if (cur.nextElementSibling != null)
                     {
-                        cur = cur.nextSibling;
+                        cur = cur.nextElementSibling;
                     }
 
                     break;
                 }
                 case "e": // next-tree
                 {
-                    if (cur.childNodes.length > 0)
+                    if (cur.children.length > 0)
                     {
-                        cur = cur.childNodes[0];
+                        cur = cur.children[0];
                     }
                     else
                     {
                         while (cur != document)
                         {
-                            if (cur.nextSibling != null)
+                            if (cur.nextElementSibling != null)
                             {
-                                cur = cur.nextSibling;
+                                cur = cur.nextElementSibling;
 
                                 break;
                             }
@@ -2592,9 +2627,9 @@
                 {
                     for (i = 0; i < opr.index; ++i)
                     {
-                        if (cur.nextSibling != null)
+                        if (cur.nextElementSibling != null)
                         {
-                            cur = cur.nextSibling;
+                            cur = cur.nextElementSibling;
                         }
                         else
                         {
@@ -2610,9 +2645,9 @@
                     {
                         while (cur != document)
                         {
-                            if (cur.nextSibling != null)
+                            if (cur.nextElementSibling != null)
                             {
-                                cur = cur.nextSibling;
+                                cur = cur.nextElementSibling;
 
                                 break;
                             }
@@ -2627,22 +2662,22 @@
                 }
                 case "h": // last
                 {
-                    if (cur.childNodes.length > 0)
+                    if (cur.children.length > 0)
                     {
-                        cur = cur.childNodes[cur.childNodes.length - 1];
+                        cur = cur.children[cur.children.length - 1];
                     }
 
                     break;
                 }
                 case "i": // last[n]
                 {
-                    if (opr.index < cur.childNodes.length)
+                    if (opr.index < cur.children.length)
                     {
-                        cur = cur.childNodes[cur.childNodes.length - opr.index];
+                        cur = cur.children[cur.children.length - opr.index];
                     }
-                    else if (cur.childNodes.length > 0)
+                    else if (cur.children.length > 0)
                     {
-                        cur = cur.childNodes[0];
+                        cur = cur.children[0];
                     }
 
                     break;
@@ -2658,16 +2693,16 @@
                     cur =
                     {
                         parentNode: cur,
-                        nextSibling: null,
-                        previousSibling: null,
-                        childNodes: cur.querySelectorAll(opr.query)
+                        nextElementSibling: null,
+                        previousElementSibling: null,
+                        children: cur.querySelectorAll(opr.query)
                     };
 
                     if (isLast)
                     {
-                        for (i = 0; i < cur.childNodes.length; ++i)
+                        for (i = 0; i < cur.children.length; ++i)
                         {
-                            ret.push(cur.childNodes[i]);
+                            ret.push(cur.children[i]);
                         }
 
                         cur = null;
@@ -3013,9 +3048,9 @@
 
                 arr.push(spliter);
 
-                for (i = 0; i < obj.childNodes.length; ++i)
+                for (i = 0; i < obj.children.length; ++i)
                 {
-                    itm = obj.childNodes[i];
+                    itm = obj.children[i];
 
                     cool.metaStream.toShort(itm, spliter, arr);
                 }
@@ -3044,9 +3079,9 @@
                     arr.push("o");
                     arr.push(name);
 
-                    for (i = 0; i < obj.childNodes.length; ++i)
+                    for (i = 0; i < obj.children.length; ++i)
                     {
-                        itm = obj.childNodes[i];
+                        itm = obj.children[i];
 
                         cool.metaStream.toShort(itm, spliter, arr);
                     }
@@ -3088,7 +3123,7 @@
                     return console.log(tagName + ": The 'type' attribute is empty");
                 }
 
-                if (obj.childNodes.length > 0 && type != "object")
+                if (obj.children.length > 0 && type != "object")
                 {
                     return console.log(tagName + ": The 'type' must be 'object' than chields more one.");
                 }
@@ -3115,9 +3150,9 @@
 
                 if (type == "object")
                 {
-                    for (i = 0; i < obj.childNodes.length; ++i)
+                    for (i = 0; i < obj.children.length; ++i)
                     {
-                        itm = obj.childNodes[i];
+                        itm = obj.children[i];
 
                         cool.metaStream.toShort(itm, spliter, arr);
                     }
@@ -3160,9 +3195,9 @@
                 arr.push(name);
                 arr.push(value);
 
-                for (i = 0; i < obj.childNodes.length; ++i)
+                for (i = 0; i < obj.children.length; ++i)
                 {
-                    itm = obj.childNodes[i];
+                    itm = obj.children[i];
 
                     cool.metaStream.toShort(itm, spliter, arr);
                 }
@@ -4832,6 +4867,10 @@ Object.prototype.cooljs = function()
 
                     itm._cool.cancel();
                 }
+            },
+            clear : function()
+            {
+                this.chields = [];
             }
         };
     }
