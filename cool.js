@@ -7,6 +7,39 @@
     defaultHash: "",
     lastUrlHash: "",
     outPos: 0,
+    validate :
+    {
+        text:
+        {
+            pattern : ".{3,20}",
+            title : "Can't be empty."
+        },
+        name:
+        {
+            pattern : ".{3,20}",
+            title : "Must contain at least 3 or more characters"
+        },
+        password:
+        {
+            pattern : "(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,20}",
+            title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
+        },
+        email:
+        {
+            pattern : "^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$",
+            title : "Email is not valid."
+        },
+        url:
+        {
+            pattern : "https?://.+",
+            title : "Must start with http:// or https://"
+        },
+        tel:
+        {
+            pattern : "(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
+            title : "Must contain only numbers, spaces and braces."
+        }
+    },
 
     // entry point
     init: function()
@@ -1416,6 +1449,28 @@
                             validateLast : null,
                             validate: this
                         }
+
+                        if (itm.getAttribute("required") == null)
+                        {
+                            itm.setAttribute("required");
+                        }
+
+                        var t = itm.getAttribute("type");
+
+                        if (t != null && cool.validate[t] != null)
+                        {
+                            if (itm.getAttribute("pattern") == null)
+                            {
+                                itm.setAttribute("pattern", cool.validate[t].pattern);
+                            }
+
+                            if (itm.getAttribute("title") == null)
+                            {
+                                itm.setAttribute("title", cool.validate[t].title);
+                            }
+                            
+                            itm._cool.validateTitle = itm.getAttribute("title");
+                        }
                     }
 
                     itm.addEventListener("change", function()
@@ -1433,6 +1488,19 @@
 
                             cool.setField(this._cool.validate.field, val);
                             cool.changed(this._cool.validate.field.path);
+                        }
+
+                        if (!this.validity.valid)
+                        {
+                            if (itm._cool.validateTitle != null)
+                            {
+                                this.setCustomValidity(itm._cool.validateTitle);
+                                this.reportValidity();
+                            }
+                        }
+                        else
+                        {
+                            this.setCustomValidity("");
                         }
 
                         if (this._cool.validate.validCount == this._cool.validate.arr.length && !this._cool.validate.isActive)
