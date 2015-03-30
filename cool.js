@@ -11,7 +11,7 @@
     {
         text:
         {
-            pattern : ".{3,20}",
+            pattern : ".{1,}",
             title : "Can't be empty."
         },
         name:
@@ -57,7 +57,17 @@
             "js-attribute": cool.tagAttribute,
             "js-style": cool.tagStyle,
             "script": cool.tagScript,
-            "js-validate" : cool.tagValidate
+            "js-validate": cool.tagValidate,
+            "js-atr-proxy": cool.tagAtrProxy
+        };
+
+        cool.jsA =
+        {
+            "js-bind": cool.atrBindBoth,
+            "js-read": cool.atrBindRead,
+            "js-write": cool.atrBindWrite,
+            "js-class": cool.atrClass,
+            "js-cancel-class": cool.atrCancelClass
         };
 
         cool.initNavigator();
@@ -1490,18 +1500,19 @@
                             cool.changed(this._cool.validate.field.path);
                         }
 
-                        if (!this.validity.valid)
-                        {
-                            if (itm._cool.validateTitle != null)
-                            {
-                                this.setCustomValidity(itm._cool.validateTitle);
-                                this.reportValidity();
-                            }
-                        }
-                        else
-                        {
-                            this.setCustomValidity("");
-                        }
+                        // not work without forms
+                        //if (!this.validity.valid)
+                        //{
+                        //    if (itm._cool.validateTitle != null)
+                        //    {
+                        //        this.setCustomValidity(itm._cool.validateTitle);
+                        //        this.reportValidity();
+                        //    }
+                        //}
+                        //else
+                        //{
+                        //    this.setCustomValidity("");
+                        //}
 
                         if (this._cool.validate.validCount == this._cool.validate.arr.length && !this._cool.validate.isActive)
                         {
@@ -1510,8 +1521,7 @@
                         }
                         else if (this._cool.validate.isActive)
                         {
-                            this._cool.validate.obj.style.display = "none";
-                            this._cool.validate.cancelBase();
+                            this._cool.validate.cancel();
                         }
                     });
                 }
@@ -1530,11 +1540,43 @@
         };
     },
 
+    // js-atr-proxy
+    tagAtrProxy: function(obj)
+    {
+        for (var i = 0; i < obj._cool.attributes.length; ++i)
+        {
+            var itm = obj._cool.attributes[i];
+
+            if (cool.jsA[itm.name] != null)
+            {
+                cool.jsA[itm.name](obj);
+            }
+        }
+    },
+    
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
 
-    // js-bind, js-read, js-write
-    atrBind: function(obj, isReadOnly, isWriteOnly)
+    // js-bind
+    atrBindBoth: function(obj)
+    {
+        cool.atrBindEx(obj, false, false);
+    },
+
+    // js-read
+    atrBindRead: function(obj)
+    {
+        cool.atrBindEx(obj, true, false);
+    },
+
+    // js-write
+    atrBindWrite: function(obj)
+    {
+        cool.atrBindEx(obj, false, true);
+    },
+
+    // js-bind all modes
+    atrBindEx: function(obj, isReadOnly, isWriteOnly)
     {
         obj.cooljs();
 
@@ -1728,6 +1770,18 @@
                 }
             });
         }
+    },
+
+    // js-class
+    atrClass: function(obj)
+    {
+        
+    },
+
+    // js-cancel-class
+    atrCancelClass: function(obj)
+    {
+        
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4574,7 +4628,123 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write]");
+        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-cancel-class]");
+        var code = elm.cooljs().hash;
+        var ht = {}; 
+        var i = 0;
+        var itm = null;
+        var name = "";
+
+        ht[code] = elm;
+
+        var arr = [];
+
+        console.log(tmp.length);
+
+        // filter tags and init base function
+        for (i = 0; i < tmp.length; ++i)
+        {
+            itm = tmp[i];
+            name = itm.tagName.toLowerCase();
+
+            for (var n in cool.jsA)
+            {
+                if (cool.jsA.hasOwnProperty(n))
+                {
+                    var val = itm.getAttribute(n);
+
+                    if (val != null)
+                    {
+                        if (itm._cool == null)
+                        {
+                            itm.cooljs();
+                        }
+
+                        if (cool.jsF[name] == null)
+                        {
+                            name = "js-atr-proxy";
+                        }
+                        
+                        itm._cool.attributes.push(
+                        {
+                            name: n,
+                            value: val
+                        });
+                    }
+                }
+            }
+            
+            if (cool.jsF[name] != null)
+            {
+                arr.push({obj : itm, name : name});
+
+                code = itm.cooljs().hash;
+
+                itm._cool.tagName = name;
+
+                if (ht[code] == null)
+                {
+                    ht[code] = itm;
+                }
+            }
+        }
+
+        // build tag tree
+        for (i = arr.length - 1; i >= 0; --i)
+        {
+            itm = arr[i];
+
+            var cur = itm.obj.parentNode;
+
+            while (cur != null)
+            {
+                if (cur._cool != null)
+                {
+                    if (cur._cool == true || cur._cool.tagName == "js-query")
+                    {
+                        itm._cool = true;
+
+                        break;
+                    }
+
+                    if (ht[cur._cool.hash] != null)
+                    {
+                        if (itm.name == "js-set")
+                        {
+                            cur._cool.chields.splice(cur._cool.jssetCount++, 0, itm.obj);
+                        }
+                        else
+                        {
+                            cur._cool.chields.push(itm.obj);
+                        }
+
+                        itm.obj._cool.parent = cur;
+
+                        break;
+                    }
+                }
+
+                cur = cur.parentNode;
+            }
+        }
+
+        // init tags
+        for (i = 0; i < arr.length; ++i)
+        {
+            itm = arr[i];
+
+            cool.jsF[itm.name](itm.obj);
+        }
+
+        delete ht;
+        delete arr;
+        delete tmp;
+    },
+
+    // init dom tree
+    processElement2 : function(elm)
+    {
+        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-cancel-class]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -4638,6 +4808,20 @@
                     }
                 });
             }
+
+            var atb = itm.getAttribute("js-class");
+
+            if (atb != null)
+            {
+                atr.push(
+                {
+                    itm: itm,
+                    func: function()
+                    {
+                        cool.atrBind(this.itm, false, false);
+                    }
+                });
+            }            
         }
 
         // build tag tree
@@ -4701,7 +4885,7 @@
             }
         }
 
-        // run init tags
+        // init tags
         for (i = 0; i < arr.length; ++i)
         {
             itm = arr[i];
@@ -4988,6 +5172,7 @@ Object.prototype.cooljs = function()
     {
         this._cool =
         {
+            attributes: [],
             hash : cool.lastHash++,
             tagName : null,
             parent : null,
@@ -5010,6 +5195,16 @@ Object.prototype.cooljs = function()
                 {
                     var itm = this.chields[i];
 
+                    for (var j = 0; j < itm._cool.attributes.length; ++j)
+                    {
+                        var atr = itm._cool.attributes[j];
+
+                        if (atr.action != null)
+                        {
+                            atr.action();
+                        }
+                    }
+
                     itm._cool.action();
                 }
             },
@@ -5020,6 +5215,16 @@ Object.prototype.cooljs = function()
                 for (var i = 0; i < this.chields.length; ++i)
                 {
                     var itm = this.chields[i];
+
+                    for (var j = 0; j < itm._cool.attributes.length; ++j)
+                    {
+                        var atr = itm._cool.attributes[j];
+
+                        if (atr.cancel != null)
+                        {
+                            atr.cancel();
+                        }
+                    }
 
                     itm._cool.cancel();
                 }
