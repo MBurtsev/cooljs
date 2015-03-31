@@ -1549,7 +1549,7 @@
 
             if (cool.jsA[itm.name] != null)
             {
-                cool.jsA[itm.name](obj);
+                cool.jsA[itm.name](obj, i);
             }
         }
     },
@@ -1558,95 +1558,81 @@
     // Attributes
 
     // js-bind
-    atrBindBoth: function(obj)
+    atrBindBoth: function(obj, index)
     {
-        cool.atrBindEx(obj, false, false);
+        cool.atrBindEx(obj, obj._cool.attributes[index].value, false, false);
     },
 
     // js-read
-    atrBindRead: function(obj)
+    atrBindRead: function(obj, index)
     {
-        cool.atrBindEx(obj, true, false);
+        cool.atrBindEx(obj, obj._cool.attributes[index].value, true, false);
     },
 
     // js-write
-    atrBindWrite: function(obj)
+    atrBindWrite: function(obj, index)
     {
-        cool.atrBindEx(obj, false, true);
+        cool.atrBindEx(obj, obj._cool.attributes[index].value, false, true);
     },
 
     // js-bind all modes
-    atrBindEx: function(obj, isReadOnly, isWriteOnly)
+    atrBindEx: function(obj, value, isReadOnly, isWriteOnly)
     {
-        obj.cooljs();
+        var bind = {};
 
-        obj._cool.path = "";
+        obj._cool.bind = bind;
 
-        if (isReadOnly)
-        {
-            obj._cool.path = obj.getAttribute("js-read");
-        }
-        else if (isWriteOnly)
-        {
-            obj._cool.path = obj.getAttribute("js-write");
-        }
-        else
-        {
-            obj._cool.path = obj.getAttribute("js-bind");
-        }
+        bind.path = value;
 
-        if (obj._cool.path == null || obj._cool.path == "")
+        if (bind.path == null || bind.path == "")
         {
             return console.log(obj.tagName + ": has empty 'js-bing' attribute.");
         }
         else
         {
-            obj._cool.path = "window." + obj._cool.path;
+            bind.path = "window." + bind.path;
         }
 
         var tnm = obj.tagName.toLowerCase();
-        obj._cool.isInput = tnm == "input";
-        obj._cool.isTextaria = tnm == "textaria";
-        obj._cool.isSelect = tnm == "select";
-        obj._cool.isFloat = obj.hasAttribute("float");
-        obj._cool.lock1 = false;
-        obj._cool.lock2 = false;
-        obj._cool.isCheckbox = false;
-        obj._cool.isRadio = false;
-        obj._cool.isText = false;
-        obj._cool.isNumber = false;
-        obj._cool.field = cool.createField(obj._cool.path, false);
-        obj._cool.obj = obj;
+
+        bind.isInput = tnm == "input";
+        bind.isTextaria = tnm == "textaria";
+        bind.isSelect = tnm == "select";
+        bind.isFloat = obj.hasAttribute("float");
+        bind.lock1 = false;
+        bind.lock2 = false;
+        bind.isCheckbox = false;
+        bind.isRadio = false;
+        bind.isText = false;
+        bind.isNumber = false;
+        bind.field = cool.createField(bind.path, false);
+        bind.obj = obj;
 
         // validate
-        if (obj._cool.isInput)
+        if (bind.isInput)
         {
             var type = obj.getAttribute("type");
 
-            if (type == null || type == "" || type == "text" || type == "password" || type == "email" || type == "url" || type == "date" || type == "month" || type == "week" || type == "time" || type == "datetime-local" || type == "search" || type == "color" || type == "tel")
+            if (type == "checkbox")
             {
-                obj._cool.isText = true;
-            }
-            else if (type == "checkbox")
-            {
-                obj._cool.isCheckbox = true;
+                bind.isCheckbox = true;
             }
             else if (type == "radio")
             {
-                obj._cool.isRadio = true;
+                bind.isRadio = true;
             }
             else if (type == "range" || type == "number")
             {
-                obj._cool.isNumber = true;
+                bind.isNumber = true;
             }
             else
             {
-                return console.log("The input type='" + type + "' not supported.");
+                bind.isText = true;
             }
         }
-        else if (obj._cool.isTextaria || obj._cool.isSelect)
+        else if (bind.isTextaria || bind.isSelect)
         {
-            obj._cool.isText = true;
+            bind.isText = true;
         }
         else
         {
@@ -1656,18 +1642,18 @@
         // set observe
         if (!isWriteOnly)
         {
-            if (obj._cool.isInput)
+            if (bind.isInput)
             {
-                if (obj._cool.isCheckbox)
+                if (bind.isCheckbox)
                 {
-                    obj._cool.refreshEx = function()
+                    bind.refreshEx = function()
                     {
                         this.obj.checked = cool.getField(this.field);
                     };
                 }
-                else if (obj._cool.isRadio)
+                else if (bind.isRadio)
                 {
-                    obj._cool.refreshEx = function()
+                    bind.refreshEx = function()
                     {
                         var tmp = cool.getField(this.field);
 
@@ -1677,9 +1663,9 @@
                         }
                     };
                 }
-                else if (obj._cool.isNumber || obj._cool.isText)
+                else if (bind.isNumber || bind.isText)
                 {
-                    obj._cool.refreshEx = function()
+                    bind.refreshEx = function()
                     {
                         var tmp = cool.getField(this.field);
 
@@ -1689,7 +1675,7 @@
             }
             else
             {
-                obj._cool.refreshEx = function()
+                bind.refreshEx = function()
                 {
                     var tmp = cool.getField(this.field);
 
@@ -1697,7 +1683,7 @@
                 };
             }
 
-            obj._cool.refresh = function(elm, path)
+            bind.refresh = function(elm, path)
             {
                 if (!this.lock2)
                 {
@@ -1713,18 +1699,18 @@
         // event changes
         if (!isReadOnly)
         {
-            if (obj._cool.isInput)
+            if (bind.isInput)
             {
-                if (obj._cool.isCheckbox)
+                if (bind.isCheckbox)
                 {
-                    obj._cool.getVal = function()
+                    bind.getVal = function()
                     {
                         return this.obj.checked;
                     };
                 }
-                else if (obj._cool.isRadio)
+                else if (bind.isRadio)
                 {
-                    obj._cool.getVal = function()
+                    bind.getVal = function()
                     {
                         if (this.checked)
                         {
@@ -1734,16 +1720,16 @@
                         return null;
                     };
                 }
-                else if (obj._cool.isText)
+                else if (bind.isText)
                 {
-                    obj._cool.getVal = function()
+                    bind.getVal = function()
                     {
                         return this.obj.value;
                     };
                 }
-                else if (obj._cool.isNumber)
+                else if (bind.isNumber)
                 {
-                    obj._cool.getVal = function()
+                    bind.getVal = function()
                     {
                         var tmp = this.isFloat ? parseFloat(this.obj.value) : parseInt(this.obj.value);
 
@@ -1754,28 +1740,33 @@
 
             obj.addEventListener("change", function()
             {
-                if (!this._cool.lock1)
+                if (!this._cool.bind.lock1)
                 {
-                    this._cool.lock2 = true;
+                    this._cool.bind.lock2 = true;
 
-                    var tmp = this._cool.getVal();
+                    var tmp = this._cool.bind.getVal();
 
                     if (tmp != null)
                     {
-                        cool.setField(this._cool.field, tmp);
-                        cool.changed(obj._cool.path);
+                        cool.setField(this._cool.bind.field, tmp);
+                        cool.changed(bind.path);
                     }
 
-                    this._cool.lock2 = false;
+                    this._cool.bind.lock2 = false;
                 }
             });
         }
     },
 
     // js-class
-    atrClass: function(obj)
+    atrClass: function(obj, index)
     {
-        
+        var val = obj._cool.attributes[index].value;
+
+        if (val == "")
+        {
+            
+        }
     },
 
     // js-cancel-class
