@@ -3,43 +3,11 @@
     lastHash: 1,
     numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
     body: document.getElementsByTagName('BODY')[0],
+    dissableDisplayPolicy: false,
     hashList: {},
     defaultHash: "",
     lastUrlHash: "",
     outPos: 0,
-    validate :
-    {
-        text:
-        {
-            pattern : ".{1,}",
-            title : "Can't be empty."
-        },
-        name:
-        {
-            pattern : ".{3,20}",
-            title : "Must contain at least 3 or more characters"
-        },
-        password:
-        {
-            pattern : "(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,20}",
-            title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
-        },
-        email:
-        {
-            pattern : "^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$",
-            title : "Email is not valid."
-        },
-        url:
-        {
-            pattern : "https?://.+",
-            title : "Must start with http:// or https://"
-        },
-        tel:
-        {
-            pattern : "(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
-            title : "Must contain only numbers, spaces and braces."
-        }
-    },
 
     // entry point
     init: function()
@@ -67,7 +35,7 @@
             "js-read": cool.atrBindRead,
             "js-write": cool.atrBindWrite,
             "js-class": cool.atrClass,
-            "js-cancel-class": cool.atrCancelClass
+            "js-class-cancel": cool.atrCancelClass
         };
 
         cool.initNavigator();
@@ -288,10 +256,8 @@
             }
         }
 
-        obj._cool.obj = obj;
         obj._cool.src = src;
         obj._cool.type = type;
-        obj._cool.display = obj.style.display;
         obj._cool.data = data;
         obj._cool.method = method;
         obj._cool.mock = mock;
@@ -396,12 +362,10 @@
             else
             {
                 this.actionBase();
-                this.obj.style.display = this.display;
             }
         }
         obj._cool.cancel = function()
         {
-            this.obj.style.display = "none";
             this.cancelBase();
         }
     },
@@ -430,9 +394,6 @@
 
         cool.hashList[hash].push(obj);
 
-        //obj._cool.hash = hash;
-        obj._cool.obj = obj;
-        obj._cool.display = obj.style.display;
         obj._cool.isActiveNav = false;
         obj._cool.actionNav = function()
         {
@@ -454,13 +415,11 @@
         {
             if (this.isActiveNav)
             {
-                this.obj.style.display = this.display;
                 this.actionBase();
             }
         }
         obj._cool.cancel = function()
         {
-            this.obj.style.display = "none";
             this.cancelBase();
         }
     },
@@ -497,8 +456,6 @@
 
         obj._cool.type = type;
         obj._cool.src = src;
-        obj._cool.obj = obj;
-        obj._cool.display = obj.style.display;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.firstDone = false;
         obj._cool.action = function()
@@ -566,11 +523,8 @@
         }
         obj._cool.cancel = function()
         {
-            this.obj.style.display = "none";
             this.cancelBase();
         }
-
-        obj._cool.cancel();
     },
 
     // js-query
@@ -925,9 +879,7 @@
         obj._cool.template.pl_end = pl_end;
         
         // actions
-        obj._cool.obj = obj;
         obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.display = obj.style.display;
         obj._cool.firstDone = false;
         obj._cool.action = function()
         {
@@ -1009,26 +961,24 @@
                 this.firstDone = true;
             }
 
-            if (this.targetObject != null)
+            if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
-                this.targetObject.style.display = this.display;
-            }
-            else
-            {
-                this.obj.style.display = this.display;
+                if (this.targetObject != null)
+                {
+                    this.targetObject.style.display = this.actionDisplay;
+                }
             }
 
             this.actionBase();
         }
         obj._cool.cancel = function()
         {
-            if (this.targetObject != null)
+            if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
-                this.targetObject.style.display = "none";
-            }
-            else
-            {
-                this.obj.style.display = "none";
+                if (this.targetObject != null)
+                {
+                    this.targetObject.style.display = this.cancelDisplayVal;
+                }
             }
             
             this.cancelBase();
@@ -1055,8 +1005,6 @@
         }
 
         obj._cool.conditional = con;
-        obj._cool.obj = obj;
-        obj._cool.display = obj.style.display;
         obj._cool.isChanged = true;
         obj._cool.isFlug = null;
         obj._cool.action = function()
@@ -1068,7 +1016,6 @@
         };
         obj._cool.cancel = function()
         {
-            this.obj.style.display = "none";
             this.cancelBase();
         };
         obj._cool.refresh = function(elm, path)
@@ -1089,7 +1036,6 @@
                     {
                         if (flag)
                         {
-                            this.obj.style.display = this.display;
                             this.actionBase();
                         }
                         else
@@ -1103,7 +1049,6 @@
                 }
                 else if (this.isFlug)
                 {
-                    this.obj.style.display = this.display;
                     this.actionBase();
                 }
             }
@@ -1202,7 +1147,6 @@
             obj._cool.prog = cool.compileSelector(obj._cool.select);
         }
 
-        obj._cool.obj = obj;
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
@@ -1290,7 +1234,6 @@
             obj._cool.prog = cool.compileSelector(obj._cool.select);
         }
 
-        obj._cool.obj = obj;
         obj._cool.name = name;
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
@@ -1357,7 +1300,6 @@
             obj._cool.select = "parent";
         }
 
-        obj._cool.obj = obj;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.getProg = function()
         {
@@ -1430,13 +1372,15 @@
             obj._cool.field = cool.createField(set);
         }
 
-        obj._cool.obj = obj;
         obj._cool.validCount = 0;
-        obj._cool.display = obj.style.display;
-        obj.style.display = "none";
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function()
         {
+            if (this.arr == null)
+            {
+                this.cancel();
+            }
+
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
@@ -1529,13 +1473,11 @@
 
             if (this.validCount == this.arr.length)
             {
-                this.obj.style.display = this.validate.display;
                 this.actionBase();
             }
         };
         obj._cool.cancel = function()
         {
-            this.obj.style.display = "none";
             this.cancelBase();
         };
     },
@@ -1759,20 +1701,25 @@
     },
 
     // js-class
-    atrClass: function(obj, index)
+    atrClass: function(obj, index, isCancel)
     {
+        if (isCancel == null)
+        {
+            isCancel = false;
+        }
+        
         var val = obj._cool.attributes[index].value;
 
         if (val == "")
         {
-            
+            return console.log("Attribute 'js-class' empty.");
         }
     },
 
-    // js-cancel-class
-    atrCancelClass: function(obj)
+    // js-class-cancel
+    atrCancelClass: function(obj,  index)
     {
-        
+        cool.atrClass(obj, index, true);
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4619,7 +4566,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-cancel-class]");
+        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -4671,7 +4618,7 @@
 
                 code = itm.cooljs().hash;
 
-                itm._cool.tagName = name;
+                itm._cool.init(name, itm);
 
                 if (ht[code] == null)
                 {
@@ -4730,174 +4677,6 @@
         delete ht;
         delete arr;
         delete tmp;
-    },
-
-    // init dom tree
-    processElement2 : function(elm)
-    {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-cancel-class]");
-        var code = elm.cooljs().hash;
-        var ht = {}; 
-        var i = 0;
-        var itm = null;
-        var name = "";
-
-        ht[code] = elm;
-
-        var arr = [];
-        var atr = [];
-
-        // filter tags and init base function
-        for (i = 0; i < tmp.length; ++i)
-        {
-            itm = tmp[i];
-            name = itm.tagName.toLowerCase();
-
-            if (cool.jsF[name] != null)
-            {
-                arr.push({obj : itm, name : name});
-
-                code = itm.cooljs().hash;
-
-                itm._cool.tagName = name;
-
-                if (ht[code] == null)
-                {
-                    ht[code] = itm;
-                }
-            }
-            else if (itm.getAttribute("js-bind") != null)
-            {
-                atr.push(
-                {
-                    itm: itm,
-                    func: function()
-                    {
-                        cool.atrBind(this.itm, false, false);
-                    }
-                });
-            }
-            else if (itm.getAttribute("js-read") != null)
-            {
-                atr.push(
-                {
-                    itm: itm,
-                    func: function()
-                    {
-                        cool.atrBind(this.itm, true, false);
-                    }
-                });
-            }
-            else if (itm.getAttribute("js-write") != null)
-            {
-                atr.push(
-                {
-                    itm: itm,
-                    func: function()
-                    {
-                        cool.atrBind(this.itm, false, true);
-                    }
-                });
-            }
-
-            var atb = itm.getAttribute("js-class");
-
-            if (atb != null)
-            {
-                atr.push(
-                {
-                    itm: itm,
-                    func: function()
-                    {
-                        cool.atrBind(this.itm, false, false);
-                    }
-                });
-            }            
-        }
-
-        // build tag tree
-        for (i = arr.length - 1; i >= 0; --i)
-        {
-            itm = arr[i];
-
-            var cur = itm.obj.parentNode;
-
-            while (cur != null)
-            {
-                var tg = cur.tagName != null ? cur.tagName.toLowerCase() : "";
-
-                if (tg == "js-query" || cur._cool == true)
-                {
-                    itm._cool = true;
-
-                    break;
-                }
-
-                if (cur._cool != null && ht[cur._cool.hash] != null)
-                {
-                    if (itm.name == "js-set")
-                    {
-                        cur._cool.chields.splice(cur._cool.jssetCount++, 0, itm.obj);
-                    }
-                    else
-                    {
-                        cur._cool.chields.push(itm.obj);
-                    }
-
-                    itm.obj._cool.parent = cur;
-
-                    break;
-                }
-
-                cur = cur.parentNode;
-            }
-        }
-
-        // build attributes
-        var atr_run = [];
-
-        for (i = 0; i < atr.length; ++i)
-        {
-            itm = atr[i].itm;
-
-            while (itm.parentNode != null)
-            {
-                if (itm._cool != null)
-                {
-                    if (itm._cool != true && itm.tagName.toLowerCase() != "js-query")
-                    {
-                        atr_run.push(atr[i]);
-                    }
-
-                    break;
-                }
-
-                itm = itm.parentNode;
-            }
-        }
-
-        // init tags
-        for (i = 0; i < arr.length; ++i)
-        {
-            itm = arr[i];
-
-            cool.jsF[itm.name](itm.obj);
-        }
-
-        // run init atr's
-        for (i = 0; i < atr_run.length; ++i)
-        {
-            itm = atr_run[i];
-
-            itm.cooljs();
-            itm.func();
-        }
-
-        delete ht;
-        delete arr;
-        delete tmp;
-        delete atr;
-        delete atr_run;
     },
 
     //
@@ -5153,6 +4932,41 @@
         "false": false,
         "False": false,
         "0": false
+    },
+
+    // validation default
+    validate :
+    {
+        text:
+        {
+            pattern : ".{1,}",
+            title : "Can't be empty."
+        },
+        name:
+        {
+            pattern : ".{3,20}",
+            title : "Must contain at least 3 or more characters"
+        },
+        password:
+        {
+            pattern : "(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,20}",
+            title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
+        },
+        email:
+        {
+            pattern : "^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$",
+            title : "Email is not valid."
+        },
+        url:
+        {
+            pattern : "https?://.+",
+            title : "Must start with http:// or https://"
+        },
+        tel:
+        {
+            pattern : "(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
+            title : "Must contain only numbers, spaces and braces."
+        }
     }
 };
 
@@ -5170,6 +4984,19 @@ Object.prototype.cooljs = function()
             chields : [],
             isActive : false,
             jssetCount: 0,
+            init: function(name, obj)
+            {
+                this.tagName = name;
+                this.obj = obj;
+                this.cancelDisplay = obj.getAttribute("d") != null;
+                this.actionDisplay = this.obj.style.display;
+
+                if (!this.cancelDisplay)
+                {
+                    this.cancelDisplayVal = obj.getAttribute("display-cancel");
+                    this.cancelDisplayVal = this.cancelDispayVal != null ? this.cancelDisplayVal : "none";
+                }
+            },
             action: function()
             {
                 this.actionBase();
@@ -5198,6 +5025,11 @@ Object.prototype.cooljs = function()
 
                     itm._cool.action();
                 }
+
+                if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
+                {
+                    this.obj.style.display = this.actionDisplay;
+                }
             },
             cancelBase : function()
             {
@@ -5218,6 +5050,11 @@ Object.prototype.cooljs = function()
                     }
 
                     itm._cool.cancel();
+                }
+
+                if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
+                {
+                    this.obj.style.display = this.cancelDisplayVal;
                 }
             },
             clear : function()
