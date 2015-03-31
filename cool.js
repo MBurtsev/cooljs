@@ -1485,6 +1485,8 @@
     // js-atr-proxy
     tagAtrProxy: function(obj)
     {
+        obj._cool.cancelDisplay = true;
+
         for (var i = 0; i < obj._cool.attributes.length; ++i)
         {
             var itm = obj._cool.attributes[i];
@@ -1703,19 +1705,110 @@
     // js-class
     atrClass: function(obj, index, isCancel)
     {
+        var atr = obj._cool.attributes[index];
+
         if (isCancel == null)
         {
             isCancel = false;
         }
-        
-        var val = obj._cool.attributes[index].value;
 
-        if (val == "")
+        if (atr.value == "")
         {
             return console.log("Attribute 'js-class' empty.");
         }
-    },
 
+        // compile operations
+        var arr = atr.value.split(" ");
+        var prog = [];
+
+        for (var i = 0; i < arr.length; ++i)
+        {
+            var itm = arr[i];
+
+            if (itm == "")
+            {
+                continue;
+            }
+
+            var c = itm[0];
+
+            if (c == "+")
+            {
+                prog.push(
+                {
+                    cmd: 0,
+                    name: itm.substr(1)
+                });
+            }
+            else if (c == "-")
+            {
+                prog.push(
+                {
+                    cmd: 1,
+                    name: itm.substr(1)
+                });
+            }
+            else
+            {
+                prog.push(
+                {
+                    cmd: 2,
+                    name: itm
+                });
+            }
+        }
+
+        atr.prog = prog;
+        atr.func = function()
+        {
+            for (var i = 0; i < this.prog.length; ++i)
+            {
+                var itm = this.prog[i];
+
+                switch (itm.cmd)
+                {
+                    case 0:
+                    {
+                        if (this._cool.obj.className.indexOf(itm.name) == -1)
+                        {
+                            this._cool.obj.className += " " + itm.name;
+                        }
+
+                        break;
+                    }
+                    case 1:
+                    {
+                        var ind = this._cool.obj.className.indexOf(itm.name);
+
+                        if (ind != -1)
+                        {
+                            this._cool.obj.className = this._cool.obj.className.substr(0, ind) + this._cool.obj.className.substr(ind + itm.name.length);
+                        }
+                        
+                        break;
+                    }
+                    case 2:
+                    {
+                        this._cool.obj.className = itm.name;
+
+                        break;
+                    }
+                }
+            }
+        };
+
+        if (isCancel)
+        {
+            atr.cancel = atr.func;
+            atr._cool.classCancel = atr;
+        }
+        else
+        {
+            atr.action = atr.func;
+            atr._cool.class = atr;
+        }
+    },
+    
     // js-class-cancel
     atrCancelClass: function(obj,  index)
     {
@@ -4606,7 +4699,8 @@
                         itm._cool.attributes.push(
                         {
                             name: n,
-                            value: val
+                            value: val,
+                            _cool : itm._cool
                         });
                     }
                 }
