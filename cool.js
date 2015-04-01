@@ -38,10 +38,14 @@
             "js-class-cancel": cool.atrCancelClass
         };
 
-        cool.initNavigator();
-        cool.processElement(document);
+        var html = document.documentElement;
 
-        document._cool.action();
+        cool.initNavigator();
+        cool.processElement(html);
+
+        html._cool.init("html", html);
+        html._cool.cancelDisplay = true;
+        html._cool.action();
 
         if (cool.lastUrlHash != window.location.hash)
         {
@@ -906,7 +910,7 @@
                 }
                 else if (this.targetObject != null)
                 {
-                    this.obj.parentNode.removeChild(this.targetObject);
+                    this.targetObject.innerHTML = "";
                 }
 
                 var arr = [];
@@ -944,19 +948,22 @@
                 if (!this.isScript)
                 {
                     this.obj.innerHTML = arr.join("");
+
+                    cool.processElement(this.obj);
                 }
                 else
                 {
-                    this.targetObject = document.createElement("div");
+                    if (this.targetObject == null)
+                    {
+                        this.targetObject = document.createElement("div");
+                        this.targetObject._cool = this;
+                        this.obj.parentNode.insertBefore(this.targetObject, this.obj);
+                    }
 
                     this.targetObject.innerHTML = arr.join("");
 
-                    this.obj.parentNode.insertBefore(this.targetObject, this.obj);
+                    cool.processElement(this.targetObject);
                 }
-
-                obj.innerHTML = arr.join("");
-
-                cool.processElement(obj);
 
                 this.firstDone = true;
             }
@@ -1396,12 +1403,11 @@
                 {
                     var itm = this.arr[i];
 
-                    if (itm._cool == null)
+                    if (itm._validate == null)
                     {
-                        itm._cool =
+                        itm._validate =
                         {
-                            validateLast : null,
-                            validate: this
+                            validateLast : null
                         }
 
                         if (itm.getAttribute("required") == null)
@@ -1423,51 +1429,11 @@
                                 itm.setAttribute("title", cool.validate[t].title);
                             }
                             
-                            itm._cool.validateTitle = itm.getAttribute("title");
+                            itm._validate.validateTitle = itm.getAttribute("title");
                         }
                     }
 
-                    itm.addEventListener("change", function()
-                    {
-                        var delta = this._cool.validateLast == this.validity.valid ? 0 : this._cool.validateLast  == null ? this.validity.valid ? 1 : 0 : this._cool.validateLast ? -1 : 1;
-
-                        this._cool.validateLast = this.validity.valid;
-                        this._cool.validate.validCount += delta;
-
-                        if (this._cool.validate.field && delta != 0)
-                        {
-                            var val = cool.getField(this._cool.validate.field);
-
-                            val += delta;
-
-                            cool.setField(this._cool.validate.field, val);
-                            cool.changed(this._cool.validate.field.path);
-                        }
-
-                        // not work without forms
-                        //if (!this.validity.valid)
-                        //{
-                        //    if (itm._cool.validateTitle != null)
-                        //    {
-                        //        this.setCustomValidity(itm._cool.validateTitle);
-                        //        this.reportValidity();
-                        //    }
-                        //}
-                        //else
-                        //{
-                        //    this.setCustomValidity("");
-                        //}
-
-                        if (this._cool.validate.validCount == this._cool.validate.arr.length && !this._cool.validate.isActive)
-                        {
-                            this._cool.validate.obj.style.display = this._cool.validate.display;
-                            this._cool.validate.actionBase();
-                        }
-                        else if (this._cool.validate.isActive)
-                        {
-                            this._cool.validate.cancel();
-                        }
-                    });
+                    itm.addEventListener("change", this.func.bind(this));
                 }
             }
 
@@ -1479,6 +1445,46 @@
         obj._cool.cancel = function()
         {
             this.cancelBase();
+        };
+        obj._cool.func = function(arg)
+        {
+            var elm = arg.srcElement;
+            
+            var delta = elm._validate.validateLast == elm.validity.valid ? 0 : elm._validate.validateLast == null ? elm.validity.valid ? 1 : 0 : elm._validate.validateLast ? -1 : 1;
+
+            elm._validate.validateLast = elm.validity.valid;
+
+            {
+                var val = cool.getField(this.field);
+
+                val += delta;
+
+                cool.setField(this.field, val);
+                cool.changed(this.field.path);
+            }
+
+            // not work without forms
+            //if (!this.validity.valid)
+            //{
+            //    if (itm._cool.validateTitle != null)
+            //    {
+            //        this.setCustomValidity(itm._cool.validateTitle);
+            //        this.reportValidity();
+            //    }
+            //}
+            //else
+            //{
+            //    this.setCustomValidity("");
+            //}
+
+            if (this.validCount == this.arr.length && !this.isActive)
+            {
+                this.actionBase();
+            }
+            else if (this.isActive)
+            {
+                this.cancel();
+            }
         };
     },
 
@@ -2550,7 +2556,7 @@
             {
                 case "p":
                 {
-                    if (cmd.length > 8 && cmd.substr(0, 6) == "parent" && cmd[7] == "[" && cmd[cmd.length - 1] == "]")
+                    if (cmd.length > 8 && cmd.substr(0, 6) == "parent" && cmd[6] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2560,14 +2566,16 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
                 }
                 case "c":
                 {
-                    if (cmd.length > 8 && cmd.substr(0, 6) == "chield" && cmd[7] == "[" && cmd[cmd.length - 1] == "]")
+                    if (cmd.length > 8 && cmd.substr(0, 6) == "chield" && cmd[6] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2577,7 +2585,9 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
@@ -2585,7 +2595,7 @@
                 }
                 case "b":
                 {
-                    if (cmd.length > 6 && cmd.substr(0, 4) == "back" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "back" && cmd[4] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2593,7 +2603,7 @@
                             index: parseInt(cmd.substr(5, cmd.length - 6))
                         });
                     }
-                    else if (cmd.length > 11 && cmd.substr(0, 9) == "back-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
+                    else if (cmd.length > 11 && cmd.substr(0, 9) == "back-tree" && cmd[9] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2603,7 +2613,9 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
@@ -2611,7 +2623,7 @@
                 }
                 case "n":
                 {
-                    if (cmd.length > 6 && cmd.substr(0, 4) == "next" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "next" && cmd[4] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2619,7 +2631,7 @@
                             index: parseInt(cmd.substr(5, cmd.length - 6))
                         });
                     }
-                    else if (cmd.length > 11 && cmd.substr(0, 9) == "next-tree" && cmd[10] == "[" && cmd[cmd.length - 1] == "]")
+                    else if (cmd.length > 11 && cmd.substr(0, 9) == "next-tree" && cmd[9] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2629,7 +2641,9 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
@@ -2637,7 +2651,7 @@
                 }
                 case "l":
                 {
-                    if (cmd.length > 6 && cmd.substr(0, 4) == "last" && cmd[5] == "[" && cmd[cmd.length - 1] == "]")
+                    if (cmd.length > 6 && cmd.substr(0, 4) == "last" && cmd[4] == "[" && cmd[cmd.length - 1] == "]")
                     {
                         ret.push(
                         {
@@ -2647,7 +2661,9 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
@@ -2688,11 +2704,19 @@
                     }
                     else
                     {
-                        return console.log(err + cmd);
+                        console.log(err + cmd);
+
+                        return [];
                     }
 
                     break;
 
+                }
+                default:
+                {
+                    console.log(err + cmd);
+
+                    return [];
                 }
             }
         }
@@ -4669,8 +4693,6 @@
         ht[code] = elm;
 
         var arr = [];
-
-        console.log(tmp.length);
 
         // filter tags and init base function
         for (i = 0; i < tmp.length; ++i)
