@@ -1412,7 +1412,7 @@
 
                         if (itm.getAttribute("required") == null)
                         {
-                            itm.setAttribute("required");
+                            itm.setAttribute("required", true);
                         }
 
                         var t = itm.getAttribute("type");
@@ -1448,12 +1448,14 @@
         };
         obj._cool.func = function(arg)
         {
-            var elm = arg.srcElement;
-            
+            var elm = ((window.event)?(event.srcElement):(arg.currentTarget));
+
             var delta = elm._validate.validateLast == elm.validity.valid ? 0 : elm._validate.validateLast == null ? elm.validity.valid ? 1 : 0 : elm._validate.validateLast ? -1 : 1;
 
             elm._validate.validateLast = elm.validity.valid;
+            this.validCount += delta;
 
+            if (this.field != null && delta != 0)
             {
                 var val = cool.getField(this.field);
 
@@ -1464,22 +1466,25 @@
             }
 
             // not work without forms
-            //if (!this.validity.valid)
+            //if (!elm.validity.valid)
             //{
-            //    if (itm._cool.validateTitle != null)
+            //    if (this.validateTitle != null)
             //    {
-            //        this.setCustomValidity(itm._cool.validateTitle);
-            //        this.reportValidity();
+            //        elm.setCustomValidity(this.validateTitle);
+            //        elm.reportValidity();
             //    }
             //}
             //else
             //{
-            //    this.setCustomValidity("");
+            //    elm.setCustomValidity("");
             //}
 
-            if (this.validCount == this.arr.length && !this.isActive)
+            if (this.validCount == this.arr.length)
             {
-                this.actionBase();
+                if (!this.isActive)
+                {
+                    this.actionBase();
+                }
             }
             else if (this.isActive)
             {
@@ -5065,12 +5070,12 @@
         },
         password:
         {
-            pattern : "(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,20}",
+            pattern : "(?=^.{8,}$)((?=.*\\d)|(?=.*\\W+))(?![.\\n])(?=.*[A-Z])(?=.*[a-z]).*$",//(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}
             title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
         },
         email:
         {
-            pattern : "^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$",
+            pattern : "[^@]+@[^@]+\.[a-zA-Z]{2,6}",//"^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$"
             title : "Email is not valid."
         },
         url:
@@ -5080,7 +5085,7 @@
         },
         tel:
         {
-            pattern : "(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
+            pattern : "(\+?\d[- .]*){7,13}", //"(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
             title : "Must contain only numbers, spaces and braces."
         }
     }
