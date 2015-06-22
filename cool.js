@@ -24,6 +24,7 @@
             "js-several": cool.tagSeveral,
             "js-attribute": cool.tagAttribute,
             "js-style": cool.tagStyle,
+            "js-text" : cool.tagText,
             "script": cool.tagScript,
             "js-validate": cool.tagValidate,
             "js-atr-proxy": cool.tagAtrProxy
@@ -260,6 +261,10 @@
             }
         }
 
+        // init event
+        obj._cool.eventComplate = document.createEvent('Event');
+        obj._cool.eventComplate.initEvent('complate', true, true);
+
         obj._cool.src = src;
         obj._cool.type = type;
         obj._cool.data = data;
@@ -354,6 +359,9 @@
                     }
 
                     cool.applyField(tag.target, dt);
+
+                    // fire
+                    tag.obj.dispatchEvent(tag.obj._cool.eventComplate);
                 });
 
                 if (this.request != null)
@@ -1008,7 +1016,7 @@
         {
             var itm = arr[i];
 
-            cool.addToObserve(itm.path, obj);
+            cool.addToObserve(itm.path, obj, 2);
         }
 
         obj._cool.conditional = con;
@@ -1241,9 +1249,29 @@
             obj._cool.prog = cool.compileSelector(obj._cool.select);
         }
 
+        var cancel = obj.getAttribute("cancel");
+
+        if (value == "#remove")
+        {
+            obj._cool.mode = 1;
+        }
+        else
+        {
+            obj._cool.mode = 0;
+        }
+
+        if (cancel == "#remove")
+        {
+            obj._cool.cancelMode = 1;
+        }
+        else
+        {
+            obj._cool.cancelMode = 0;
+        }
+
+        obj._cool.value = cool.getTypedValue(value);
+        obj._cool.cancelValue = cool.getTypedValue(cancel);
         obj._cool.name = name;
-        obj._cool.value = value;
-        obj._cool.cancelValue = obj.getAttribute("cancel");
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function()
         {
@@ -1263,7 +1291,14 @@
             {
                 var itm = this.arr[i];
 
-                itm[name] = this.value;
+                if (this.mode == 0)
+                {
+                    itm.setAttribute(this.name, this.value);
+                }
+                else if (this.mode == 1)
+                {
+                    itm.removeAttribute(this.name);
+                }
             }
 
             this.actionBase();
@@ -1288,7 +1323,14 @@
                 {
                     var itm = this.arr[i];
 
-                    itm[name] = this.cancelValue;
+                    if (this.cancelMode == 0)
+                    {
+                        itm.setAttribute(this.name, this.cancelValue);
+                    }
+                    else if (this.cancelMode == 1)
+                    {
+                        itm.removeAttribute(this.name);
+                    }
                 }
             }
 
@@ -1509,6 +1551,27 @@
         }
     },
     
+    // js-text
+    tagText: function(obj)
+    {
+        var name = obj.getAttribute("name");
+
+        if (name == null || name == "")
+        {
+            return console.log("js-event: The 'name' attribute is empty");
+        }
+
+        cool.addToObserve(name, obj);
+
+        obj._cool.field = cool.createField(name, false, false, false);
+        obj._cool.refresh = function(elm, path)
+        {
+            var val = cool.getField(elm._cool.field);
+
+            elm.innerHTML = val;
+        }
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
 
@@ -1648,7 +1711,7 @@
                 }
             };
 
-            cool.addToObserve(path);
+            cool.addToObserve(path, bind);
         }
 
         // event changes
@@ -2339,11 +2402,37 @@
                 itm._cool.refresh(itm, path);
             }
         }
+        //else
+        //{
+        //    var arr = path.split(".");
+
+        //    for (var j = arr.length - 1; j >= 0; --j)
+        //    {
+        //        var str = "";
+
+        //        for (var n = 0; n < j; ++n)
+        //        {
+        //            str += arr[n] + (n < j - 1 ? "." : "");
+        //        }
+
+        //        if (cool.obHt[str] != null)
+        //        {
+        //            cool.changed(str);
+
+        //            return;
+        //        }
+        //    }
+        //}
     },
 
     // add field to observe
-    addToObserve: function(path, obj)
+    addToObserve: function(path, obj, level)
     {
+        if (level == null)
+        {
+            level = 1;
+        }
+
         var p = "window." + path;
 
         if (cool.obHt[p] == null)
@@ -2356,6 +2445,24 @@
         if (ind == -1)
         {
             cool.obHt[p].list.push(obj);
+        }
+
+        // for parent observe
+        if (level > 1)
+        {
+            var arr = path.split(".");
+
+            for (var j = arr.length - level; j >= 0 && j < arr.length - 1; ++j)
+            {
+                var str = "";
+
+                for (var n = 0; n <= j; ++n)
+                {
+                    str += arr[n] + (n < j ? "." : "");
+                }
+
+                cool.addToObserve(str, obj, 1);
+            }
         }
     },
 
@@ -4688,7 +4795,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -5013,9 +5120,9 @@
     // parse boolean
     parseBool: function(str)
     {
-        if (cool[str] != null)
+        if (cool.booleanHt[str] != null)
         {
-            return cool[str];
+            return cool.booleanHt[str];
         }
 
         return false;
@@ -5055,6 +5162,39 @@
         "0": false
     },
 
+    getTypedValue: function(str)
+    {
+        if (str == null)
+        {
+            return null;
+        }
+
+        var boo = cool.parseBool(str);
+
+        if (boo.toString() == str.toLowerCase())
+        {
+            return boo;
+        }
+        else
+        {
+            var num = parseInt(str);
+
+            if (num.toString() == str)
+            {
+                return num;
+            }
+
+            num = parseFloat(str);
+
+            if (num.toString() == str)
+            {
+                return num;
+            }
+        }
+
+        return str;
+    },
+
     // validation default
     validate :
     {
@@ -5066,12 +5206,12 @@
         name:
         {
             pattern : ".{3,20}",
-            title : "Must contain at least 3 or more characters"
+            title : "Must contain at least 3 or more characters."
         },
         password:
         {
             pattern : "(?=^.{8,}$)((?=.*\\d)|(?=.*\\W+))(?![.\\n])(?=.*[A-Z])(?=.*[a-z]).*$",//(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}
-            title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
+            title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters."
         },
         email:
         {
