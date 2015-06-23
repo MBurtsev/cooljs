@@ -27,7 +27,8 @@
             "js-text" : cool.tagText,
             "script": cool.tagScript,
             "js-validate": cool.tagValidate,
-            "js-atr-proxy": cool.tagAtrProxy
+            "js-atr-proxy": cool.tagAtrProxy,
+            "js-go": cool.tagGo
         };
 
         cool.jsA =
@@ -1558,11 +1559,12 @@
 
         if (name == null || name == "")
         {
-            return console.log("js-event: The 'name' attribute is empty");
+            return console.log("js-text: The 'name' attribute is empty.");
         }
 
         cool.addToObserve(name, obj);
 
+        obj._cool.obj = obj;
         obj._cool.field = cool.createField(name, false, false, false);
         obj._cool.refresh = function(elm, path)
         {
@@ -1570,6 +1572,55 @@
 
             elm.innerHTML = val;
         }
+        obj._cool.action = function()
+        {
+            var val = cool.getField(this.field);
+
+            this.obj.innerHTML = val;
+            this.actionBase();
+        };
+    },
+    
+    // js-go
+    tagGo: function(obj)
+    {
+        var url = obj.getAttribute("url");
+        var hash = obj.getAttribute("hash");
+        var target = obj.getAttribute("target");
+
+        if (url == null && hash == null)
+        {
+            return console.log("js-go: The 'hash' and 'url' attributes is empty.");
+        }
+
+        if (target == null)
+        {
+            obj._cool.target = "_self";
+        }
+        else
+        {
+            obj._cool.target = target;
+        }
+
+        obj._cool.url = url;
+        obj._cool.hash = hash;
+        obj._cool.action = function()
+        {
+            if (this.url != null)
+            {
+                window.open(this.url, this.target);
+            }
+            else if (this.hash != null)
+            {
+                window.location.hash = this.hash;
+            }
+
+            this.actionBase();
+        };
+        obj._cool.cancel = function()
+        {
+            this.cancelBase();
+        };
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4795,7 +4846,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
