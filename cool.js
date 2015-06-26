@@ -24,12 +24,13 @@
             "js-several": cool.tagSeveral,
             "js-attribute": cool.tagAttribute,
             "js-style": cool.tagStyle,
-            "js-text" : cool.tagText,
+            "js-text": cool.tagText,
             "script": cool.tagScript,
             "js-validate": cool.tagValidate,
             "js-atr-proxy": cool.tagAtrProxy,
-            "js-go": cool.tagGo
-        };
+            "js-go": cool.tagGo,
+            "js-call": cool.tagCall
+    };
 
         cool.jsA =
         {
@@ -75,75 +76,39 @@
             return console.log("js-set: The 'name' attribute is empty");
         }
 
-        if (value == null || value == "")
+        if (value == null)
         {
             return console.log("js-set: The 'value' attribute is empty");
         }
 
-        if (type == null || type == "")
+        obj._cool.tval = cool.createTypedValue("js-set", type, value);
+
+        if (obj._cool.tval == null)
         {
-            return console.log("js-set: The 'type' attribute is empty");
-        }
-        else if (type != "int" && type != "float" && type != "bool" && type != "string" && type != "object")
-        {
-            return console.log("js-set: The 'type' attribute must be: int or float or bool or string or object");
+            return;
         }
 
-        if (type == "int")
+        if (cancel != null)
         {
-            obj._cool.value = parseInt(value);
-
-            if (cancel != null)
-            {
-                obj._cool.cancelValue = parseInt(cancel);
-            }
+            obj._cool.tcan = cool.createTypedValue("js-set", type, cancel);
         }
-        else if (type == "float")
+        else
         {
-            obj._cool.value = parseFloat(value);
-
-            if (cancel != null)
-            {
-                obj._cool.cancelValue = parseFloat(cancel);
-            }
+            obj._cool.tcan = null;
         }
-        else if (type == "bool")
-        {
-            obj._cool.value = cool.parseBool[value];
-
-            if (cancel != null)
-            {
-                obj._cool.cancelValue = parseBool(cancel);
-            }
-        }
-        else if (type == "object")
-        {
-            eval("obj._cool.value = " + value);
-
-            if (obj._cool.value instanceof Array)
-            {
-                type = "array";
-            }
-
-            if (cancel != null)
-            {
-                eval("obj._cool.cancelValue = " + cancel);
-            }
-        }
-
-        obj._cool.type = type;
+        
         obj._cool.field = cool.createField(name, type == "object", type == "array");
         obj._cool.action = function()
         {
-            cool.applyField(this.field, this.value);
+            cool.applyField(this.field, this.tval.getValue());
 
             this.actionBase();
         }
         obj._cool.cancel = function()
         {
-            if (this.cancelValue != null)
+            if (this.tcan != null)
             {
-                cool.applyField(this.field, this.cancelValue);
+                cool.applyField(this.field, this.tcan.getValue());
             }
 
             this.cancelBase();
@@ -1623,6 +1588,73 @@
         };
     },
 
+    // js-call
+    tagCall: function(obj)
+    {
+        var name = obj.getAttribute("name");
+        var method = obj.getAttribute("method");
+        
+        if (name == null || name == "")
+        {
+            return console.log("js-call: The 'name' attribute is empty.");
+        }
+
+        if (method == null || method == "")
+        {
+            return console.log("js-call: The 'method' attribute is empty.");
+        }
+
+        obj._cool.params = [];
+
+        var tmp = obj.querySelectorAll("js-param");
+
+        for (var i = 0; i < tmp.length; ++i)
+        {
+            var itm = tmp[i];
+
+            var value = itm.getAttribute("value");
+            var type = itm.getAttribute("type");
+            var tval = cool.createTypedValue("js-call", type, value);
+
+            if (tval == null)
+            {
+                return;
+            }
+
+            obj._cool.params.push(tval);
+        }
+
+        obj._cool.name = name;
+        obj._cool.method = method;
+        obj._cool.action = function()
+        {
+            if (this.field == null)
+            {
+                this.field = cool.createField(this.name);
+            }
+
+            var tmp = cool.getField(this.fieldName);
+            var pars = [];
+
+            for (var i = 0; i < this.params.length; ++i)
+            {
+                var itm = this.params[i];
+
+                pars.push(itm.getValue());
+            }
+
+            tmp[this.method].apply(this, pars);
+
+            cool.changed(this.name);
+
+            this.actionBase();
+        };
+        obj._cool.cancel = function()
+        {
+            this.cancelBase();
+        };
+    },
+
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Attributes
 
@@ -2515,6 +2547,78 @@
                 cool.addToObserve(str, obj, 1);
             }
         }
+    },
+
+    // create typed value
+    createTypedValue: function(owner, type, value)
+    {
+        if (type == null || type == "")
+        {
+            return console.log(owner + ": The 'type' attribute is empty");
+        }
+        else if (type != "int" && type != "float" && type != "bool" && type != "string" && type != "object" && type != "array" && type != "var")
+        {
+            return console.log(owner + ": The 'type' attribute must be: int or float or bool or string or object");
+        }
+
+        var ret =
+        {
+            type : type,
+            fieldVal : null,
+            fieldCan : null,
+            fastType : 0,
+            getValue: function()
+            {
+                if (this.fastType == 1)
+                {
+                    if (this.fieldVal == null)
+                    {
+                        this.fieldVal = cool.gocField(this.value);
+                    }
+
+                    return cool.getField(this.fieldVal);
+                }
+                else if (this.fastType == 2)
+                {
+                    var tmp = null;
+
+                    eval("tmp = " + value);
+
+                    return tmp;
+                }
+
+                return this.value;
+            }
+        };
+
+        if (type == "int")
+        {
+            ret.value = parseInt(value);
+        }
+        else if (type == "float")
+        {
+            ret.value = parseFloat(value);
+        }
+        else if (type == "bool")
+        {
+            ret.value = cool.parseBool[value];
+        }
+        else if (type == "var")
+        {
+            ret.fastType = 1;
+            ret.value = value;
+        }
+        else if (type == "object" || type == "array")
+        {
+            ret.fastType = 2;
+            ret.value = value;
+        }
+        else
+        {
+            ret.value = value;
+        }
+
+        return ret;
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4846,7 +4950,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
