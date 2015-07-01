@@ -1,14 +1,5 @@
 ﻿var cool =
 {
-    lastHash: 1,
-    numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
-    body: document.getElementsByTagName('BODY')[0],
-    dissableDisplayPolicy: false,
-    hashList: {},
-    defaultHash: "",
-    lastUrlHash: "",
-    outPos: 0,
-
     // entry point
     init: function()
     {
@@ -22,7 +13,7 @@
             "js-set": cool.tagSet,
             "js-event": cool.tagEvent,
             "js-several": cool.tagSeveral,
-            "js-attribute": cool.tagAttribute,
+            "js-atr": cool.tagAttribute,
             "js-style": cool.tagStyle,
             "js-text": cool.tagText,
             "script": cool.tagScript,
@@ -70,6 +61,7 @@
         var type = obj.getAttribute("type");
         var cancel = obj.getAttribute("cancel");
         var value = obj.getAttribute("value");
+        var once = obj.getAttribute("once") != null;
 
         if (name == null || name == "")
         {
@@ -96,13 +88,21 @@
         {
             obj._cool.tcan = null;
         }
-        
+
+        obj._cool.name = name;
+        obj._cool.value = value;
+        obj._cool.once = once;
+        obj._cool.first = false;
         obj._cool.field = cool.createField(name, type == "object", type == "array");
         obj._cool.action = function()
         {
-            cool.applyField(this.field, this.tval.getValue());
+            if (!this.first || this.first && !this.once)
+            {
+                cool.applyField(this.field, this.tval.getValue());
 
-            this.actionBase();
+                this.first = true;
+                this.actionBase();
+            }
         }
         obj._cool.cancel = function()
         {
@@ -239,11 +239,12 @@
         obj._cool.request = request;
         obj._cool.response = response;
         obj._cool.once = once;
+        obj._cool.first = false;
         obj._cool.nocache = nocache;
-        obj._cool.count = 0;
+        //obj._cool.count = 0;
         obj._cool.action = function()
         {
-            if (this.once && this.count == 0 || !this.once)
+            if (this.once && !this.first || !this.once)
             {
                 var src_tmp = this.src;
 
@@ -326,6 +327,8 @@
 
                     cool.applyField(tag.target, dt);
 
+                    tag.first = true;
+
                     // fire
                     tag.obj.dispatchEvent(tag.obj._cool.eventComplate);
                 });
@@ -372,6 +375,8 @@
 
         cool.hashList[hash].push(obj);
 
+        obj._cool.hash = hash;
+        obj._cool.first = false;
         obj._cool.isActiveNav = false;
         obj._cool.actionNav = function()
         {
@@ -379,14 +384,12 @@
 
             if (this.parent._cool.isActive)
             {
-                this.obj.style.display = this.display;
-                this.actionBase();
+                this.action();
             }
         }
         obj._cool.cancelNav = function()
         {
             this.isActiveNav = false;
-            this.obj.style.display = "none";
             this.cancelBase();
         }
         obj._cool.action = function()
@@ -514,6 +517,18 @@
         {
             return console.log("js-query: The 'select' attribute is empty");
         }
+
+        obj._cool.refresh = function(elm, path)
+        {
+            var c = elm._cool;
+
+            c.isChanged = true;
+
+            if (c.isActive)
+            {
+                c.action();
+            }
+        };
         
         // compile query
         var arr = select.split(' ');
@@ -559,10 +574,15 @@
                         return console.log("js-query: Operator 'From' must be first.");
                     }
 
+                    var fieldName = arr[i + 1];
+
                     prog.from =
                     {
-                        field : cool.createField(arr[i + 1], true)
+                        field : cool.createField(fieldName, true)
                     };
+
+                    // observe
+                    cool.addToObserve(fieldName, obj, obj._cool.refresh, 2);
 
                     ind = arr[0].indexOf(".");
 
@@ -599,11 +619,16 @@
                         };
                     }
 
+                    var joinFieldName = arr[i++];
+
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++])
+                        field: cool.createField(joinFieldName)
                     }
+
+                    // observe
+                    cool.addToObserve(joinFieldName, obj, obj._cool.refresh, 2);
 
                     if (arr[i++] != "As")
                     {
@@ -763,27 +788,28 @@
                 }
                 case "Group":
                 {
-                    //if (prog.group != null)
-                    //{
-                    //    return console.log("js-query: Operator 'Group' must defined only once.");
-                    //}
+                    // TODO check this
+                    if (prog.group != null)
+                    {
+                        return console.log("js-query: Operator 'Group' must defined only once.");
+                    }
 
-                    //prog.group = [];
+                    prog.group = [];
 
-                    //end = cool.findNextOperator(i + 1, arr);
-                    //tmp = [];
+                    end = cool.findNextOperator(i + 1, arr);
+                    tmp = [];
 
-                    //for (j = i; j < end; ++j)
-                    //{
-                    //    tmp.push(arr[j]);
-                    //}
+                    for (j = i; j < end; ++j)
+                    {
+                        tmp.push(arr[j]);
+                    }
 
-                    //tmp = tmp.join(' ').split(',');
+                    tmp = tmp.join(' ').split(',');
 
-                    //for (j = i; j < end; ++j)
-                    //{
-                    //    prog.group.push(arr[j]);
-                    //}
+                    for (j = i; j < end; ++j)
+                    {
+                        prog.group.push(arr[j]);
+                    }
 
                     break;
                 }
@@ -856,11 +882,23 @@
         obj._cool.template.pl_start = pl_start;
         obj._cool.template.pl_end = pl_end;
         
-        // actions
+ 
+        obj._cool.select = select;
+        obj._cool.isChanged = true;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.firstDone = false;
         obj._cool.action = function()
         {
+            // extend observe meh
+            //if (!this.isChanged)
+            //{
+            //    this.enable();
+
+            //    return;
+            //}
+
+            this.isChanged = false;
+
             if (this.data == null || this.isAlways)
             {
                 this.data = cool.computeData(this.prog);
@@ -942,15 +980,7 @@
                 this.firstDone = true;
             }
 
-            if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
-            {
-                if (this.targetObject != null)
-                {
-                    this.targetObject.style.display = this.actionDisplay;
-                }
-            }
-
-            this.actionBase();
+            this.enable();
         }
         obj._cool.cancel = function()
         {
@@ -963,6 +993,18 @@
             }
             
             this.cancelBase();
+        }
+        obj._cool.enable = function()
+        {
+            if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
+            {
+                if (this.targetObject != null)
+                {
+                    this.targetObject.style.display = this.actionDisplay;
+                }
+            }
+
+            this.actionBase();            
         }
     },
 
@@ -977,12 +1019,22 @@
         }
 
         var arr = cool.parseCon(con);
+        
+        obj._cool.refresh = function(elm, path)
+        {
+            var c = elm._cool;
+
+            if (c.parent._cool.isActive)
+            {
+                c.action();
+            }
+        };
 
         for (var i = 0; i < arr.length; ++i)
         {
             var itm = arr[i];
 
-            cool.addToObserve(itm.path, obj, 2);
+            cool.addToObserve(itm.path, obj, obj._cool.refresh, 2);
         }
 
         obj._cool.conditional = con;
@@ -990,52 +1042,21 @@
         obj._cool.isFlug = null;
         obj._cool.action = function()
         {
-            if (this.isChanged)
+            var flag = eval(this.conditional);
+
+            if (flag)
             {
-                this.refreshEx();
+                this.actionBase();
+            }
+            else
+            {
+                this.cancel();
             }
         };
         obj._cool.cancel = function()
         {
             this.cancelBase();
         };
-        obj._cool.refresh = function(elm, path)
-        {
-            this.isChanged = true;
-
-            this.refreshEx();
-        };
-        obj._cool.refreshEx = function()
-        {
-            if (this.parent._cool.isActive)
-            {
-                if (this.isChanged)
-                {
-                    var flag = eval(this.conditional);
-
-                    if (flag != this.isFlug)
-                    {
-                        if (flag)
-                        {
-                            this.actionBase();
-                        }
-                        else
-                        {
-                            this.cancel();
-                        }
-                    }
-
-                    this.isFlug = flag;
-                    this.isChanged = false;
-                }
-                else if (this.isFlug)
-                {
-                    this.actionBase();
-                }
-            }
-        }
-
-        //obj.coolJs.refresh();
     },
 
     // js-event
@@ -1058,10 +1079,13 @@
         var prog = cool.compileSelector(select);
         var arr = cool.getBySelector(prog, obj);
 
-        function initEvent(obj)
+        function initEvent(obj, name)
         {
             return function()
             {
+                // #remove_line
+                console.log("Event: " + name);
+
                 if (obj._cool.parent._cool.isActive)
                 {
                     obj._cool.actionBase();
@@ -1074,6 +1098,7 @@
             }
         };
 
+        obj._cool.name = name;
         obj._cool.eventActive = false;
         obj._cool.onactive = onactive;
         obj._cool.action = function()
@@ -1086,7 +1111,7 @@
             this.eventActive = false;
         };
 
-        obj._cool.event = initEvent(obj);
+        obj._cool.event = initEvent(obj, name);
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -1183,7 +1208,7 @@
         }
     },
 
-    // js-attribute
+    // js-atr
     tagAttribute: function(obj)
     {
         var name = obj.getAttribute("name");
@@ -1192,12 +1217,12 @@
 
         if (name == null || name == "")
         {
-            return console.log("js-event: The 'name' attribute is empty");
+            return console.log("js-atr: The 'name' attribute is empty");
         }
 
-        if (value == null || value == "")
+        if (value == null)
         {
-            return console.log("js-event: The 'value' attribute is empty");
+            return console.log("js-atr: The 'value' attribute is empty");
         }
 
         if (obj._cool.select == null || obj._cool.select == "")
@@ -1259,7 +1284,14 @@
 
                 if (this.mode == 0)
                 {
-                    itm.setAttribute(this.name, this.value);
+                    if (itm[this.name] != null)
+                    {
+                        itm[this.name] = this.value;
+                    }
+                    else
+                    {
+                        itm.setAttribute(this.name, this.value);
+                    }
                 }
                 else if (this.mode == 1)
                 {
@@ -1358,6 +1390,9 @@
         if (type == "js-query")
         {
             cool.tagQuery(obj);
+            
+            // #remove_line
+            obj._cool.info = "type:js-query, " + "select:" + obj._cool.select;
         }
     },
 
@@ -1387,6 +1422,8 @@
             obj._cool.field = cool.createField(set);
         }
 
+        // #remove_line
+        obj._cool.set = set;
         obj._cool.validCount = 0;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function()
@@ -1501,7 +1538,7 @@
         };
     },
 
-    // js-atr-proxy
+    // js-atr-proxy. This tag needs for html elements who has js-attributes
     tagAtrProxy: function(obj)
     {
         obj._cool.cancelDisplay = true;
@@ -1527,13 +1564,13 @@
             return console.log("js-text: The 'name' attribute is empty.");
         }
 
-        cool.addToObserve(name, obj);
-
+        obj._cool.name = name;
         obj._cool.obj = obj;
         obj._cool.field = cool.createField(name, false, false, false);
         obj._cool.refresh = function(elm, path)
         {
-            var val = cool.getField(elm._cool.field);
+            var c = elm._cool;
+            var val = cool.getField(c.field);
 
             elm.innerHTML = val;
         }
@@ -1544,41 +1581,24 @@
             this.obj.innerHTML = val;
             this.actionBase();
         };
+
+        cool.addToObserve(name, obj, obj._cool.refresh, 1);
     },
     
     // js-go
     tagGo: function(obj)
     {
-        var url = obj.getAttribute("url");
-        var hash = obj.getAttribute("hash");
-        var target = obj.getAttribute("target");
+        var value = obj.getAttribute("value");
 
-        if (url == null && hash == null)
+        if (value == null)
         {
-            return console.log("js-go: The 'hash' and 'url' attributes is empty.");
+            return console.log("js-go: The 'value' attribute is empty.");
         }
-
-        if (target == null)
-        {
-            obj._cool.target = "_self";
-        }
-        else
-        {
-            obj._cool.target = target;
-        }
-
-        obj._cool.url = url;
-        obj._cool.hash = hash;
+        
+        obj._cool.value = value;
         obj._cool.action = function()
         {
-            if (this.url != null)
-            {
-                window.open(this.url, this.target);
-            }
-            else if (this.hash != null)
-            {
-                window.location.hash = this.hash;
-            }
+            cool.go(this.value);
 
             this.actionBase();
         };
@@ -1633,7 +1653,7 @@
                 this.field = cool.createField(this.name);
             }
 
-            var tmp = cool.getField(this.fieldName);
+            var tmp = cool.getField(this.field);
             var pars = [];
 
             for (var i = 0; i < this.params.length; ++i)
@@ -1643,9 +1663,9 @@
                 pars.push(itm.getValue());
             }
 
-            tmp[this.method].apply(this, pars);
+            tmp[this.method].apply(tmp, pars);
 
-            cool.changed(this.name);
+            cool.changed(this.field.path);
 
             this.actionBase();
         };
@@ -1655,9 +1675,10 @@
         };
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Attributes
 
+    // Attributes
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // js-bind
     atrBindBoth: function(obj, index)
     {
@@ -1688,10 +1709,6 @@
         if (bind.path == null || bind.path == "")
         {
             return console.log(obj.tagName + ": has empty 'js-bing' attribute.");
-        }
-        else
-        {
-            bind.path = "window." + bind.path;
         }
 
         var tnm = obj.tagName.toLowerCase();
@@ -1786,15 +1803,17 @@
 
             bind.refresh = function(elm, path)
             {
-                if (!this.lock2)
+                var c = elm._cool.bind;
+
+                if (!c.lock2)
                 {
-                    this.lock1 = true;
-                    this.refreshEx();
-                    this.lock1 = false;
+                    c.lock1 = true;
+                    c.refreshEx();
+                    c.lock1 = false;
                 }
             };
 
-            cool.addToObserve(path, bind);
+            cool.addToObserve(bind.path, obj, bind.refresh, 1);
         }
 
         // event changes
@@ -1850,7 +1869,7 @@
                     if (tmp != null)
                     {
                         cool.setField(this._cool.bind.field, tmp);
-                        cool.changed(bind.path);
+                        cool.changed(this._cool.bind.field.path);
                     }
 
                     this._cool.bind.lock2 = false;
@@ -1972,12 +1991,35 @@
         cool.atrClass(obj, index, true);
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // Navigator
-
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // for change page
     go: function(src)
     {
+        // URL mode
+        if (src.indexOf("http") == 0)
+        {
+            window.open(src);
+
+            return;
+        }
+
+        if (src == "back")
+        {
+            history.go(-1);
+
+            return;
+        }
+
+        if (src == "next")
+        {
+            history.go(1);
+
+            return;
+        }
+
         if (window.location.hash != src)
         {
             window.location.hash = src;
@@ -1988,18 +2030,83 @@
     initNavigator: function()
     {
         window.addEventListener("hashchange", function()
+        {
+            var flag = false;
+            var h = window.location.hash;
+            
+            while (true)
             {
-                cool.setPage();
-            },
-            false);
+                var ind = h.indexOf("{{");
+
+                if (ind >= 0)
+                {
+                    var end = h.indexOf("}}", ind);
+
+                    if (end >= 0)
+                    {
+                        flag = true;
+
+                        var f = h.substr(ind + 2, end - ind - 2);
+                        var field = cool.createField(f);
+                        var val = cool.getField(field);
+
+                        h = h.substr(0, ind) + val.toString() + h.substr(end + 2);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (flag)
+            {
+                window.location.hash = h;
+
+                return;
+            }
+
+            cool.setPage();
+        },
+        false);
     },
 
     // activate page
     setPage: function()
     {
+        if (cool.lastUrlHash == window.location.hash && cool.lastUrlHash.length > 0)
+        {
+            return;
+        }
+
+        var page = window.location.hash;
+        var arr = page.split("/");
+
+        if ((arr.length - 1) % 2 != 0)
+        {
+            console.log("The 'hash' has wrong format. Params must contain key/value pairs. Like this  #main/name_1/value_1/name_2/value_2");
+        }
+        else
+        {
+            for (var n = 1; n < arr.length; n += 2)
+            {
+                var f = arr[n];
+                var v = null;
+
+                eval("v = " + cool.decorateString(arr[n + 1]) + ";");
+            
+                var field = cool.createField(f);
+                cool.applyField(field, v);
+            }
+        }
+        
         var i = 0;
         var itm = null;
-        var list = cool.hashList[cool.lastUrlHash];
+        var list = cool.hashList[cool.lastUrlHash.split("/")[0]];
 
         if (list != null)
         {
@@ -2011,9 +2118,9 @@
             }
         }
 
-        cool.lastUrlHash = window.location.hash;
+        cool.lastUrlHash = page;
 
-        list = cool.hashList[cool.lastUrlHash];
+        list = cool.hashList[arr[0]];
 
         if (list != null)
         {
@@ -2024,11 +2131,14 @@
                 itm._cool.actionNav();
             }
         }
+
+        var t = 0;
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Ajax
 
+    // Ajax
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // Ajax request helper todo make headers    XMLHttpRequest.setRequestHeader(name, value)
     ajax: function(method, url, data, tag, callback)
     {
@@ -2065,9 +2175,10 @@
         return cool.ajax("POST", url, data, tag, callback);
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // Fields and observe
-
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // observe hashtable
     obHt: {},
 
@@ -2135,7 +2246,7 @@
                     return console.log("Syntax error: closed brace ']' not found " + path);
                 }
 
-                var str = itm.substr(ind, end - ind);
+                var str = itm.substr(ind + 1, end - ind - 1);
                 var num = parseInt(str);
 
                 if (str == num.toString())
@@ -2356,6 +2467,15 @@
             }
             else
             {
+                if (cur[itm.name] == null)
+                {
+                    cur[itm.name] = {};
+
+                    cur = cur[itm.name];
+
+                    continue;
+                }
+
                 var t = typeof cur[itm.name];
 
                 if (t != "object")
@@ -2384,13 +2504,13 @@
         if (typeof obj == "object")
         {
             cool.applyFieldEx(obj, tar);
+            cool.signalFieldChange(field.path, obj);
         }
         else
         {
             cool.setField(field, obj);
+            cool.changed(field.path);
         }
-
-        cool.signalFieldChange(field.path, obj);
     },
 
     // only apply
@@ -2478,11 +2598,17 @@
         {
             var ob = cool.obHt[path];
 
+            // #remove_line
+            cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
+
             for (var i = 0; i < ob.list.length; ++i)
             {
                 var itm = ob.list[i];
 
-                itm._cool.refresh(itm, path);
+                // #remove_line
+                console.log(cool.tagTostring("Refresh: ", itm.obj));
+
+                itm.callback(itm.obj, path);
             }
         }
         //else
@@ -2509,7 +2635,7 @@
     },
 
     // add field to observe
-    addToObserve: function(path, obj, level)
+    addToObserve: function(path, obj, callback, level)
     {
         if (level == null)
         {
@@ -2527,7 +2653,7 @@
 
         if (ind == -1)
         {
-            cool.obHt[p].list.push(obj);
+            cool.obHt[p].list.push({ obj: obj, callback: callback });
         }
 
         // for parent observe
@@ -2544,7 +2670,7 @@
                     str += arr[n] + (n < j ? "." : "");
                 }
 
-                cool.addToObserve(str, obj, 1);
+                cool.addToObserve(str, obj, callback, 1);
             }
         }
     },
@@ -2573,7 +2699,7 @@
                 {
                     if (this.fieldVal == null)
                     {
-                        this.fieldVal = cool.gocField(this.value);
+                        this.fieldVal = cool.createField(this.value);
                     }
 
                     return cool.getField(this.fieldVal);
@@ -2621,9 +2747,10 @@
         return ret;
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // Selector query
 
+    // Selector query
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // get elements by selector
     compileSelector: function(query)
     {
@@ -3315,8 +3442,10 @@
         return ret;
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // Stream data protocol
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     metaStream:
     {
         // data parsing
@@ -3864,327 +3993,10 @@
         }
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // Templating and Data
-
-    // creating AVL tree
-    createTree: function(comparer, isUniqure)
-    {
-        var tree = { root : null, isUniqure : isUniqure};
-
-        // adding node to tree
-        tree.add = function(obj)
-        {
-            if (this.root == null)
-            {
-                this.root = cool.createNode(obj, null, null);
-
-                return;
-            }
-
-            var stack = [];
-            var left = [];
-            var cur = this.root;
-
-            // adding
-            while (true)
-            {
-                stack.push(cur);
-
-                var cmp = comparer.compare(obj, cur.data);
-
-                // left
-                if (cmp < 0)
-                {
-                    left.push(true);
-
-                    if (cur.left == null)
-                    {
-                        cur.left = cool.createNode(obj, null, null);
-                        
-                        break;
-                    }
-                    else
-                    {
-                        left.push(true);
-
-                        cur = cur.left;
-                    }
-                }
-                // right
-                else if (cmp > 0)
-                {
-                    left.push(false);
-
-                    if (cur.right == null)
-                    {
-                        cur.right = cool.createNode(obj, null, null);
-
-                        break;
-                    }
-                    else
-                    {
-                        left.push(false);
-
-                        cur = cur.right;
-                    }
-                }
-                // exist
-                else
-                {
-                    if (this.isUniqure)
-                    {
-                        while (cur.next != null)
-                        {
-                            cur = cur.next;
-                        }
-
-                        cur.next = obj;
-                    }
-
-                    return;
-                }
-            }
-
-            //balance
-            for (var i = stack.length - 1; i >= 0; --i)
-            {
-                var node = stack[i];
-
-                if (left[i])
-                {
-                    node.balance--;
-                }
-                else
-                {
-                    node.balance++;
-                }
-
-                if (node.balance > 1)
-                {
-                    var rl = node.right.left;
-
-                    if (node.right.balance < 0)
-                    {
-                        var rll = node.right.left.left;
-                        var rlr = node.right.left.right;
-
-                        if (this.root == node)
-                        {
-                            this.root = rl;
-                        }
-                        else
-                        {
-                            if (left[i])
-                            {
-                                stack[i - 1].left = rl;
-                            }
-                            else
-                            {
-                                stack[i - 1].right = rl;
-                            }
-                        }
-
-                        if (rl.balance == 1)
-                        {
-                            node.balance = -1;
-                            node.right.balance = 0;
-                        }
-                        else
-                        {
-                            node.balance = 0;
-                            node.right.balance = 1;
-                        }
-
-                        rl.balance = 0;
-                        rl.left = node;
-                        rl.right = node.right;
-                        node.right.left = rlr;
-                        node.right = rll;
-                    }
-                    else
-                    {
-                        if (this.root == node)
-                        {
-                            this.root = node.right;
-                        }
-                        else
-                        {
-                            if (left[i])
-                            {
-                                stack[i - 1].left = node.right;
-                            }
-                            else
-                            {
-                                stack[i - 1].right = node.right;
-                            }
-                        }
-
-                        node.balance = 0;
-                        node.right.balance = 0;
-
-                        node.right.left = node;
-                        node.right = rl;
-                    }
-
-                    break;
-                }
-                else if (node.balance < -1)
-                {
-                    var lr = node.left.right;
-
-                    if (node.left.balance < 0)
-                    {
-                        var lrr = node.left.right.right;
-                        var lrl = node.left.right.left;
-
-                        if (this.root == node)
-                        {
-                            this.root = lr;
-                        }
-                        else
-                        {
-                            if (left[i])
-                            {
-                                stack[i - 1].left = lr;
-                            }
-                            else
-                            {
-                                stack[i - 1].right = lr;
-                            }
-                        }
-
-                        if (lr.balance == 1)
-                        {
-                            node.balance = -1;
-                            node.left.balance = 0;
-                        }
-                        else
-                        {
-                            node.balance = 0;
-                            node.left.balance = 1;
-                        }
-
-                        lr.balance = 0;
-                        lr.right = node;
-                        lr.left = node.left;
-                        node.left.right = lrl;
-                        node.left = lrr;
-                    }
-                    else
-                    {
-                        if (this.root == node)
-                        {
-                            this.root = node.left;
-                        }
-                        else
-                        {
-                            if (left[i])
-                            {
-                                stack[i - 1].left = node.left;
-                            }
-                            else
-                            {
-                                stack[i - 1].right = node.left;
-                            }
-                        }
-
-                        node.balance = 0;
-                        node.left.balance = 0;
-
-                        node.left.right = node;
-                        node.left = lr;
-                    }
-
-                    break;
-                }
-                else if (node.balance == 0)
-                {
-                    break;
-                }
-            }
-        };
-
-        // getting enumeration class
-        tree.getEnum = function()
-        {
-            var obj =
-            {
-                t : this,
-                cur : null,
-                stack:[],
-                next : function()
-                {
-                    if (this.cur == null)
-                    {
-                        this.cur = this.t.root;
-                        this.stack.push(this.cur);
-
-                        while (this.cur.left != null)
-                        {
-                            this.cur = this.cur.left;
-
-                            this.stack.push(this.cur);
-                        }
-                    }
-                    else
-                    {
-                        if (this.cur.right != null)
-                        {
-                            this.cur = this.cur.right;
-                            this.stack.push(this.cur);
-
-                            while (this.cur.left != null)
-                            {
-                                this.cur = this.cur.left;
-
-                                this.stack.push(this.cur);
-                            }
-                        }
-                        else
-                        {
-                            while (true)
-                            {
-                                this.cur = this.stack.pop();
-                                var last = this.stack[this.stack.length - 1];
-
-                                if (last.left == this.cur)
-                                {
-                                    this.cur = this.stack.pop();
-                                    
-                                    break;
-                                }
-                                else if (last == this.t.root)
-                                {
-                                    this.cur = null;
-
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (this.cur != null)
-                    {
-                        return this.cur.data;
-                    }
-
-                    return null;
-                }
-            };
-
-            return obj;
-        };
-
-        return tree;
-    },
-
-    // create node of tree
-    createNode: function(data, left, right)
-    {
-        return { data: data, left: left, right : right, balance : 0};
-    },
-
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // clone object
     cloneObj: function(src)
     {
@@ -4864,8 +4676,25 @@
         return str;
     },
 
-    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
     // Helpers
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+    // formating string
+    decorateString : function(str)
+    {
+        if (str.length == 0 || cool.booleanHt[str] != null || parseInt(str) == str)
+        {
+            return str;
+        }
+
+        if (str[0] == '&')
+        {
+            return str.substring(1);
+        }
+
+        return "\"" + str + "\"";
+    },
 
     // split and insert
     splitAndInsert: function(arr, str)
@@ -4950,7 +4779,7 @@
     // init dom tree
     processElement : function(elm)
     {
-        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-attribute, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
@@ -5283,40 +5112,8 @@
         return false;
     },
 
-    // unescape
-    decodeEntities : function(str)
-    {
-        if (cool.patternEntities == null)
-        {
-            cool.patternEntities = /&(?:#x[a-f0-9]+|#[0-9]+|[a-z0-9]+);?/ig;
-        }
 
-        if (cool.elementEntities == null)
-        {
-            cool.elementEntities = document.createElement('div');
-        }
-
-        var tmp = str.replace(cool.patternEntities, function(m)
-        {
-            cool.elementEntities.innerHTML = m;
-
-            return cool.elementEntities.innerText;
-        });
-
-        return tmp;
-    },
-
-    //
-    booleanHt:
-    {
-        "true": true,
-        "True": true,
-        "1": true,
-        "false": false,
-        "False": false,
-        "0": false
-    },
-
+    // return typed value for tags
     getTypedValue: function(str)
     {
         if (str == null)
@@ -5348,6 +5145,51 @@
         }
 
         return str;
+    },
+
+    // unescape
+    decodeEntities : function(str)
+    {
+        if (cool.patternEntities == null)
+        {
+            cool.patternEntities = /&(?:#x[a-f0-9]+|#[0-9]+|[a-z0-9]+);?/ig;
+        }
+
+        if (cool.elementEntities == null)
+        {
+            cool.elementEntities = document.createElement('div');
+        }
+
+        var tmp = str.replace(cool.patternEntities, function(m)
+        {
+            cool.elementEntities.innerHTML = m;
+
+            return cool.elementEntities.innerText;
+        });
+
+        return tmp;
+    },
+
+
+    // Structures
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    lastHash: 1,
+    numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
+    body: document.getElementsByTagName('BODY')[0],
+    dissableDisplayPolicy: false,
+    hashList: {},
+    defaultHash: "",
+    lastUrlHash: "",
+    outPos: 0,
+
+    //
+    booleanHt:
+    {
+        "true": true,
+        "True": true,
+        "false": false,
+        "False": false
     },
 
     // validation default
@@ -5383,7 +5225,131 @@
             pattern : "(\+?\d[- .]*){7,13}", //"(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
             title : "Must contain only numbers, spaces and braces."
         }
+    },
+    
+    // For debug #remove_block
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    logEx: function(str)
+    {
+        var level = 0;
+        var f = cool.logEx;
+
+        while (f)
+        {
+            level++;
+            f = f.caller;
+        }
+
+        console.log(Array(level * 2).join(' ') + str);
+    },
+
+    tagTostring : function(name, obj)
+    {
+        var c = obj._cool;
+        var level = 0;
+
+        var f = cool.tagTostring;
+
+        while (f)
+        {
+            level++;
+            f = f.caller;
+        }
+
+        var str = Array(level * 2).join(' ') + name + c.tagName;
+
+        if (c.tagName == "js-if")
+        {
+            str += " " + c.conditional;
+        }
+        else if (c.tagName == "js-set")
+        {
+            str += " " + c.name + "=" + c.value;
+        }
+        else if (c.tagName == "js-ajax")
+        {
+            str += " " + c.src;
+        }
+        else if (c.tagName == "js-page")
+        {
+            str += " " + c.hash;
+        }
+        else if (c.tagName == "js-load")
+        {
+            str += " " + c.src;
+        }
+        else if (c.tagName == "js-query")
+        {
+            str += " " + c.select;
+        }
+        else if (c.tagName == "js-event")
+        {
+            str += " " + c.name;
+        }
+        else if (c.tagName == "js-style")
+        {
+            str += " " + c.name;
+        }
+        else if (c.tagName == "js-atr")
+        {
+            str += " " + c.name;
+        }
+        else if (c.tagName == "js-go")
+        {
+            str += " " + c.value;
+        }
+        else if (c.tagName == "js-call")
+        {
+            str += " " + c.name + ":" + c.method;
+        }
+        else if (c.tagName == "js-atr")
+        {
+            str += " " + c.name + ":" + c.value;
+        }
+        else if (c.tagName == "js-several")
+        {
+            str += " " + c.select;
+        }
+        else if (c.tagName == "script")
+        {
+            str += " " + c.info;
+        }
+        else if (c.tagName == "js-validate")
+        {
+            str += " " + c.set + "; " + c.select;
+        }
+        else if (c.tagName == "js-atr-proxy")
+        {
+            for (var i = 0; i < obj._cool.attributes.length; ++i)
+            {
+                var atr = obj._cool.attributes[i];
+
+                str +=  " " + atr.name;
+            }
+        }
+        else if (c.tagName == "js-text")
+        {
+            str += " " + c.name;
+        }
+
+        return str;
+    },
+
+    atrTostring : function(obj)
+    {
+        var c = obj._cool;
+        var str = c.tagName;
+
+        if (c.tagName == "js-if")
+        {
+            str += " " + c.conditional;
+        }
+        
+        return str;
     }
+
+    // #remove_block_end
 };
 
 Object.prototype._cool = null;
@@ -5429,12 +5395,18 @@ Object.prototype.cooljs = function()
                 {
                     var itm = this.chields[i];
 
+                    // #remove_line
+                    console.log(cool.tagTostring("Action: ", itm));
+                    
                     for (var j = 0; j < itm._cool.attributes.length; ++j)
                     {
                         var atr = itm._cool.attributes[j];
 
                         if (atr.action != null)
                         {
+                            // #remove_line
+                            console.log("Action atr: " + cool.atrTostring(atr));
+                            
                             atr.action();
                         }
                     }
@@ -5455,12 +5427,18 @@ Object.prototype.cooljs = function()
                 {
                     var itm = this.chields[i];
 
+                    // #remove_line
+                    console.log(cool.tagTostring("Cancel: ", itm));
+
                     for (var j = 0; j < itm._cool.attributes.length; ++j)
                     {
                         var atr = itm._cool.attributes[j];
 
                         if (atr.cancel != null)
                         {
+                            // #remove_line
+                            console.log("Cancel atr: " + cool.atrTostring(atr));
+
                             atr.cancel();
                         }
                     }
