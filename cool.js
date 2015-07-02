@@ -182,10 +182,10 @@
             }
         }
 
+        obj._cool.params = [];
+
         if (obj._cool.paramsIndex != null)
         {
-            obj._cool.params = [];
-
             var pars = obj.children[obj._cool.paramsIndex];
 
             for (var j = 0; j < pars.children.length; ++j)
@@ -230,7 +230,7 @@
         // init event
         obj._cool.eventComplate = document.createEvent('Event');
         obj._cool.eventComplate.initEvent('complate', true, true);
-
+        
         obj._cool.src = src;
         obj._cool.type = type;
         obj._cool.data = data;
@@ -248,7 +248,29 @@
             {
                 var src_tmp = this.src;
 
-                if (this.params != null)
+                if (this.nocache)
+                {
+                    var ff = false;
+
+                    for (var b = 0; b < this.params.length; ++b)
+                    {
+                        var pp = this.params[b];
+
+                        if (pp.name == "nocache")
+                        {
+                            pp.value = cool.getRandomString();
+
+                            ff = true;
+                        }
+                    }
+
+                    if (!ff)
+                    {
+                        this.params.push({ name: "nocache", value: cool.getRandomString() });
+                    }
+                }
+
+                if (this.params.length > 0)
                 {
                     if (src_tmp.indexOf("?") != -1)
                     {
@@ -263,7 +285,14 @@
                     {
                         var par = this.params[n];
 
-                        src_tmp += par.name + "=" + cool.getField(par.value);
+                        if (typeof par.value == "object")
+                        {
+                            src_tmp += par.name + "=" + cool.getField(par.value);
+                        }
+                        else
+                        {
+                            src_tmp += par.name + "=" + par.value;
+                        }
 
                         if (n < this.params.length - 1)
                         {
@@ -889,7 +918,7 @@
         obj._cool.firstDone = false;
         obj._cool.action = function()
         {
-            // extend observe meh
+            // TODO extend observe meh
             //if (!this.isChanged)
             //{
             //    this.enable();
@@ -2145,8 +2174,9 @@
         var obj = new XMLHttpRequest();
 
         //obj.responseType = "text";
-        obj.open(method, url, true);
+        obj.open(method, encodeURI(url), true);
         obj.setRequestHeader('Content-Type', 'text/plain');
+        
         obj.onreadystatechange = function()
         {
             if (obj.readyState == 4)
@@ -2583,10 +2613,8 @@
                 {
                     cool.signalFieldChange(path + "." + p, obj[p]);
                 }
-                else
-                {
-                    cool.changed(path + "." + p);
-                }
+
+                cool.changed(path + "." + p);
             }
         }
     },
@@ -5182,6 +5210,12 @@
     defaultHash: "",
     lastUrlHash: "",
     outPos: 0,
+
+    // headers for requests
+    ajaxHeaders:
+    [
+        { key: 'Content-Type', val: 'text/plain; charset=utf-8' }
+    ],
 
     //
     booleanHt:
