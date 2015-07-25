@@ -93,22 +93,23 @@
         obj._cool.value = value;
         obj._cool.once = once;
         obj._cool.first = false;
-        obj._cool.field = cool.createField(name, type == "object" || type == "var", type == "array");
+        obj._cool.field = cool.createField(name);
         obj._cool.action = function()
         {
             if (!this.first || this.first && !this.once)
             {
-                cool.applyField(this.field, this.tval.getValue());
+                this.field.set(this.tval.getValue());
 
                 this.first = true;
-                this.actionBase();
             }
+
+            this.actionBase();
         }
         obj._cool.cancel = function()
         {
             if (this.tcan != null)
             {
-                cool.applyField(this.field, this.tcan.getValue());
+                this.field.set(this.tcan.getValue());
             }
 
             this.cancelBase();
@@ -151,11 +152,11 @@
 
         if (target == null)
         {
-            obj._cool.target = cool.createField("", true);
+            obj._cool.target = cool.createField("");
         }
         else
         {
-            obj._cool.target = cool.createField(target, true);
+            obj._cool.target = cool.createField(target);
         }
 
         var desk = null;
@@ -202,7 +203,7 @@
                         console.log("Ajax param have empty 'name/value' attribute.");
                     }
 
-                    obj._cool.params.push({ name: par_name, value: cool.createField(par_value, false) });
+                    obj._cool.params.push({ name: par_name, value: cool.createField(par_value) });
                 }
             }
         }
@@ -285,14 +286,16 @@
                     {
                         var par = this.params[n];
 
-                        if (typeof par.value == "object")
-                        {
-                            src_tmp += par.name + "=" + cool.getField(par.value);
-                        }
-                        else
-                        {
-                            src_tmp += par.name + "=" + par.value;
-                        }
+                        src_tmp += par.name + "=" + par.value.get();
+
+                        //if (typeof par.value == "object")
+                        //{
+                        //    src_tmp += par.name + "=" + cool.getField(par.value);
+                        //}
+                        //else
+                        //{
+                        //    src_tmp += par.name + "=" + par.value;
+                        //}
 
                         if (n < this.params.length - 1)
                         {
@@ -565,31 +568,13 @@
         };
         
         // compile query
-        var arr = select.split(' ');
+
         var prog = {};
         var tmp;
         var end;
-        var j = 0;
         var ind = 0;
-        var str = ['(', ')', '[', ']', '==', '!=', '&&', '||', '<=', '>=', '<<', '>>', '<', '>', '+', '-', '/', '*', '&', '^', '!'];
 
-        for (cool.outPos = 0; cool.outPos < arr.length; ++cool.outPos)
-        {
-            var itm = arr[cool.outPos];
-
-            if (itm == "")
-            {
-                arr.splice(cool.outPos, 1);
-                cool.outPos--;
-
-                continue;
-            }
-
-            for (var j = 0; j < str.length && cool.outPos < arr.length; ++j)
-            {
-                cool.splitAndInsert(arr, str[j]);
-            }
-        }
+        var arr = cool.splitExpression(select);
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -612,11 +597,8 @@
 
                     prog.from =
                     {
-                        field : cool.createField(fieldName, true)
+                        field: cool.createField(fieldName, 2, obj._cool.refresh, false)
                     };
-
-                    // observe
-                    cool.addToObserve(fieldName, obj, obj._cool.refresh, 2);
 
                     ind = arr[0].indexOf(".");
 
@@ -656,11 +638,8 @@
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++])
+                        field: cool.createField(arr[i++], 2, obj._cool.refresh, false)
                     }
-
-                    // observe
-                    cool.addToObserve(join.field.path, obj, obj._cool.refresh, 2);
 
                     if (arr[i++] != "As")
                     {
@@ -1471,7 +1450,6 @@
             obj._cool.field = cool.createField(set);
         }
 
-        // #remove_line
         obj._cool.set = set;
         obj._cool.validCount = 0;
         obj._cool.isAlways = obj.getAttribute("always") != null;
@@ -1551,12 +1529,11 @@
 
             if (this.field != null && delta != 0)
             {
-                var val = cool.getField(this.field);
+                var val = this.field.get();
 
                 val += delta;
 
-                cool.setField(this.field, val);
-                cool.changed(this.field.path);
+                this.field.set(val);
             }
 
             // not work without forms
@@ -1615,23 +1592,19 @@
 
         obj._cool.name = name;
         obj._cool.obj = obj;
-        obj._cool.field = cool.createField(name, false, false, false);;
+        obj._cool.field = cool.createField(name, 2, obj._cool.refresh, false);
         obj._cool.refresh = function(elm, path)
         {
             var c = elm._cool;
-            var val = cool.getField(c.field);
+            var val = c.field.get();
 
             elm.innerHTML = val;
         }
         obj._cool.action = function()
         {
-            var val = cool.getField(this.field);
-
-            this.obj.innerHTML = val;
+            this.obj.innerHTML = this.field.get();
             this.actionBase();
         };
-
-        cool.addToObserve(name, obj, obj._cool.refresh, 2);
     },
     
     // js-go
@@ -1702,7 +1675,7 @@
                 this.field = cool.createField(this.name);
             }
 
-            var tmp = cool.getField(this.field);
+            var tmp = this.field.get();
             var pars = [];
 
             for (var i = 0; i < this.params.length; ++i)
@@ -1772,7 +1745,6 @@
         bind.isRadio = false;
         bind.isText = false;
         bind.isNumber = false;
-        bind.field = cool.createField(bind.path, false);
         bind.obj = obj;
 
         // validate
@@ -1809,6 +1781,8 @@
         // set observe
         if (!isWriteOnly)
         {
+            bind.field = cool.createField(bind.path, 1, bind.refresh);
+
             if (bind.isInput)
             {
                 if (bind.isCheckbox)
@@ -1834,7 +1808,7 @@
                 {
                     bind.refreshEx = function()
                     {
-                        var tmp = cool.getField(this.field);
+                        var tmp = this.field.get();
 
                         this.obj.value = tmp;
                     };
@@ -1844,7 +1818,7 @@
             {
                 bind.refreshEx = function()
                 {
-                    var tmp = cool.getField(this.field);
+                    var tmp = this.field.get();
 
                     this.obj.value = tmp;
                 };
@@ -1861,8 +1835,10 @@
                     c.lock1 = false;
                 }
             };
-
-            cool.addToObserve(bind.path, obj, bind.refresh, 1);
+        }
+        else
+        {
+            bind.field = cool.createField(bind.path);
         }
 
         // event changes
@@ -1917,8 +1893,7 @@
 
                     if (tmp != null)
                     {
-                        cool.setField(this._cool.bind.field, tmp);
-                        cool.changed(this._cool.bind.field.path);
+                        this._cool.bind.field.set(tmp);
                     }
 
                     this._cool.bind.lock2 = false;
@@ -2096,8 +2071,7 @@
                         flag = true;
 
                         var f = h.substr(ind + 2, end - ind - 2);
-                        var field = cool.createField(f);
-                        var val = cool.getField(field);
+                        var val = cool.createField(f).get();
 
                         h = h.substr(0, ind) + val.toString() + h.substr(end + 2);
                     }
@@ -2148,8 +2122,7 @@
 
                 eval("v = " + cool.decorateString(arr[n + 1]) + ";");
             
-                var field = cool.createField(f);
-                cool.applyField(field, v);
+                cool.createField(f).set(v);
             }
         }
         
@@ -2226,23 +2199,19 @@
     },
 
     
-    // Fields and observe
+    // Fields
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     // observe hashtable
     obHt: {},
 
     // create field from field path
-    createField: function(path, isObject, isArray, isRelative)
+    createField: function (path, observe, callback, isRelative)
     {
-        if (isObject == null)
+        if (observe == null)
         {
-            isObject = false;
-        }
-
-        if (isArray == null)
-        {
-            isArray = false;
+            observe = 0;
+            callback = null;
         }
 
         if (isRelative == null)
@@ -2250,403 +2219,235 @@
             isRelative = false;
         }
 
-        if (!isRelative)
-        {
-            if (path == "")
-            {
-                path = "window";
-            }
-            else
-            {
-                path = "window." + path;
-            }
-        }
-
-        var arr = path.split(".");
-
         var field =
         {
-            isRelative : isRelative,
-            offset : 0,
+            observe: observe,
+            list: cool.parseJs(path),
+            vars: [],
+            isInited : false,
+            isRelative: isRelative,
+            offset: 0,
             path: path,
-            list: []
+            root : "",
+            get: function()
+            {
+                var tmp;
+
+                eval("tmp = " + this.path + ";");
+
+                return tmp;
+            },
+            set: function(val)
+            {
+                if (!this.isInited)
+                {
+                    this.init();
+                }
+
+                eval(this.path + "=" + val + ";");
+
+                if (this.observe > 0)
+                {
+                    cool.changed2(this.root, "set");
+                }
+            },
+            init: function ()
+            {
+                var cur = window;
+                var path = "";
+
+                for (var i = 0; i < this.list.length - 1; ++i)
+                {
+                    var prp = this.list[i];
+
+                    path += i == 0 ? prp.path : "." + prp.path;
+
+                    // property
+                    if (prp.type == 9)
+                    {
+                        if (cur[prp.path] == null)
+                        {
+                            cur[prp.path] = {};
+                        }
+
+                        cur = cur[prp.path];
+                    }
+                    // array
+                    else if (prp.type == 2)
+                    {
+                        if (cur[prp.path] == null)
+                        {
+                            cur[prp.path] = [];
+                        }
+
+                        cur = cur[prp.path];
+
+                        var ind = eval(prp.inner);
+
+                        if (cur[ind] != null)
+                        {
+                            cur = cur[ind];
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    // function
+                    else if (prp.type == 6)
+                    {
+                        cur = eval(path + "(" + prp.inner + ")");
+                    }
+                }
+
+                this.isInited = true;
+            },
+            refreshVars: function(arr, role)
+            {
+                if (arr == null)
+                {
+                    arr = this.list;
+                    role = 0;
+                }
+
+                var path = "";
+
+                for (var i = 0; i < arr.length; ++i)
+                {
+                    var itm = arr[i];
+
+                    // property
+                    if (itm.type == 9)
+                    {
+                        path += i == 0 ? itm.path : "." + itm.path;
+                    }
+                    // array
+                    else if (itm.type == 2)
+                    {
+                        path += i == 0 ? itm.path : "." + itm.path;
+
+                        this.refreshVars(itm.body, 1);
+                    }
+                    // function
+                    else if (itm.type == 6)
+                    {
+                        path += i == 0 ? itm.path : "." + itm.path;
+
+                        this.refreshVars(itm.body, 2);
+                    }
+                    // operator or conditional
+                    else if (itm.type == 7 || itm.type == 8)
+                    {
+                        this.addVar(path, role, arr);
+
+                        path = "";
+                    }
+                }
+
+                this.addVar(path, role, arr);
+
+                // roles
+                // 0 - root
+                // 1 - index of array
+                // 2 - param of function
+            },
+            addVar : function(path, role, arr)
+            {
+                if (path.length == 0)
+                {
+                    return;
+                }
+
+                if (path[0] == ".")
+                {
+                    path = path.substr(1);
+                }
+
+                if (!this.isRelative)
+                {
+                    if (path == "")
+                    {
+                        path = "window";
+                    }
+                    else if (path.indexOf("window") < 0)
+                    {
+                        path = "window." + path;
+                    }
+                }
+                // todo future arr convert to variable map in field
+                this.vars.push({ path: path, role: role, arr: arr });
+
+                if (role == 0)
+                {
+                    this.root = path;
+                }
+            }
         };
 
-        for (var i = 0; i < arr.length; ++i)
+        field.refreshVars();
+
+        if (observe > 0 && callback != null)
         {
-            var itm = arr[i];
-            var ind = itm.indexOf("[");
-            var isLast = arr.length - i - 1 == 0;
+            field.observe = { depth: observe, callback: callback };
 
-            if (ind == -1)
+            for (var i = 0; i < field.vars.length; ++i)
             {
-                field.list.push(
-                {
-                    name: itm,
-                    isObject: isObject || !isLast,
-                    isArray: isArray && isLast
-                });
-            }
-            else
-            {
-                var end = itm.lastIndexOf("]");
+                var itm = field.vars[i];
 
-                if (end == -1)
-                {
-                    return console.log("Syntax error: closed brace ']' not found " + path);
-                }
-
-                var str = itm.substr(ind + 1, end - ind - 1);
-                var num = parseInt(str);
-
-                if (str == num.toString())
-                {
-                    field.list.push(
-                    {
-                        isArray: true,
-                        isIndexInt: true,
-                        name: itm.substr(0, ind),
-                        index: num,
-                        isObject: false
-                    });
-                }
-                else
-                {
-                    field.list.push(
-                    {
-                        isArray: true,
-                        isIndexInt: false,
-                        isObject: false,
-                        name: itm.substr(0, ind),
-                        index: cool.createField(str, false)
-                    });
-                }
+                cool.addToObserve2(itm.path, field, itm, callback, observe);
             }
         }
 
         return field;
     },
 
-    // set field value
-    setField: function(field, val)
+    // add field to observe
+    addToObserve2: function (path, field, tag, callback, depth)
     {
-        var cur = window;
-
-        for (var i = field.offset; i < field.list.length; ++i)
+        if (cool.obHt[p] == null)
         {
-            var itm = field.list[i];
-            var last = i == field.list.length - 1;
-
-            if (cur == null)
-            {
-                return console.log("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
-            }
-
-            if (itm.isArray)
-            {
-                if (cur[itm.name] == null)
-                {
-                    cur[itm.name] = [];
-                }
-
-                var ind = 0;
-
-                if (itm.isIndexInt)
-                {
-                    ind = itm.index;
-                }
-                else
-                {
-                    var fval = cool.getField(itm.index);
-
-                    if (fval == null)
-                    {
-                        // todo return console.log(here? or maybe create observe ?
-
-                        return;
-
-                        //ind = 0;
-                    }
-                    else
-                    {
-                        ind = fval;
-                    }
-                }
-
-                if (ind >= cur[itm.name].length)
-                {
-                    // todo return console.log(here? or maybe create observe ?
-
-                    return;
-                }
-
-                if (last)
-                {
-                    if (typeof val == "object")
-                    {
-                        cool.applyFieldEx(val, cur[itm.name][ind]);
-                    }
-                    else
-                    {
-                        cur[itm.name][ind] = val;
-                    }
-                }
-                else
-                {
-                    cur = cur[itm.name][ind];
-                }
-            }
-            else
-            {
-                if (last)
-                {
-                    if (typeof val == "object")
-                    {
-                        cool.applyFieldEx(val, cur[itm.name]);
-                    }
-                    else
-                    {
-                        cur[itm.name] = val;
-                    }
-                }
-                else
-                {
-                    cur = cur[itm.name];
-                }
-            }
-        }
-    },
-
-    // read field value 
-    getField: function(field, cur)
-    {
-        if (cur == null)
-        {
-            cur = window;
+            cool.obHt[p] = { list: [] };
         }
 
-        for (var i = field.offset; i < field.list.length; ++i)
+        var ind = -1;
+
+        for (var f = 0; f < cool.obHt[p].list.length; ++f)
         {
-            var itm = field.list[i];
-
-            if (itm.isArray)
+            if (cool.obHt[p].list[f].field == field)
             {
-                if (cur[itm.name] == null)
-                {
-                    return null;
-                }
+                ind = f;
 
-                var ind = 0;
-
-                if (itm.isIndexInt)
-                {
-                    ind = itm.index;
-                }
-                else
-                {
-                    ind = cool.getField(itm.index);
-
-                    if (ind == null)
-                    {
-                        return null;
-                    }
-                }
-
-                if (ind >= cur[itm.name].length)
-                {
-                    return null;
-                }
-
-                cur = cur[itm.name][ind];
-            }
-            else
-            {
-                cur = cur[itm.name];
+                break;
             }
         }
 
-        return cur;
-    },
-
-    // get or create parent object from field
-    gocField: function(field)
-    {
-        var start = 0;
-        var cur = window;
-
-        if (field.list[0].name == window)
+        if (ind == -1)
         {
-            start = 1;
+            cool.obHt[p].list.push({ field: field, tag : tag, callback: callback });
         }
 
-        for (var i = start; i < field.list.length; ++i)
+        // for parent observe
+        if (depth > 1)
         {
-            var itm = field.list[i];
-            var last = i == field.list.length - 1;
+            var arr = path.split(".");
 
-            if (itm.isArray)
+            for (var j = arr.length - depth; j >= 0 && j < arr.length - 1; ++j)
             {
-                if (cur[itm.name] == null)
+                var str = "";
+
+                for (var n = 0; n <= j; ++n)
                 {
-                    cur[itm.name] = [];
+                    str += arr[n] + (n < j ? "." : "");
                 }
 
-                if (last)
-                {
-                    cur = cur[itm.name];
-
-                    break;
-                }
-
-                var ind = 0;
-
-                if (itm.isIndexInt)
-                {
-                    ind = itm.index;
-                }
-                else
-                {
-                    ind = cool.getField(itm.index);
-
-                    if (ind == null)
-                    {
-                        ind = 0;
-                    }
-                }
-
-                if (ind >= cur[itm.name].length)
-                {
-                    cur[itm.name][ind] = {};
-                }
-
-                cur = cur[itm.name][ind];
-            }
-            else
-            {
-                if (cur[itm.name] == null)
-                {
-                    cur[itm.name] = {};
-
-                    cur = cur[itm.name];
-
-                    continue;
-                }
-
-                var t = typeof cur[itm.name];
-
-                if (t != "object")
-                {
-                    if (itm.isObject || !last)
-                    {
-                        cur[itm.name] = {};
-                    }
-                }
-
-                if (itm.isObject || !last)
-                {
-                    cur = cur[itm.name];
-                }
-            }
-        }
-
-        return cur;
-    },
-
-    // apply all obj fields to target fields, and signal of change.
-    applyField: function(field, obj)
-    {
-        var tar = cool.gocField(field);
-
-        if (typeof obj == "object")
-        {
-            cool.applyFieldEx(obj, tar);
-            cool.signalFieldChange(field.path, obj);
-        }
-        else
-        {
-            cool.setField(field, obj);
-            cool.changed(field.path);
-        }
-    },
-
-    // only apply
-    applyFieldEx: function(src, dst)
-    {
-        if (src instanceof Array)
-        {
-            for (var i = 0; i < src.length; ++i)
-            {
-                if (src[i] instanceof Array)
-                {
-                    var arr = [];
-
-                    dst.push(arr);
-
-                    cool.applyFieldEx(src[i], arr);
-                }
-                else if (typeof src[i] == "object")
-                {
-                    var tmp = {};
-
-                    cool.applyFieldEx(src[i], tmp);
-
-                    dst.push(tmp);
-                }
-                else
-                {
-                    dst.push(src[i]);
-                }
-            }
-        }
-        else
-        {
-            for (var p in src)
-            {
-                if (src.hasOwnProperty(p))
-                {
-                    if (src[p] instanceof Array)
-                    {
-                        dst[p] = [];
-
-                        cool.applyFieldEx(src[p], dst[p]);
-                    }
-                    else if (typeof src[p] == "object")
-                    {
-                        if (dst[p] == null)
-                        {
-                            dst[p] = {};
-                        }
-
-                        cool.applyFieldEx(src[p], dst[p]);
-                    }
-                    else
-                    {
-                        dst[p] = src[p];
-                    }
-                }
-            }            
-        }
-    },
-
-    // signal of change each object field
-    signalFieldChange: function(path, obj)
-    {
-        for (var p in obj)
-        {
-            if (obj.hasOwnProperty(p))
-            {
-                if (typeof obj[p] == "object")
-                {
-                    cool.signalFieldChange(path + "." + p, obj[p]);
-                }
-
-                cool.changed(path + "." + p);
+                cool.addToObserve(str, field, tag, callback, 1);
             }
         }
     },
 
     // call than property changed
-    changed: function(path)
+    // 
+    changed2: function (path, method, args)
     {
         if (cool.obHt[path] != null)
         {
@@ -2660,82 +2461,15 @@
                 var itm = ob.list[i];
 
                 // #remove_line
-                console.log(cool.tagTostring("Refresh: ", itm.obj));
+                console.log(cool.tagTostring("Refresh: ", itm.field.path));
 
-                itm.callback(itm.obj, path);
-            }
-        }
-        //else
-        //{
-        //    var arr = path.split(".");
-
-        //    for (var j = arr.length - 1; j >= 0; --j)
-        //    {
-        //        var str = "";
-
-        //        for (var n = 0; n < j; ++n)
-        //        {
-        //            str += arr[n] + (n < j - 1 ? "." : "");
-        //        }
-
-        //        if (cool.obHt[str] != null)
-        //        {
-        //            cool.changed(str);
-
-        //            return;
-        //        }
-        //    }
-        //}
-    },
-
-    // add field to observe
-    addToObserve: function(path, obj, callback, level)
-    {
-        if (level == null)
-        {
-            level = 1;
-        }
-
-        var p = path;
-
-        if (path.indexOf("window.") < 0)
-        {
-            p = "window." + path;
-        }
-
-        if (cool.obHt[p] == null)
-        {
-            cool.obHt[p] = { list: [] };
-        }
-
-        var ind = cool.obHt[p].list.indexOf(obj);
-
-        if (ind == -1)
-        {
-            cool.obHt[p].list.push({ obj: obj, callback: callback });
-        }
-
-        // for parent observe
-        if (level > 1)
-        {
-            var arr = path.split(".");
-
-            for (var j = arr.length - level; j >= 0 && j < arr.length - 1; ++j)
-            {
-                var str = "";
-
-                for (var n = 0; n <= j; ++n)
-                {
-                    str += arr[n] + (n < j ? "." : "");
-                }
-
-                cool.addToObserve(str, obj, callback, 1);
+                itm.callback(path, method, ob.field, ob.tag);
             }
         }
     },
 
     // create typed value
-    createTypedValue: function(owner, type, value)
+    createTypedValue: function (owner, type, value)
     {
         if (type == null || type == "")
         {
@@ -2748,11 +2482,11 @@
 
         var ret =
         {
-            type : type,
-            fieldVal : null,
-            fieldCan : null,
-            fastType : 0,
-            getValue: function()
+            type: type,
+            fieldVal: null,
+            fieldCan: null,
+            fastType: 0,
+            getValue: function ()
             {
                 if (this.fastType == 1)
                 {
@@ -2805,7 +2539,6 @@
 
         return ret;
     },
-
 
     // Selector query
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4782,7 +4515,7 @@
                     });
 
                     var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
-                    var vField = cool.createField(text2, false, false, true);
+                    var vField = cool.createField(text2);
                     var selfVar = roots[vField.list[0].name] != null;
 
                     vField.offset = 1;
@@ -4872,31 +4605,219 @@
         return "\"" + str + "\"";
     },
 
+    // parse Js expression
+    parseJs: function (str, exps, start, end)
+    {
+        if (exps == null)
+        {
+            exps = cool.splitExpression(str);
+
+            start = 0;
+            end = exps.length;
+        }
+
+        var list = [];
+
+        for (var n = start; n < end; ++n)
+        {
+            var exp = exps[n];
+
+            switch (exp)
+            {
+                case "{":
+                case "[" :
+                case "(" :
+                {
+                    var type = 6;
+                    var close = ")";
+
+                    if (exp == "{")
+                    {
+                        type = 1;
+                        close = "}";
+                    }
+                    else if (exp == "[")
+                    {
+                        type = 2;
+                        close = "]";
+                    }
+                    
+                    var ind = -1;
+
+                    for (var j = n + 1; j < end; ++j)
+                    {
+                        if (exps[j] == close)
+                        {
+                            ind = j;
+
+                            break;
+                        }
+                    }
+
+                    if (ind < 0)
+                    {
+                        return console.log("Syntax error: closed brace ')' not found " + str);
+                    }
+                    
+                    var ppc = list.length - 1;
+
+                    list[ppc] =
+                    {
+                        type: type,
+                        head: list[ppc],
+                        body: cool.parseJs(null, exps, n + 1, ind)
+                    };
+
+                    // todo make it rain
+                    list[ppc].path = list[ppc].head.path;
+                    list[ppc].inner = "";
+                    
+                    for (var c = n + 1; c < ind; ++c)
+                    {
+                        list[ppc].inner += exps[c];
+                    }
+
+                    n = ind;
+
+                    break;
+                }
+                case '==':
+                case '!=':
+                case '&&':
+                case '||':
+                case '<=':
+                case '>=':
+                case '<':
+                case '>':
+                {
+                    list.push
+                    ({
+                        type: 8,
+                        operator : exp
+                    });
+
+                    break;
+                }
+                case '<<':
+                case '>>':
+                case '+':
+                case '-':
+                case '/':
+                case '*':
+                case '&':
+                case '^':
+                case '!':
+                {
+                    list.push
+                    ({
+                        type: 7,
+                        operator : exp
+                    });
+
+                    break;
+                }
+                default:
+                {
+                    if (exp.length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (exp[0] == '.')
+                    {
+                        exp = exp.substr(1);
+                    }
+
+                    var tmp = exp.split('.');
+
+                    for (var b = 0; b < tmp.length; ++b)
+                    {
+                        var tmp_itm = tmp[b];
+
+                        list.push
+                        ({
+                            type: cool.getType(tmp_itm),
+                            path: tmp_itm,
+                        });
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        // expression types
+        // 0 - none
+        // 1 - object
+        // 2 - array
+        // 3 - string
+        // 4 - int
+        // 5 - float
+        // 6 - function
+        // 7 - operator
+        // 8 - conditional
+        // 9 - var
+        return list;
+    },
+
+    // split JS expression
+    splitExpression: function (select)
+    {
+        var str = ['(', ')', '{', '}', '[', ']', '==', '!=', '&&', '||', '<=', '>=', '<<', '>>', '<', '>', '+', '-', '/', '*', '&', '^', '!'];
+        var arr = select.split(' ');
+
+        for (cool.outPos = 0; cool.outPos < arr.length; ++cool.outPos)
+        {
+            var itm = arr[cool.outPos];
+
+            if (itm == "")
+            {
+                arr.splice(cool.outPos, 1);
+                cool.outPos--;
+
+                continue;
+            }
+
+            for (var j = 0; j < str.length && cool.outPos < arr.length; ++j)
+            {
+                cool.splitAndInsert(arr, str[j]);
+            }
+        }
+
+        return arr;
+    },
+
     // split and insert
     splitAndInsert: function(arr, str)
     {
-        var itm = arr[cool.outPos];
+        var ddd = cool.outPos;
+        var itm = arr[ddd];
         var ind = itm.indexOf(str);
         var last = -1;
         var flag = false;
 
         if (itm == str)
         {
-            cool.outPos++;
+            return;
+        }
+
+        if (itm == str)
+        {
+            //ddd++;
 
             return false;
         }
 
         if (ind == 0)
         {
-            arr[cool.outPos++] = str;
+            arr[ddd++] = str;
 
             flag = true;
         }
         else if (ind > 0)
         {
-            arr[cool.outPos++] = itm.substr(0, ind);
-            arr.splice(cool.outPos++, 0, str);
+            arr[ddd++] = itm.substr(0, ind);
+            arr.splice(ddd++, 0, str);
 
             flag = true;
         }
@@ -4913,23 +4834,47 @@
 
             if (ind - last == 1)
             {
-                arr.splice(cool.outPos++, 0, str);
+                arr.splice(ddd++, 0, str);
             }
             else
             {
-                arr.splice(cool.outPos++, 0, itm.substr(last + 1, ind - last - 1));
-                arr.splice(cool.outPos++, 0, str);
+                arr.splice(ddd++, 0, itm.substr(last + 1, ind - last - 1));
+                arr.splice(ddd++, 0, str);
             }
         }
 
         if (last > -1 && itm.length - last > 1)
         {
-            arr.splice(cool.outPos++, 0, itm.substr(last + 1));
+            arr.splice(ddd++, 0, itm.substr(last + 1));
 
             flag = true;
         }
+    },
 
-        return flag;
+    // get type value of string 
+    getType: function(str)
+    {
+        if (str.length == 0)
+        {
+            return 0;
+        }
+
+        if (str.length > 1 && str[0] == '"' && str[str.length - 1] == '"')
+        {
+            return 3;
+        }
+
+        if (str == parseInt(str).toString())
+        {
+            return 4;
+        }
+
+        if (str == parseFloat(str).toString())
+        {
+            return 5;
+        }
+
+        return 9;
     },
 
     // random string for function name
@@ -5201,53 +5146,53 @@
     },
 
     //
-    atrClick: function (obj)
-    {
-        var val = obj.getAttribute("js-click");
+    //atrClick: function (obj)
+    //{
+    //    var val = obj.getAttribute("js-click");
 
-        if (val == null || val == "")
-        {
-            return;
-        }
+    //    if (val == null || val == "")
+    //    {
+    //        return;
+    //    }
 
-        obj.addEventListener("click", function(e)
-        {
-            var cmd = this.coolJs.cmd;
+    //    obj.addEventListener("click", function(e)
+    //    {
+    //        var cmd = this.coolJs.cmd;
 
-            eval(cmd.action);
+    //        eval(cmd.action);
 
-            for (var j = 0; j < cmd.vars.length; ++j)
-            {
-                var v = cmd.vars[j];
+    //        for (var j = 0; j < cmd.vars.length; ++j)
+    //        {
+    //            var v = cmd.vars[j];
 
-                if (cool.obHt[v] != null)
-                {
-                    cool.changed(v);
-                }
-            }
-        });
+    //            if (cool.obHt[v] != null)
+    //            {
+    //                cool.changed(v);
+    //            }
+    //        }
+    //    });
 
-        obj.coolJs.cmd =
-        {
-            action: val,
-            vars : []
-        };
+    //    obj.coolJs.cmd =
+    //    {
+    //        action: val,
+    //        vars : []
+    //    };
 
-        var arr = val.split(';');
+    //    var arr = val.split(';');
 
-        for (var i = 0; i < arr.length; ++i)
-        {
-            var itm = arr[i];
-            var ind = itm.indexOf('=');
+    //    for (var i = 0; i < arr.length; ++i)
+    //    {
+    //        var itm = arr[i];
+    //        var ind = itm.indexOf('=');
 
-            if (ind > -1)
-            {
-                var tmp = itm.substr(0, ind).trim();
+    //        if (ind > -1)
+    //        {
+    //            var tmp = itm.substr(0, ind).trim();
 
-                obj.coolJs.cmd.vars.push(tmp);
-            }
-        }
-    },
+    //            obj.coolJs.cmd.vars.push(tmp);
+    //        }
+    //    }
+    //},
 
     //
     addVariableListener: function (name, onChange)
@@ -5658,3 +5603,416 @@ Object.prototype.cooljs = function(base)
 };
 
 window.onload = cool.init;
+
+//// create field from field path
+//createField2: function(path, isObject, isArray, isRelative)
+//{
+//    if (isObject == null)
+//    {
+//        isObject = false;
+//    }
+
+//    if (isArray == null)
+//    {
+//        isArray = false;
+//    }
+
+//    if (isRelative == null)
+//    {
+//        isRelative = false;
+//    }
+
+//    if (!isRelative)
+//    {
+//        if (path == "")
+//        {
+//            path = "window";
+//        }
+//        else
+//        {
+//            path = "window." + path;
+//        }
+//    }
+
+//    var arr = path.split(".");
+
+//    var field =
+//    {
+//        isRelative : isRelative,
+//        offset : 0,
+//        path: path,
+//        list: []
+//    };
+
+//    for (var i = 0; i < arr.length; ++i)
+//    {
+//        var itm = arr[i];
+//        var ind = itm.indexOf("[");
+//        var isLast = arr.length - i - 1 == 0;
+
+//        if (ind == -1)
+//        {
+//            field.list.push(
+//            {
+//                name: itm,
+//                isObject: isObject || !isLast,
+//                isArray: isArray && isLast
+//            });
+//        }
+//        else
+//        {
+//            var end = itm.lastIndexOf("]");
+
+//            if (end == -1)
+//            {
+//                return console.log("Syntax error: closed brace ']' not found " + path);
+//            }
+
+//            var str = itm.substr(ind + 1, end - ind - 1);
+//            var num = parseInt(str);
+
+//            if (str == num.toString())
+//            {
+//                field.list.push(
+//                {
+//                    isArray: true,
+//                    isIndexInt: true,
+//                    name: itm.substr(0, ind),
+//                    index: num,
+//                    isObject: false
+//                });
+//            }
+//            else
+//            {
+//                field.list.push(
+//                {
+//                    isArray: true,
+//                    isIndexInt: false,
+//                    isObject: false,
+//                    name: itm.substr(0, ind),
+//                    index: cool.createField(str, false)
+//                });
+//            }
+//        }
+//    }
+
+//    return field;
+//},
+
+//// set field value
+//setField2: function(field, val)
+//{
+//    var cur = window;
+
+//    for (var i = field.offset; i < field.list.length; ++i)
+//    {
+//        var itm = field.list[i];
+//        var last = i == field.list.length - 1;
+
+//        if (cur == null)
+//        {
+//            return console.log("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
+//        }
+
+//        if (itm.isArray)
+//        {
+//            if (cur[itm.name] == null)
+//            {
+//                cur[itm.name] = [];
+//            }
+
+//            var ind = 0;
+
+//            if (itm.isIndexInt)
+//            {
+//                ind = itm.index;
+//            }
+//            else
+//            {
+//                var fval = cool.getField(itm.index);
+
+//                if (fval == null)
+//                {
+//                    // todo return console.log(here? or maybe create observe ?
+
+//                    return;
+
+//                    //ind = 0;
+//                }
+//                else
+//                {
+//                    ind = fval;
+//                }
+//            }
+
+//            if (ind >= cur[itm.name].length)
+//            {
+//                // todo return console.log(here? or maybe create observe ?
+
+//                return;
+//            }
+
+//            if (last)
+//            {
+//                if (typeof val == "object")
+//                {
+//                    cool.applyFieldEx(val, cur[itm.name][ind]);
+//                }
+//                else
+//                {
+//                    cur[itm.name][ind] = val;
+//                }
+//            }
+//            else
+//            {
+//                cur = cur[itm.name][ind];
+//            }
+//        }
+//        else
+//        {
+//            if (last)
+//            {
+//                if (typeof val == "object")
+//                {
+//                    cool.applyFieldEx(val, cur[itm.name]);
+//                }
+//                else
+//                {
+//                    cur[itm.name] = val;
+//                }
+//            }
+//            else
+//            {
+//                cur = cur[itm.name];
+//            }
+//        }
+//    }
+//},
+
+//// read field value 
+//getField2: function(field, cur)
+//{
+//    if (cur == null)
+//    {
+//        cur = window;
+//    }
+
+//    for (var i = field.offset; i < field.list.length; ++i)
+//    {
+//        var itm = field.list[i];
+
+//        if (itm.isArray)
+//        {
+//            if (cur[itm.name] == null)
+//            {
+//                return null;
+//            }
+
+//            var ind = 0;
+
+//            if (itm.isIndexInt)
+//            {
+//                ind = itm.index;
+//            }
+//            else
+//            {
+//                ind = cool.getField(itm.index);
+
+//                if (ind == null)
+//                {
+//                    return null;
+//                }
+//            }
+
+//            if (ind >= cur[itm.name].length)
+//            {
+//                return null;
+//            }
+
+//            cur = cur[itm.name][ind];
+//        }
+//        else
+//        {
+//            cur = cur[itm.name];
+//        }
+//    }
+
+//    return cur;
+//},
+
+//// get or create parent object from field
+//gocField2: function(field)
+//{
+//    var start = 0;
+//    var cur = window;
+
+//    if (field.list[0].name == window)
+//    {
+//        start = 1;
+//    }
+
+//    for (var i = start; i < field.list.length; ++i)
+//    {
+//        var itm = field.list[i];
+//        var last = i == field.list.length - 1;
+
+//        if (itm.isArray)
+//        {
+//            if (cur[itm.name] == null)
+//            {
+//                cur[itm.name] = [];
+//            }
+
+//            if (last)
+//            {
+//                cur = cur[itm.name];
+
+//                break;
+//            }
+
+//            var ind = 0;
+
+//            if (itm.isIndexInt)
+//            {
+//                ind = itm.index;
+//            }
+//            else
+//            {
+//                ind = cool.getField(itm.index);
+
+//                if (ind == null)
+//                {
+//                    ind = 0;
+//                }
+//            }
+
+//            if (ind >= cur[itm.name].length)
+//            {
+//                cur[itm.name][ind] = {};
+//            }
+
+//            cur = cur[itm.name][ind];
+//        }
+//        else
+//        {
+//            if (cur[itm.name] == null)
+//            {
+//                cur[itm.name] = {};
+
+//                cur = cur[itm.name];
+
+//                continue;
+//            }
+
+//            var t = typeof cur[itm.name];
+
+//            if (t != "object")
+//            {
+//                if (itm.isObject || !last)
+//                {
+//                    cur[itm.name] = {};
+//                }
+//            }
+
+//            if (itm.isObject || !last)
+//            {
+//                cur = cur[itm.name];
+//            }
+//        }
+//    }
+
+//    return cur;
+//},
+
+//// apply all obj fields to target fields, and signal of change.
+//applyField2: function(field, obj)
+//{
+//    var tar = cool.gocField(field);
+
+//    if (typeof obj == "object")
+//    {
+//        cool.applyFieldEx(obj, tar);
+//        cool.signalFieldChange(field.path, obj);
+//    }
+//    else
+//    {
+//        cool.setField(field, obj);
+//        cool.changed(field.path);
+//    }
+//},
+
+//// only apply
+//applyFieldEx2: function(src, dst)
+//{
+//    if (src instanceof Array)
+//    {
+//        for (var i = 0; i < src.length; ++i)
+//        {
+//            if (src[i] instanceof Array)
+//            {
+//                var arr = [];
+
+//                dst.push(arr);
+
+//                cool.applyFieldEx(src[i], arr);
+//            }
+//            else if (typeof src[i] == "object")
+//            {
+//                var tmp = {};
+
+//                cool.applyFieldEx(src[i], tmp);
+
+//                dst.push(tmp);
+//            }
+//            else
+//            {
+//                dst.push(src[i]);
+//            }
+//        }
+//    }
+//    else
+//    {
+//        for (var p in src)
+//        {
+//            if (src.hasOwnProperty(p))
+//            {
+//                if (src[p] instanceof Array)
+//                {
+//                    dst[p] = [];
+
+//                    cool.applyFieldEx(src[p], dst[p]);
+//                }
+//                else if (typeof src[p] == "object")
+//                {
+//                    if (dst[p] == null)
+//                    {
+//                        dst[p] = {};
+//                    }
+
+//                    cool.applyFieldEx(src[p], dst[p]);
+//                }
+//                else
+//                {
+//                    dst[p] = src[p];
+//                }
+//            }
+//        }            
+//    }
+//},
+
+//// signal of change each object field
+//signalFieldChange2: function(path, obj)
+//{
+//    for (var p in obj)
+//    {
+//        if (obj.hasOwnProperty(p))
+//        {
+//            if (typeof obj[p] == "object")
+//            {
+//                cool.signalFieldChange(path + "." + p, obj[p]);
+//            }
+
+//            cool.changed(path + "." + p);
+//        }
+//    }
+//},
