@@ -5,3 +5,6 @@ Web.Debug.config
 Web.Release.config
 CoolJs.v12.suo
 CoolJs.csproj.user
+*.suo
+/test/.vs
+test/cool.js

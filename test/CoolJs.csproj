@@ -58,7 +58,7 @@
     <Reference Include="System.EnterpriseServices" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\cooljs\cool.js">
+    <Content Include="..\src\cool.js">
       <Link>cool.js</Link>
     </Content>
     <Content Include="index.html" />
@@ -100,7 +100,7 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup>
-    <PreBuildEvent>copy C:\Work\Algoverse\cooljs\cool.js $(TargetDir)\..\cool.js /y</PreBuildEvent>
+    <PreBuildEvent>copy $(TargetDir)..\..\src\cool.js $(TargetDir)..\cool.js /y</PreBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
