@@ -21,7 +21,7 @@
             "js-atr-proxy": cool.tagAtrProxy,
             "js-go": cool.tagGo,
             "js-call": cool.tagCall
-    };
+        };
 
         cool.jsA =
         {
@@ -579,6 +579,7 @@
         for (var i = 0; i < arr.length; ++i)
         {
             var scr;
+
             switch (arr[i])
             {
                 case "From":
@@ -597,7 +598,7 @@
 
                     prog.from =
                     {
-                        field: cool.createField(fieldName, 2, obj._cool.refresh, false)
+                        field: cool.createField(fieldName, 2, obj._cool.refresh)
                     };
 
                     ind = arr[0].indexOf(".");
@@ -692,35 +693,18 @@
                     };
 
                     end = cool.findNextOperator(++i, arr);
-                    
-                    cool.createConditional(prog, prog.where, arr, i, end);
 
-                    prog.where.conditional.func = cool.getRandomString();
+                    var strCond = arr.slice(i, end).join("");
+
+                    prog.where.condField = cool.createField(strCond, 2, obj._cool.refresh);
+
+                    prog.where.condFuncName = cool.getRandomString();
                     
                     scr = document.createElement('script');
                     scr.type = 'text/javascript';
-                    scr.text = "document['" + prog.where.conditional.func + "'] = function(" + prog.root + "){return " + prog.where.conditional.str + ";}";
+                    scr.text = "document['" + prog.where.condFuncName + "'] = function(" + prog.root + "){return " + strCond + ";}";
 
                     document.getElementsByTagName('body')[0].appendChild(scr);
-
-                    i = end - 1;
-
-                    for (var z = 0; z < prog.where.conditional.expressions.length; ++z)
-                    {
-                        var exp = prog.where.conditional.expressions[z];
-
-                        if (exp.left != null && !exp.isSelfLeft)
-                        {
-                            // observe
-                            cool.addToObserve(exp.left.v, obj, obj._cool.refresh, 2);
-                        }
-
-                        if (exp.right != null && !exp.isSelfRight)
-                        {
-                            // observe
-                            cool.addToObserve(exp.right.v, obj, obj._cool.refresh, 2);
-                        }
-                    }
 
                     break;
                 }
@@ -2206,17 +2190,12 @@
     obHt: {},
 
     // create field from field path
-    createField: function (path, observe, callback, isRelative)
+    createField: function (path, observe, callback)
     {
         if (observe == null)
         {
             observe = 0;
             callback = null;
-        }
-
-        if (isRelative == null)
-        {
-            isRelative = false;
         }
 
         var field =
@@ -2225,35 +2204,45 @@
             list: cool.parseJs(path),
             vars: [],
             isInited : false,
-            isRelative: isRelative,
             offset: 0,
             path: path,
             root : "",
-            get: function()
+            get: function (target)
             {
                 var tmp;
 
-                eval("tmp = " + this.path + ";");
+                if (target == null)
+                {
+                    target = window;
+                }
+
+                // todo make function, for set too
+                eval("tmp = target." + this.path + ";");
 
                 return tmp;
             },
-            set: function(val)
+            set: function (val, target)
             {
                 if (!this.isInited)
                 {
-                    this.init();
+                    if (target == null)
+                    {
+                        target = window;
+                    }
+
+                    this.init(target);
                 }
 
-                eval(this.path + "=" + val + ";");
+                eval("target." + this.path + " = " + val + ";");
 
                 if (this.observe > 0)
                 {
                     cool.changed2(this.root, "set");
                 }
             },
-            init: function ()
+            init: function (target)
             {
-                var cur = window;
+                var cur = target;
                 var path = "";
 
                 for (var i = 0; i < this.list.length - 1; ++i)
@@ -2363,17 +2352,6 @@
                     path = path.substr(1);
                 }
 
-                if (!this.isRelative)
-                {
-                    if (path == "")
-                    {
-                        path = "window";
-                    }
-                    else if (path.indexOf("window") < 0)
-                    {
-                        path = "window." + path;
-                    }
-                }
                 // todo future arr convert to variable map in field
                 this.vars.push({ path: path, role: role, arr: arr });
 
@@ -2404,16 +2382,16 @@
     // add field to observe
     addToObserve2: function (path, field, tag, callback, depth)
     {
-        if (cool.obHt[p] == null)
+        if (cool.obHt[path] == null)
         {
-            cool.obHt[p] = { list: [] };
+            cool.obHt[path] = { list: [] };
         }
 
         var ind = -1;
 
-        for (var f = 0; f < cool.obHt[p].list.length; ++f)
+        for (var f = 0; f < cool.obHt[path].list.length; ++f)
         {
-            if (cool.obHt[p].list[f].field == field)
+            if (cool.obHt[path].list[f].field == field)
             {
                 ind = f;
 
@@ -2423,7 +2401,7 @@
 
         if (ind == -1)
         {
-            cool.obHt[p].list.push({ field: field, tag : tag, callback: callback });
+            cool.obHt[path].list.push({ field: field, tag: tag, callback: callback });
         }
 
         // for parent observe
@@ -2440,7 +2418,7 @@
                     str += arr[n] + (n < j ? "." : "");
                 }
 
-                cool.addToObserve(str, field, tag, callback, 1);
+                cool.addToObserve2(str, field, tag, callback, 1);
             }
         }
     },
@@ -3841,154 +3819,16 @@
         return dst;
     },
 
-    // parse and create conditional for 'if' statement
-    createConditional: function(prog, obj, arr, start, end)
-    {
-        obj.conditional =
-        {
-            expressions: [],
-            str : ""
-        };
-
-        var cur_exp = {};
-        var isLeft = true;
-
-        for (var j = start; j < end; ++j)
-        {
-            var tmp = null;
-
-            switch (arr[j])
-            {
-                case "!=":
-                case "==":
-                case "<=":
-                case ">=":
-                case ">":
-                case "<":
-                {
-                    cur_exp.type = arr[j];
-                    isLeft = false;
-
-                    break;
-                }
-                case "||":
-                case "&&":
-                {
-                    obj.conditional.expressions.push(cur_exp);
-                    cur_exp = {};
-                    isLeft = true;
-
-                    break;
-                }
-                case "(":
-                case ")":
-                {
-                    //brace
-
-                    break;
-                }
-                case "[":
-                case "]":
-                {
-                    // array
-
-                    break;
-                }
-                case "<<":
-                case ">>":
-                case "*":
-                case "/":
-                case "+":
-                case "-":
-                case "&":
-                case "!":
-                case "^":
-                {
-                    // operators
-
-                    break;
-                }
-                default:
-                {
-                    tmp = { v: arr[j], vField: arr[j].split(".") };
-
-                    var isSelf = obj.vField != null && tmp.vField[0] == obj.vField[0];
-                    var isInt = false;
-                    var isString = false;
-                    
-                    if (parseInt(arr[j]).toString() == arr[j])
-                    {
-                        isInt = true;
-                    }
-
-                    if (arr[j][0] == "'" || arr[j][0] == "\"")
-                    {
-                        isString = true;
-                    }
-
-                    if (isLeft)
-                    {
-                        cur_exp.left = tmp;
-                        cur_exp.left.isInt = isInt;
-                        cur_exp.left.isString = isString;
-                        cur_exp.isSelfLeft = isSelf;
-                    }
-                    else
-                    {
-                        cur_exp.right = tmp;
-                        cur_exp.right.isInt = isInt;
-                        cur_exp.right.isString = isString;
-                        cur_exp.isSelfRight = isSelf;
-                    }
-
-                    // check if join root
-                    if (!isSelf && !isInt && !isString && prog.join != null)
-                    {
-                        for (var s = 0; s < prog.join.list.length; ++s)
-                        {
-                            if (obj.vField[0] == prog.join.list[s].vRoot)
-                            {
-                                tmp = prog.root + "." + arr[j];
-
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        tmp = null;
-                    }
-
-                    break;
-                }
-            }
-
-            if (tmp == null)
-            {
-                tmp = arr[j];
-            }
-
-            obj.conditional.str += tmp;
-        }
-
-        if (cur_exp.left != null)
-        {
-            obj.conditional.expressions.push(cur_exp);
-        }
-
-        obj.conditional.isSimple = obj.conditional.expressions.length == 1;
-    },
-
     // computing for select query
     computeData : function(prog)
     {
         var comp = [];
-        var main = cool.getField(prog.from.field);
+        var main = prog.from.field.get();
         cool.queryContext = { items: main, index: 0 };
 
         if (main == null)
         {
-            return console.log("js-query: From's field " + this.prog.from.field.path + " is underfined.");
+            return console.log("js-query: From's field " + prog.from.field.path + " is underfined.");
         }
 
         if (prog.join != null)
@@ -4011,7 +3851,7 @@
 
                 if (join.data == null)
                 {
-                    join.data = cool.getField(join.field);
+                    join.data = join.field.get();
                 }
 
                 if (join.data == null)
@@ -4089,7 +3929,7 @@
 
                 cool.queryContext.index = e;
 
-                if (!document[prog.where.conditional.func](tmp))
+                if (!document[prog.where.condFuncName](tmp))
                 {
                     comp.splice(e--, 1);
                 }
@@ -4845,9 +4685,7 @@
 
         if (last > -1 && itm.length - last > 1)
         {
-            arr.splice(ddd++, 0, itm.substr(last + 1));
-
-            flag = true;
+            arr.splice(ddd++, 0, itm.substr(last + str.length));
         }
     },
 
@@ -5146,55 +4984,6 @@
     },
 
     //
-    //atrClick: function (obj)
-    //{
-    //    var val = obj.getAttribute("js-click");
-
-    //    if (val == null || val == "")
-    //    {
-    //        return;
-    //    }
-
-    //    obj.addEventListener("click", function(e)
-    //    {
-    //        var cmd = this.coolJs.cmd;
-
-    //        eval(cmd.action);
-
-    //        for (var j = 0; j < cmd.vars.length; ++j)
-    //        {
-    //            var v = cmd.vars[j];
-
-    //            if (cool.obHt[v] != null)
-    //            {
-    //                cool.changed(v);
-    //            }
-    //        }
-    //    });
-
-    //    obj.coolJs.cmd =
-    //    {
-    //        action: val,
-    //        vars : []
-    //    };
-
-    //    var arr = val.split(';');
-
-    //    for (var i = 0; i < arr.length; ++i)
-    //    {
-    //        var itm = arr[i];
-    //        var ind = itm.indexOf('=');
-
-    //        if (ind > -1)
-    //        {
-    //            var tmp = itm.substr(0, ind).trim();
-
-    //            obj.coolJs.cmd.vars.push(tmp);
-    //        }
-    //    }
-    //},
-
-    //
     addVariableListener: function (name, onChange)
     {
         
@@ -5290,7 +5079,7 @@
 
         return tmp;
     },
-
+    
 
     // Structures
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5595,7 +5384,7 @@ Object.prototype.cooljs = function(base)
     {
         this._cool =
         {
-            hash: cool.lastHash++,
+            hash: cool.lastHash++
         };
     }
 
@@ -5603,416 +5392,3 @@ Object.prototype.cooljs = function(base)
 };
 
 window.onload = cool.init;
-
-//// create field from field path
-//createField2: function(path, isObject, isArray, isRelative)
-//{
-//    if (isObject == null)
-//    {
-//        isObject = false;
-//    }
-
-//    if (isArray == null)
-//    {
-//        isArray = false;
-//    }
-
-//    if (isRelative == null)
-//    {
-//        isRelative = false;
-//    }
-
-//    if (!isRelative)
-//    {
-//        if (path == "")
-//        {
-//            path = "window";
-//        }
-//        else
-//        {
-//            path = "window." + path;
-//        }
-//    }
-
-//    var arr = path.split(".");
-
-//    var field =
-//    {
-//        isRelative : isRelative,
-//        offset : 0,
-//        path: path,
-//        list: []
-//    };
-
-//    for (var i = 0; i < arr.length; ++i)
-//    {
-//        var itm = arr[i];
-//        var ind = itm.indexOf("[");
-//        var isLast = arr.length - i - 1 == 0;
-
-//        if (ind == -1)
-//        {
-//            field.list.push(
-//            {
-//                name: itm,
-//                isObject: isObject || !isLast,
-//                isArray: isArray && isLast
-//            });
-//        }
-//        else
-//        {
-//            var end = itm.lastIndexOf("]");
-
-//            if (end == -1)
-//            {
-//                return console.log("Syntax error: closed brace ']' not found " + path);
-//            }
-
-//            var str = itm.substr(ind + 1, end - ind - 1);
-//            var num = parseInt(str);
-
-//            if (str == num.toString())
-//            {
-//                field.list.push(
-//                {
-//                    isArray: true,
-//                    isIndexInt: true,
-//                    name: itm.substr(0, ind),
-//                    index: num,
-//                    isObject: false
-//                });
-//            }
-//            else
-//            {
-//                field.list.push(
-//                {
-//                    isArray: true,
-//                    isIndexInt: false,
-//                    isObject: false,
-//                    name: itm.substr(0, ind),
-//                    index: cool.createField(str, false)
-//                });
-//            }
-//        }
-//    }
-
-//    return field;
-//},
-
-//// set field value
-//setField2: function(field, val)
-//{
-//    var cur = window;
-
-//    for (var i = field.offset; i < field.list.length; ++i)
-//    {
-//        var itm = field.list[i];
-//        var last = i == field.list.length - 1;
-
-//        if (cur == null)
-//        {
-//            return console.log("The variable '" + itm.name + "' on path '" + field.path + " is underfined! Define it with js-set tag.");
-//        }
-
-//        if (itm.isArray)
-//        {
-//            if (cur[itm.name] == null)
-//            {
-//                cur[itm.name] = [];
-//            }
-
-//            var ind = 0;
-
-//            if (itm.isIndexInt)
-//            {
-//                ind = itm.index;
-//            }
-//            else
-//            {
-//                var fval = cool.getField(itm.index);
-
-//                if (fval == null)
-//                {
-//                    // todo return console.log(here? or maybe create observe ?
-
-//                    return;
-
-//                    //ind = 0;
-//                }
-//                else
-//                {
-//                    ind = fval;
-//                }
-//            }
-
-//            if (ind >= cur[itm.name].length)
-//            {
-//                // todo return console.log(here? or maybe create observe ?
-
-//                return;
-//            }
-
-//            if (last)
-//            {
-//                if (typeof val == "object")
-//                {
-//                    cool.applyFieldEx(val, cur[itm.name][ind]);
-//                }
-//                else
-//                {
-//                    cur[itm.name][ind] = val;
-//                }
-//            }
-//            else
-//            {
-//                cur = cur[itm.name][ind];
-//            }
-//        }
-//        else
-//        {
-//            if (last)
-//            {
-//                if (typeof val == "object")
-//                {
-//                    cool.applyFieldEx(val, cur[itm.name]);
-//                }
-//                else
-//                {
-//                    cur[itm.name] = val;
-//                }
-//            }
-//            else
-//            {
-//                cur = cur[itm.name];
-//            }
-//        }
-//    }
-//},
-
-//// read field value 
-//getField2: function(field, cur)
-//{
-//    if (cur == null)
-//    {
-//        cur = window;
-//    }
-
-//    for (var i = field.offset; i < field.list.length; ++i)
-//    {
-//        var itm = field.list[i];
-
-//        if (itm.isArray)
-//        {
-//            if (cur[itm.name] == null)
-//            {
-//                return null;
-//            }
-
-//            var ind = 0;
-
-//            if (itm.isIndexInt)
-//            {
-//                ind = itm.index;
-//            }
-//            else
-//            {
-//                ind = cool.getField(itm.index);
-
-//                if (ind == null)
-//                {
-//                    return null;
-//                }
-//            }
-
-//            if (ind >= cur[itm.name].length)
-//            {
-//                return null;
-//            }
-
-//            cur = cur[itm.name][ind];
-//        }
-//        else
-//        {
-//            cur = cur[itm.name];
-//        }
-//    }
-
-//    return cur;
-//},
-
-//// get or create parent object from field
-//gocField2: function(field)
-//{
-//    var start = 0;
-//    var cur = window;
-
-//    if (field.list[0].name == window)
-//    {
-//        start = 1;
-//    }
-
-//    for (var i = start; i < field.list.length; ++i)
-//    {
-//        var itm = field.list[i];
-//        var last = i == field.list.length - 1;
-
-//        if (itm.isArray)
-//        {
-//            if (cur[itm.name] == null)
-//            {
-//                cur[itm.name] = [];
-//            }
-
-//            if (last)
-//            {
-//                cur = cur[itm.name];
-
-//                break;
-//            }
-
-//            var ind = 0;
-
-//            if (itm.isIndexInt)
-//            {
-//                ind = itm.index;
-//            }
-//            else
-//            {
-//                ind = cool.getField(itm.index);
-
-//                if (ind == null)
-//                {
-//                    ind = 0;
-//                }
-//            }
-
-//            if (ind >= cur[itm.name].length)
-//            {
-//                cur[itm.name][ind] = {};
-//            }
-
-//            cur = cur[itm.name][ind];
-//        }
-//        else
-//        {
-//            if (cur[itm.name] == null)
-//            {
-//                cur[itm.name] = {};
-
-//                cur = cur[itm.name];
-
-//                continue;
-//            }
-
-//            var t = typeof cur[itm.name];
-
-//            if (t != "object")
-//            {
-//                if (itm.isObject || !last)
-//                {
-//                    cur[itm.name] = {};
-//                }
-//            }
-
-//            if (itm.isObject || !last)
-//            {
-//                cur = cur[itm.name];
-//            }
-//        }
-//    }
-
-//    return cur;
-//},
-
-//// apply all obj fields to target fields, and signal of change.
-//applyField2: function(field, obj)
-//{
-//    var tar = cool.gocField(field);
-
-//    if (typeof obj == "object")
-//    {
-//        cool.applyFieldEx(obj, tar);
-//        cool.signalFieldChange(field.path, obj);
-//    }
-//    else
-//    {
-//        cool.setField(field, obj);
-//        cool.changed(field.path);
-//    }
-//},
-
-//// only apply
-//applyFieldEx2: function(src, dst)
-//{
-//    if (src instanceof Array)
-//    {
-//        for (var i = 0; i < src.length; ++i)
-//        {
-//            if (src[i] instanceof Array)
-//            {
-//                var arr = [];
-
-//                dst.push(arr);
-
-//                cool.applyFieldEx(src[i], arr);
-//            }
-//            else if (typeof src[i] == "object")
-//            {
-//                var tmp = {};
-
-//                cool.applyFieldEx(src[i], tmp);
-
-//                dst.push(tmp);
-//            }
-//            else
-//            {
-//                dst.push(src[i]);
-//            }
-//        }
-//    }
-//    else
-//    {
-//        for (var p in src)
-//        {
-//            if (src.hasOwnProperty(p))
-//            {
-//                if (src[p] instanceof Array)
-//                {
-//                    dst[p] = [];
-
-//                    cool.applyFieldEx(src[p], dst[p]);
-//                }
-//                else if (typeof src[p] == "object")
-//                {
-//                    if (dst[p] == null)
-//                    {
-//                        dst[p] = {};
-//                    }
-
-//                    cool.applyFieldEx(src[p], dst[p]);
-//                }
-//                else
-//                {
-//                    dst[p] = src[p];
-//                }
-//            }
-//        }            
-//    }
-//},
-
-//// signal of change each object field
-//signalFieldChange2: function(path, obj)
-//{
-//    for (var p in obj)
-//    {
-//        if (obj.hasOwnProperty(p))
-//        {
-//            if (typeof obj[p] == "object")
-//            {
-//                cool.signalFieldChange(path + "." + p, obj[p]);
-//            }
-
-//            cool.changed(path + "." + p);
-//        }
-//    }
-//},

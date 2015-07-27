@@ -61,14 +61,12 @@
     <Content Include="..\src\cool.js">
       <Link>cool.js</Link>
     </Content>
+    <Content Include="core\fields.js" />
+    <Content Include="core\init.js" />
     <Content Include="index.html" />
     <Content Include="qunit-1.18.0.css" />
     <Content Include="qunit-1.18.0.js" />
-    <Content Include="sample\if\index.html" />
-    <Content Include="sample\if\page-1.html" />
-    <Content Include="sample\select\index.html" />
-    <Content Include="sample\select\page-1.html" />
-    <Content Include="test\js-query.js" />
+    <Content Include="tags\js-query.js" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
