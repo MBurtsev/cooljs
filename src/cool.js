@@ -569,7 +569,7 @@
         
         // compile query
 
-        var prog = {};
+        var prog = { ht: {} };
         var tmp;
         var end;
         var ind = 0;
@@ -612,6 +612,7 @@
                     {
                         prog.root = arr[0].substr(0, ind);
                         prog.from.v = arr[0].substr(ind + 1);
+                        prog.ht[arr[0].substr(ind + 1)] = true;
                     }
 
                     i++;
@@ -632,14 +633,15 @@
                     {
                         prog.join = 
                         {
-                            list : []
+                            list: [],
+                            ht: {}
                         };
                     }
 
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++], 2, obj._cool.refresh, false)
+                        field: cool.createField(arr[i++], 2, obj._cool.refresh)
                     }
 
                     if (arr[i++] != "As")
@@ -653,6 +655,8 @@
 
                     prog.join.list.push(join);
 
+                    prog.ht[join.vRoot] = true;
+
                     if (arr[i++] != "On")
                     {
                         return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'On' required.");
@@ -660,15 +664,26 @@
 
                     end = cool.findNextOperator(i, arr);
 
-                    cool.createConditional(prog, join, arr, i, end);
+                    join.strCond = arr.slice(i, end).join("");
+                    join.fieldCond = cool.createField(join.strCond);
+
+                    // patch vars
+                    for (var c = 0; c < join.fieldCond.vars.length; ++c)
+                    {
+                        var cv = join.fieldCond.vars[c];
+
+                        if (prog.ht[cv.raw[0].path])
+                        {
+                            join.strCond = join.strCond.replace(cv.path, prog.root + "." + cv.path);
+                        }
+                    }
                     
-                    join.conditional.func = cool.getRandomString();
+                    join.funcName = cool.getRandomString();
                     scr = document.createElement('script');
                     scr.type = 'text/javascript';
-                    scr.text = "document['" + join.conditional.func + "'] = function(" + prog.root + ", " + join.vField[0] + "){return " + join.conditional.str + ";}";
+                    scr.text = "document['" + join.funcName + "'] = function(" + prog.root + "){return " + join.strCond + ";}";
 
                     document.getElementsByTagName('body')[0].appendChild(scr);
-
 
                     i = end - 1;
 
@@ -688,23 +703,33 @@
 
                     prog.where =
                     {
-                        v : prog.root,
-                        vField : [prog.root]
                     };
 
                     end = cool.findNextOperator(++i, arr);
 
                     var strCond = arr.slice(i, end).join("");
 
-                    prog.where.condField = cool.createField(strCond, 2, obj._cool.refresh);
-
+                    prog.where.fieldCond = cool.createField(strCond, 2, obj._cool.refresh);
                     prog.where.condFuncName = cool.getRandomString();
+
+                    // patch vars
+                    for (var c = 0; c < prog.where.fieldCond.vars.length; ++c)
+                    {
+                        var cv = prog.where.fieldCond.vars[c];
+
+                        if (prog.ht[cv.raw[0].path])
+                        {
+                            strCond = strCond.replace(cv.path, prog.root + "." + cv.path);
+                        }
+                    }
                     
                     scr = document.createElement('script');
                     scr.type = 'text/javascript';
                     scr.text = "document['" + prog.where.condFuncName + "'] = function(" + prog.root + "){return " + strCond + ";}";
 
                     document.getElementsByTagName('body')[0].appendChild(scr);
+
+                    i = end - 1;
 
                     break;
                 }
@@ -944,6 +969,7 @@
                     arr.push(this.template.pl_start);
                 }
 
+                // fill template
                 for (var i = 0; i < this.data.length; ++i)
                 {
                     var itm = this.data[i];
@@ -1030,7 +1056,7 @@
             return console.log("The 'conditional' attribute is empty");
         }
 
-        var arr = cool.parseCon(con);
+        obj._cool.fieldCond = cool.createField(itm.path, 2, obj._cool.refresh);
         
         obj._cool.refresh = function(elm, path)
         {
@@ -1041,13 +1067,6 @@
                 c.action();
             }
         };
-
-        for (var i = 0; i < arr.length; ++i)
-        {
-            var itm = arr[i];
-
-            cool.addToObserve(itm.path, obj, obj._cool.refresh, 2);
-        }
 
         obj._cool.conditional = con;
         obj._cool.isChanged = true;
@@ -2223,14 +2242,19 @@
             },
             set: function (val, target)
             {
+                if (target == null)
+                {
+                    target = window;
+                }
+
                 if (!this.isInited)
                 {
-                    if (target == null)
-                    {
-                        target = window;
-                    }
-
                     this.init(target);
+                }
+
+                if (typeof val == "string")
+                {
+                    val = "\'" + val + "\'";
                 }
 
                 eval("target." + this.path + " = " + val + ";");
@@ -2300,47 +2324,50 @@
                 }
 
                 var path = "";
+                var start = 0;
+                var end = 0;
 
-                for (var i = 0; i < arr.length; ++i)
+                for (; end < arr.length; ++end)
                 {
-                    var itm = arr[i];
+                    var itm = arr[end];
 
                     // property
                     if (itm.type == 9)
                     {
-                        path += i == 0 ? itm.path : "." + itm.path;
+                        path += end == 0 ? itm.path : "." + itm.path;
                     }
                     // array
                     else if (itm.type == 2)
                     {
-                        path += i == 0 ? itm.path : "." + itm.path;
+                        path += end == 0 ? itm.path : "." + itm.path;
 
                         this.refreshVars(itm.body, 1);
                     }
                     // function
                     else if (itm.type == 6)
                     {
-                        path += i == 0 ? itm.path : "." + itm.path;
+                        path += end == 0 ? itm.path : "." + itm.path;
 
                         this.refreshVars(itm.body, 2);
                     }
                     // operator or conditional
                     else if (itm.type == 7 || itm.type == 8)
                     {
-                        this.addVar(path, role, arr);
+                        this.addVar(path, role, arr, start, end);
 
                         path = "";
+                        start = end + 1;
                     }
                 }
 
-                this.addVar(path, role, arr);
+                this.addVar(path, role, arr, start, end);
 
                 // roles
                 // 0 - root
                 // 1 - index of array
                 // 2 - param of function
             },
-            addVar : function(path, role, arr)
+            addVar : function(path, role, arr, start, end)
             {
                 if (path.length == 0)
                 {
@@ -2353,7 +2380,7 @@
                 }
 
                 // todo future arr convert to variable map in field
-                this.vars.push({ path: path, role: role, arr: arr });
+                this.vars.push({ path: path, role: role, raw: arr.slice(start, end), start : start, end : end });
 
                 if (role == 0)
                 {
@@ -3801,12 +3828,14 @@
                 {
                     if (typeof src[p] == "object")
                     {
-                        if (dst[p] == null)
-                        {
-                            dst[p] = {};
-                        }
+                        //if (dst[p] == null)
+                        //{
+                        //    dst[p] = {};
+                        //}
 
-                        cool.applyFieldEx(src[p], dst[p]);
+                        //cool.applyFieldEx(src[p], dst[p]);
+
+                        dst[p] = cool.cloneObj(src[p]);
                     }
                     else
                     {
@@ -3874,28 +3903,48 @@
                     {
                         for (var d = 0; d < join.data.length; ++d)
                         {
-                            var new_rec;
+                            var newRec = null;
+                            var und = typeof com[join.v] == 'undefined';
+                            
+                            var backup = null;
 
-                            if (document[join.conditional.func](com, join.data[d]))
+                            if (!und)
                             {
-                                if (typeof com[join.v] == 'undefined')
+                                backup = com[join.v];
+                            }
+
+                            com[join.v] = join.data[d];
+                            
+                            if (document[join.funcName](com, join.data[d]))
+                            {
+                                if (!und)
                                 {
-                                    com[join.v] = join.data[d];
+                                    newRec = cool.cloneObj(com);
+
+                                    comp.push(newRec);
                                 }
                                 else
                                 {
-                                    new_rec = cool.cloneObj(com);
-                                    new_rec[join.v] = join.data[d];
-
-                                    comp.push(new_rec);
+                                    newRec = true;
                                 }
                             }
                             else if (join.type == "Join-right" || join.type == "Join-full")
                             {
-                                new_rec = {};
-                                new_rec[join.v] = join.data[d];
+                                newRec = {};
 
-                                comp.push(new_rec);
+                                comp.push(newRec);
+                            }
+
+                            if (newRec == null)
+                            {
+                                if (und)
+                                {
+                                    delete com[join.v];
+                                }
+                                else
+                                {
+                                    com[join.v] = backup;
+                                }
                             }
                         }
                     }
@@ -3939,6 +3988,13 @@
         // Group 
         if (prog.group != null)
         {
+            var sj = 0;
+
+            if (prog.join == null)
+            {
+                sj = 1;
+            }
+
             for (var y = 0; y < prog.group.length; ++y)
             {
                 var grp = prog.group[y];
@@ -3950,7 +4006,7 @@
                 {
                     var ttt = comp[u];
                     
-                    for (var q = 0; q < path.length; ++q)
+                    for (var q = sj; q < path.length; ++q)
                     {
                         ttt = ttt[path[q]];
                     }
@@ -4077,7 +4133,9 @@
             {
                 if (itm.selfVar)
                 {
-                    var res2 = cool.getField(itm.vField, roots[itm.vField.list[0].name]);
+                    //var res2 = cool.getField(itm.vField, roots[itm.vField.list[0].path]);
+                    //var res2 = itm.vField.get(roots[itm.vField.list[0].path]);
+                    var res2 = itm.vField.get(roots);
 
                     if (res2 != null)
                     {
@@ -4356,7 +4414,7 @@
 
                     var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
                     var vField = cool.createField(text2);
-                    var selfVar = roots[vField.list[0].name] != null;
+                    var selfVar = roots[vField.list[0].path] != null;
 
                     vField.offset = 1;
 
@@ -4364,7 +4422,7 @@
 
                     var ttt = 3;
 
-                    if (vField.list.length == 2 && vField.list[1].name == "#index")
+                    if (vField.list.length == 2 && vField.list[1].path == "#index")
                     {
                         ttt = 4;
                     }
@@ -4850,145 +4908,6 @@
         delete tmp;
     },
 
-    //
-    buildSet : function(str)
-    {
-        var arr = cool.split(str, ";");
-        var tmp = "";
-
-        for (var i = 0; i < arr.length; ++i)
-        {
-            var itm = arr[i].trim();
-
-            if (itm.length > 2 && itm[0] == 'd' && itm[1] == 'o' && itm[2] == 'm')
-            {
-                
-            }
-        }
-
-        var f = new Function("elm", tmp);
-
-        return f;
-    },
-
-    // 
-    parseCon : function(str)
-    {
-        var ret = [];
-        var arr = cool.split(str.split(" ").join(""), "|!=&<>/|^+-*\\");
-
-        for (var i = 0; i < arr.length; ++i)
-        {
-            cool.parseVar(ret, arr[i]);
-        };
-
-        return ret;
-    },
-
-    // 
-    parseVar : function(ret, itm)
-    {
-        // string
-        if (itm.indexOf("\"") > -1 || itm.indexOf("'") > -1)
-        {
-            return false;
-        }
-
-        // array
-        var sub = "";
-        var ind = itm.indexOf("[");
-
-        if (ind > -1)
-        {
-            if (itm[itm.length - 1] == "]")
-            {
-                sub = itm.substr(ind + 1, itm.length - ind - 2);
-
-                if (!cool.parseVar(ret, sub))
-                {
-                    ret.push(
-                    {
-                        type: "arr",
-                        path: itm.substr(0, ind),
-                        index: parseInt(sub)
-                    });
-                }
-
-                return true;
-            }
-            else
-            {
-                sub = itm.substr(ind + 1);
-
-                return cool.parseVar(ret, sub);
-            }
-        }
-
-        // function
-        ind = itm.indexOf("(");
-
-        if (ind > -1)
-        {
-            if (itm[itm.length - 1] == ")")
-            {
-                sub = itm.substr(ind + 1, itm.length - ind - 2);
-
-                return cool.parseVar(ret, sub);
-            }
-            else
-            {
-                sub = itm.substr(ind + 1);
-
-                return cool.parseVar(ret, sub);
-            }
-        }
-
-        // noise
-        if (itm[itm.length - 1] == ")" || itm[itm.length - 1] == "]")
-        {
-            return cool.parseVar(ret, itm.substr(0, itm.length - 1));;
-        }
-
-        // bool
-        var tmp = itm.toLowerCase();
-        
-        if (tmp == "true" || tmp == "false")
-        {
-            return false;
-        }
-        
-        // number
-        var flag = true;
-        
-        for (var i = 0; i < itm.length; ++i)
-        {
-            if (!cool.numHt[itm[i]])
-            {
-                flag = false;
-
-                break;
-            }
-        }
-
-        if (flag)
-        {
-            return false;
-        }
-
-        // object.field
-        ret.push(
-        {
-            type: "obj",
-            path: itm
-        });
-    },
-
-    //
-    addVariableListener: function (name, onChange)
-    {
-        
-    },
-
     // split string arr
     split: function(str, sep)
     {
@@ -5021,8 +4940,7 @@
 
         return false;
     },
-
-
+    
     // return typed value for tags
     getTypedValue: function(str)
     {
