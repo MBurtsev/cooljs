@@ -8,3 +8,4 @@ CoolJs.csproj.user
 *.suo
 /test/.vs
 test/cool.js
+test/cool.js

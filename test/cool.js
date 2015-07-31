@@ -222,10 +222,10 @@
                 obj._cool.meta = cool.metaStream.toShort(desk);
             }
 
-            if (desk.getAttribute("declare") != null)
-            {
-                cool.metaStream.declare(obj._cool.meta, cool.gocField(obj._cool.target));
-            }
+            //if (desk.getAttribute("declare") != null)
+            //{
+            //    cool.metaStream.declare(obj._cool.meta, cool.gocField(obj._cool.target));
+            //}
         }
 
         // init event
@@ -286,16 +286,16 @@
                     {
                         var par = this.params[n];
 
-                        src_tmp += par.name + "=" + par.value.get();
+                        //src_tmp += par.name + "=" + par.value.get();
 
-                        //if (typeof par.value == "object")
-                        //{
-                        //    src_tmp += par.name + "=" + cool.getField(par.value);
-                        //}
-                        //else
-                        //{
-                        //    src_tmp += par.name + "=" + par.value;
-                        //}
+                        if (typeof par.value == "object")
+                        {
+                            src_tmp += par.name + "=" + par.value.get();
+                        }
+                        else
+                        {
+                            src_tmp += par.name + "=" + par.value;
+                        }
 
                         if (n < this.params.length - 1)
                         {
@@ -357,7 +357,13 @@
                         cool.metaStream.parse(tag.meta, data, dt);
                     }
 
-                    cool.applyField(tag.target, dt);
+                    for (var p in dt)
+                    {
+                        if (dt.hasOwnProperty(p))
+                        {
+                            tag.target.set(dt[p], null, p);
+                        }
+                    }
 
                     tag.first = true;
 
@@ -1056,7 +1062,7 @@
             return console.log("The 'conditional' attribute is empty");
         }
 
-        obj._cool.fieldCond = cool.createField(itm.path, 2, obj._cool.refresh);
+        obj._cool.fieldCond = cool.createField(con, 2, obj._cool.refresh);
         
         obj._cool.refresh = function(elm, path)
         {
@@ -2226,7 +2232,7 @@
             offset: 0,
             path: path,
             root : "",
-            get: function (target)
+            get: function (target, property)
             {
                 var tmp;
 
@@ -2235,16 +2241,34 @@
                     target = window;
                 }
 
+                if (property == null)
+                {
+                    property = ";";
+                }
+                else
+                {
+                    property = this.path.length > 0 ? "." + property + ";" : property + ";";
+                }
+
                 // todo make function, for set too
-                eval("tmp = target." + this.path + ";");
+                eval("tmp = target." + this.path + property);
 
                 return tmp;
             },
-            set: function (val, target)
+            set: function (val, target, property)
             {
                 if (target == null)
                 {
                     target = window;
+                }
+
+                if (property == null)
+                {
+                    property = "";
+                }
+                else
+                {
+                    property = this.path.length > 0 ? "." + property : property;
                 }
 
                 if (!this.isInited)
@@ -2252,17 +2276,9 @@
                     this.init(target);
                 }
 
-                if (typeof val == "string")
-                {
-                    val = "\'" + val + "\'";
-                }
+                eval("target." + this.path + property + " = val;");
 
-                eval("target." + this.path + " = " + val + ";");
-
-                if (this.observe > 0)
-                {
-                    cool.changed2(this.root, "set");
-                }
+                cool.changed2(this.path + property, "set");
             },
             init: function (target)
             {

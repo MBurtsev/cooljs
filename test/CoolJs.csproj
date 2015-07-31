@@ -67,6 +67,19 @@
     <Content Include="qunit-1.18.0.css" />
     <Content Include="qunit-1.18.0.js" />
     <Content Include="tags\js-query.js" />
+    <Content Include="tags\js-page.js" />
+    <Content Include="tags\js-ajax.js" />
+    <Content Include="tags\js-load.js" />
+    <Content Include="tags\js-if.js" />
+    <Content Include="tags\js-event.js" />
+    <Content Include="tags\js-atr.js" />
+    <Content Include="tags\js-go.js" />
+    <Content Include="tags\js-text.js" />
+    <Content Include="tags\js-call.js" />
+    <Content Include="tags\js-validate.js" />
+    <Content Include="tags\js-several.js" />
+    <Content Include="tags\js-style.js" />
+    <Content Include="tags\js-set.js" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>

@@ -222,10 +222,10 @@
                 obj._cool.meta = cool.metaStream.toShort(desk);
             }
 
-            if (desk.getAttribute("declare") != null)
-            {
-                cool.metaStream.declare(obj._cool.meta, cool.gocField(obj._cool.target));
-            }
+            //if (desk.getAttribute("declare") != null)
+            //{
+            //    cool.metaStream.declare(obj._cool.meta, cool.gocField(obj._cool.target));
+            //}
         }
 
         // init event
@@ -286,16 +286,16 @@
                     {
                         var par = this.params[n];
 
-                        src_tmp += par.name + "=" + par.value.get();
+                        //src_tmp += par.name + "=" + par.value.get();
 
-                        //if (typeof par.value == "object")
-                        //{
-                        //    src_tmp += par.name + "=" + cool.getField(par.value);
-                        //}
-                        //else
-                        //{
-                        //    src_tmp += par.name + "=" + par.value;
-                        //}
+                        if (typeof par.value == "object")
+                        {
+                            src_tmp += par.name + "=" + par.value.get();
+                        }
+                        else
+                        {
+                            src_tmp += par.name + "=" + par.value;
+                        }
 
                         if (n < this.params.length - 1)
                         {
@@ -357,7 +357,13 @@
                         cool.metaStream.parse(tag.meta, data, dt);
                     }
 
-                    cool.applyField(tag.target, dt);
+                    for (var p in dt)
+                    {
+                        if (dt.hasOwnProperty(p))
+                        {
+                            tag.target.set(dt[p], null, p);
+                        }
+                    }
 
                     tag.first = true;
 
@@ -555,9 +561,9 @@
             return console.log("js-query: The 'select' attribute is empty");
         }
 
-        obj._cool.refresh = function(elm, path)
+        obj._cool.refresh = function (path, itm, method, args)
         {
-            var c = elm._cool;
+            var c = itm.element._cool;
 
             c.isChanged = true;
 
@@ -598,7 +604,7 @@
 
                     prog.from =
                     {
-                        field: cool.createField(fieldName, 2, obj._cool.refresh)
+                        field: cool.createField(fieldName, { depth: 2, callback : obj._cool.refresh, element: obj })
                     };
 
                     ind = arr[0].indexOf(".");
@@ -641,7 +647,7 @@
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++], 2, obj._cool.refresh)
+                        field: cool.createField(arr[i++], { depth: 2, callback : obj._cool.refresh, element:  obj })
                     }
 
                     if (arr[i++] != "As")
@@ -709,7 +715,7 @@
 
                     var strCond = arr.slice(i, end).join("");
 
-                    prog.where.fieldCond = cool.createField(strCond, 2, obj._cool.refresh);
+                    prog.where.fieldCond = cool.createField(strCond, { depth: 2, callback : obj._cool.refresh, element:  obj });
                     prog.where.condFuncName = cool.getRandomString();
 
                     // patch vars
@@ -1056,17 +1062,17 @@
             return console.log("The 'conditional' attribute is empty");
         }
 
-        obj._cool.fieldCond = cool.createField(itm.path, 2, obj._cool.refresh);
-        
-        obj._cool.refresh = function(elm, path)
+        obj._cool.refresh = function (path, itm, method, args)
         {
-            var c = elm._cool;
+            var c = itm.element._cool;
 
             if (c.parent._cool.isActive)
             {
                 c.action();
             }
         };
+
+        obj._cool.fieldCond = cool.createField(con, { depth: 2, callback : obj._cool.refresh, element: obj });
 
         obj._cool.conditional = con;
         obj._cool.isChanged = true;
@@ -1595,19 +1601,21 @@
 
         obj._cool.name = name;
         obj._cool.obj = obj;
-        obj._cool.field = cool.createField(name, 2, obj._cool.refresh, false);
-        obj._cool.refresh = function(elm, path)
+
+        obj._cool.refresh = function (path, itm, method, args)
         {
-            var c = elm._cool;
+            var c = itm.element._cool;
             var val = c.field.get();
 
-            elm.innerHTML = val;
+            itm.element.innerHTML = val;
         }
         obj._cool.action = function()
         {
             this.obj.innerHTML = this.field.get();
             this.actionBase();
         };
+
+        obj._cool.field = cool.createField(name, { depth: 2, callback : obj._cool.refresh, element: obj });
     },
     
     // js-go
@@ -1784,22 +1792,20 @@
         // set observe
         if (!isWriteOnly)
         {
-            bind.field = cool.createField(bind.path, 1, bind.refresh);
-
             if (bind.isInput)
             {
                 if (bind.isCheckbox)
                 {
                     bind.refreshEx = function()
                     {
-                        this.obj.checked = cool.getField(this.field);
+                        this.obj.checked = this.field.get();
                     };
                 }
                 else if (bind.isRadio)
                 {
                     bind.refreshEx = function()
                     {
-                        var tmp = cool.getField(this.field);
+                        var tmp = this.field.get();
 
                         if (this.obj.value == tmp)
                         {
@@ -1827,9 +1833,9 @@
                 };
             }
 
-            bind.refresh = function(elm, path)
+            bind.refresh = function (path, itm, method, args)
             {
-                var c = elm._cool.bind;
+                var c = itm.element._cool.bind;
 
                 if (!c.lock2)
                 {
@@ -1838,6 +1844,8 @@
                     c.lock1 = false;
                 }
             };
+
+            bind.field = cool.createField(bind.path, { depth: 1, callback : bind.refresh, element:  obj });
         }
         else
         {
@@ -2209,12 +2217,12 @@
     obHt: {},
 
     // create field from field path
-    createField: function (path, observe, callback)
+    // observe options: { depth : num, callback : func, element: HTMLelement, tag : any tags }
+    createField: function (path, observe)
     {
         if (observe == null)
         {
-            observe = 0;
-            callback = null;
+            observe = { depth: 0, callback : null, element: null };
         }
 
         var field =
@@ -2226,7 +2234,7 @@
             offset: 0,
             path: path,
             root : "",
-            get: function (target)
+            get: function (target, property)
             {
                 var tmp;
 
@@ -2235,16 +2243,34 @@
                     target = window;
                 }
 
+                if (property == null)
+                {
+                    property = ";";
+                }
+                else
+                {
+                    property = this.path.length > 0 ? "." + property + ";" : property + ";";
+                }
+
                 // todo make function, for set too
-                eval("tmp = target." + this.path + ";");
+                eval("tmp = target." + this.path + property);
 
                 return tmp;
             },
-            set: function (val, target)
+            set: function (val, target, property)
             {
                 if (target == null)
                 {
                     target = window;
+                }
+
+                if (property == null)
+                {
+                    property = "";
+                }
+                else
+                {
+                    property = this.path.length > 0 ? "." + property : property;
                 }
 
                 if (!this.isInited)
@@ -2252,17 +2278,9 @@
                     this.init(target);
                 }
 
-                if (typeof val == "string")
-                {
-                    val = "\'" + val + "\'";
-                }
+                eval("target." + this.path + property + " = val;");
 
-                eval("target." + this.path + " = " + val + ";");
-
-                if (this.observe > 0)
-                {
-                    cool.changed2(this.root, "set");
-                }
+                cool.changed2(this.path + property, "set");
             },
             init: function (target)
             {
@@ -2391,15 +2409,13 @@
 
         field.refreshVars();
 
-        if (observe > 0 && callback != null)
+        if (observe.depth > 0 && observe.callback != null)
         {
-            field.observe = { depth: observe, callback: callback };
-
             for (var i = 0; i < field.vars.length; ++i)
             {
                 var itm = field.vars[i];
 
-                cool.addToObserve2(itm.path, field, itm, callback, observe);
+                cool.addToObserve2(itm.path, field, itm, observe.depth, observe.callback, observe.element);
             }
         }
 
@@ -2407,7 +2423,7 @@
     },
 
     // add field to observe
-    addToObserve2: function (path, field, tag, callback, depth)
+    addToObserve2: function (path, field, fieldVar, depth, callback, element)
     {
         if (cool.obHt[path] == null)
         {
@@ -2428,7 +2444,7 @@
 
         if (ind == -1)
         {
-            cool.obHt[path].list.push({ field: field, tag: tag, callback: callback });
+            cool.obHt[path].list.push({ path: path, field: field, fieldVar: fieldVar, depth: depth, callback: callback, element: element });
         }
 
         // for parent observe
@@ -2445,7 +2461,7 @@
                     str += arr[n] + (n < j ? "." : "");
                 }
 
-                cool.addToObserve2(str, field, tag, callback, 1);
+                cool.addToObserve2(str, field, fieldVar, 1, callback, element);
             }
         }
     },
@@ -2454,6 +2470,11 @@
     // 
     changed2: function (path, method, args)
     {
+        if (args == null)
+        {
+            args = [];
+        }
+        
         if (cool.obHt[path] != null)
         {
             var ob = cool.obHt[path];
@@ -2466,9 +2487,9 @@
                 var itm = ob.list[i];
 
                 // #remove_line
-                console.log(cool.tagTostring("Refresh: ", itm.field.path));
+                console.log(cool.tagTostring("Refresh: ", itm.element));
 
-                itm.callback(path, method, ob.field, ob.tag);
+                itm.callback(path, itm, method, args);
             }
         }
     },
@@ -2500,7 +2521,7 @@
                         this.fieldVal = cool.createField(this.value);
                     }
 
-                    return cool.getField(this.fieldVal);
+                    return this.fieldVal.get();
                 }
                 else if (this.fastType == 2)
                 {
@@ -3828,13 +3849,6 @@
                 {
                     if (typeof src[p] == "object")
                     {
-                        //if (dst[p] == null)
-                        //{
-                        //    dst[p] = {};
-                        //}
-
-                        //cool.applyFieldEx(src[p], dst[p]);
-
                         dst[p] = cool.cloneObj(src[p]);
                     }
                     else
@@ -4133,8 +4147,6 @@
             {
                 if (itm.selfVar)
                 {
-                    //var res2 = cool.getField(itm.vField, roots[itm.vField.list[0].path]);
-                    //var res2 = itm.vField.get(roots[itm.vField.list[0].path]);
                     var res2 = itm.vField.get(roots);
 
                     if (res2 != null)
