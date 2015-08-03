@@ -263,6 +263,76 @@
         delete area._cool;
     },
 
+    fromWhereExist: function (assert)
+    {
+        jsQueryTest.users = jsQueryTest.createTestUserData(10);
+        jsQueryTest.profiles = [0, 1, 2, 3, 4];
+
+        var area = document.querySelector("#testArea");
+
+        area.innerHTML = "<js-query select='user From jsQueryTest.users Where cool.exist(user.code, jsQueryTest.profiles)'>" +
+                         "   <div>{{user.code}}</div><div>{{user.name}}</div>" +
+                         "</js-query>";
+
+        cool.processElement(area);
+
+        assert.ok(area.childNodes.length == 1, "Chield count");
+
+        var obj = area.childNodes[0];;
+
+        jsQueryTest.checkFrom(obj, "user", assert);
+        jsQueryTest.checkWhere(obj, assert);
+
+        // raise action
+        obj._cool.action();
+
+        var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
+
+        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
+
+        area.innerHTML = "";
+
+        delete jsQueryTest.users;
+        delete jsQueryTest.profiles;
+        delete area._cool;
+    },
+
+    fromWhereNotExist: function (assert)
+    {
+        jsQueryTest.users = jsQueryTest.createTestUserData(10);
+        jsQueryTest.profiles = jsQueryTest.createTestProfileData(15).slice(5, 15);
+
+        var area = document.querySelector("#testArea");
+        
+        area.innerHTML = "<js-query select='user From jsQueryTest.users Where !cool.exist(user.code, jsQueryTest.profiles, \"user\" )'>" +
+                         "   <div>{{user.code}}</div><div>{{user.name}}</div>" +
+                         "</js-query>";
+
+        cool.processElement(area);
+
+        assert.ok(area.childNodes.length == 1, "Chield count");
+
+        var obj = area.childNodes[0];;
+
+        jsQueryTest.checkFrom(obj, "user", assert);
+        jsQueryTest.checkWhere(obj, assert);
+
+        // raise action
+        obj._cool.action();
+
+        var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
+
+        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
+
+        area.innerHTML = "";
+
+        delete jsQueryTest.users;
+        delete jsQueryTest.profiles;
+        delete area._cool;
+    },
+
 
     fromJoin: function (assert)
     {
@@ -709,7 +779,7 @@
 
         var area = document.querySelector("#testArea");
 
-        area.innerHTML = "<js-query select='item.user From jsQueryTest.users Join jsQueryTest.profiles As profile On profile.user > user.code '>" +
+        area.innerHTML = "<js-query select='item.user From jsQueryTest.users Join jsQueryTest.profiles As profile On profile.user > user.code Order !user.code, !profile.code'>" +
                          "   <div>{{item.user.code}}</div><div>{{item.user.name}}</div><div>{{item.profile.money}}</div>" +
                          "</js-query>";
 
@@ -735,16 +805,40 @@
             {
                 if (p[j].user > u[i].code)
                 {
-                    tdata.push({ user: u[i], profile: p[i] });
+                    tdata.push({ user: u[i], profile: p[j] });
                 }
             }
         }
 
+        tdata = tdata.sort(function (a, b)
+        {
+            var c0 = 0;
+
+            if (a.user.code > b.user.code)
+            {
+                c0 = -1;
+            }
+            else if (a.user.code < b.user.code)
+            {
+                c0 = 1;
+            }
+
+            var c1 = 0;
+
+            if (a.profile.code > b.profile.code)
+            {
+                c1 = -1;
+            }
+            else if (a.profile.code < b.profile.code)
+            {
+                c1 = 1;
+            }
+
+            return (c0 << 1) + c1;
+        });
+
         // full data check impossible
-        //jsQueryTest.checkData(tdata, obj._cool.data, assert);
-
-        assert.ok(tdata.length == obj._cool.data.length, "Data len fine");
-
+        jsQueryTest.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -1011,6 +1105,8 @@ QUnit.test("Order", jsQueryTest.fromAndOrder);
 QUnit.test("Group", jsQueryTest.fromAndGroup);
 QUnit.test("From Order Group", jsQueryTest.fromOrderGroup);
 QUnit.test("From Where Order Group", jsQueryTest.fromWhereOrderGroup);
+QUnit.test("From Where Exist", jsQueryTest.fromWhereExist);
+QUnit.test("From Where Not Exist and property path", jsQueryTest.fromWhereNotExist);
 
 QUnit.test("From Join", jsQueryTest.fromJoin);
 QUnit.test("From Join Where", jsQueryTest.fromJoinWhere);

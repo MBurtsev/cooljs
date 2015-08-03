@@ -9,7 +9,6 @@
         assert.ok(typeof obj._cool.parent != "undefined", "Parent defined");
         assert.ok(obj._cool.chields != null, "Chields collection defined");
         assert.ok(obj._cool.isActive != null, "isActive property defined");
-        assert.ok(obj._cool.jssetCount != null, "jssetCount property defined");
         assert.ok(typeof obj._cool.init == "function", "Function init defined");
         assert.ok(typeof obj._cool.action == "function", "Function action defined");
         assert.ok(typeof obj._cool.cancel == "function", "Function cancel defined");

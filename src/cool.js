@@ -73,6 +73,7 @@
             return console.log("js-set: The 'value' attribute is empty");
         }
 
+        obj._cool.info = name + " = " + value;
         obj._cool.tval = cool.createTypedValue("js-set", type, value);
 
         if (obj._cool.tval == null)
@@ -1698,7 +1699,7 @@
 
             tmp[this.method].apply(tmp, pars);
 
-            cool.changed(this.field.path);
+            cool.changed(this.field.path, this.method, pars);
 
             this.actionBase();
         };
@@ -2280,7 +2281,7 @@
 
                 eval("target." + this.path + property + " = val;");
 
-                cool.changed2(this.path + property, "set");
+                cool.changed(this.path + property, "set");
             },
             init: function (target)
             {
@@ -2415,7 +2416,7 @@
             {
                 var itm = field.vars[i];
 
-                cool.addToObserve2(itm.path, field, itm, observe.depth, observe.callback, observe.element);
+                cool.addToObserve(itm.path, field, itm, observe.depth, observe.callback, observe.element);
             }
         }
 
@@ -2423,7 +2424,7 @@
     },
 
     // add field to observe
-    addToObserve2: function (path, field, fieldVar, depth, callback, element)
+    addToObserve: function (path, field, fieldVar, depth, callback, element)
     {
         if (cool.obHt[path] == null)
         {
@@ -2461,15 +2462,20 @@
                     str += arr[n] + (n < j ? "." : "");
                 }
 
-                cool.addToObserve2(str, field, fieldVar, 1, callback, element);
+                cool.addToObserve(str, field, fieldVar, 1, callback, element);
             }
         }
     },
 
     // call than property changed
     // 
-    changed2: function (path, method, args)
+    changed: function (path, method, args)
     {
+        if (cool.lockObserve)
+        {
+            return;
+        }
+
         if (args == null)
         {
             args = [];
@@ -3933,9 +3939,7 @@
                             {
                                 if (!und)
                                 {
-                                    newRec = cool.cloneObj(com);
-
-                                    comp.push(newRec);
+                                    comp.push(cool.cloneObj(com));
                                 }
                                 else
                                 {
@@ -4047,13 +4051,21 @@
     },
 
     // check exist
-    exist: function (item, obj)
+    exist: function (item, obj, path)
     {
+        var itemKey;
         var tmp = obj.cooljs(1);
         var ht = null;
 
+        if (path == null)
+        {
+            path = "";
+        }
+
+        var key = tmp.hash + "." + path;
+
         // build hashtable
-        if (cool.queryContext[tmp.hash] == null)
+        if (cool.queryContext[key] == null)
         {
             if (obj instanceof Array)
             {
@@ -4061,7 +4073,16 @@
 
                 for (var i = 0; i < obj.length; ++i)
                 {
-                    ht[obj[i]] = true;
+                    if (path == "")
+                    {
+                        itemKey = obj[i];
+                    }
+                    else
+                    {
+                        eval("itemKey = obj[i]." + path);
+                    }
+
+                    ht[itemKey] = 32;
                 }
             }
             else
@@ -4069,14 +4090,14 @@
                 ht = obj;
             }
 
-            cool.queryContext[tmp.hash] = ht;
+            cool.queryContext[key] = ht;
         }
         else
         {
-            ht = cool.queryContext[tmp.hash];
+            ht = cool.queryContext[key];
         }
 
-        return ht[item] != null;
+        return ht[item] == 32;
     },
 
     // make element from template
@@ -4868,6 +4889,8 @@
             }
         }
 
+        var sets = [];
+
         // build tag tree
         for (i = arr.length - 1; i >= 0; --i)
         {
@@ -4890,13 +4913,10 @@
                     {
                         if (itm.name == "js-set")
                         {
-                            cur._cool.chields.splice(cur._cool.jssetCount++, 0, itm.obj);
+                            sets.push(itm.obj);
                         }
-                        else
-                        {
-                            cur._cool.chields.push(itm.obj);
-                        }
-
+                        
+                        cur._cool.chields.push(itm.obj);
                         itm.obj._cool.parent = cur;
 
                         break;
@@ -4914,6 +4934,17 @@
 
             cool.jsF[itm.name](itm.obj);
         }
+
+        cool.lockObserve = true;
+
+        for (i = 0; i < sets.length; ++i)
+        {
+            var set = sets[i];
+
+            set._cool.field.set(set._cool.tval.getValue());
+        }
+
+        cool.lockObserve = false;
 
         delete ht;
         delete arr;
@@ -5015,6 +5046,7 @@
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     lastHash: 1,
+    lockObserve: false,
     numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
     body: document.getElementsByTagName('BODY')[0],
     dissableDisplayPolicy: false,
@@ -5213,7 +5245,6 @@ Object.prototype.cooljs = function(base)
                 parent: null,
                 chields: [],
                 isActive: false,
-                jssetCount: 0,
                 init: function (name, obj)
                 {
                     this.tagName = name;
