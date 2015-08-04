@@ -2369,8 +2369,8 @@
 
                         this.refreshVars(itm.body, 2);
                     }
-                    // operator or conditional
-                    else if (itm.type == 7 || itm.type == 8)
+                    // operator or conditional or nope
+                    else if (itm.type == 7 || itm.type == 8 || itm.type == 0)
                     {
                         this.addVar(path, role, arr, start, end);
 
@@ -3973,6 +3973,8 @@
                         count--;
                     }
                 }
+
+                join.data = null;
             }
         }
         // without joins
@@ -4647,6 +4649,16 @@
 
                     break;
                 }
+                case ',':
+                {
+                    list.push
+                    ({
+                        type: 0,
+                        operator: exp
+                    });
+
+                    continue;
+                }
                 default:
                 {
                     if (exp.length == 0)
@@ -4668,7 +4680,7 @@
                         list.push
                         ({
                             type: cool.getType(tmp_itm),
-                            path: tmp_itm,
+                            path: tmp_itm
                         });
                     }
 
@@ -4694,8 +4706,9 @@
     // split JS expression
     splitExpression: function (select)
     {
-        var str = ['(', ')', '{', '}', '[', ']', '==', '!=', '&&', '||', '<=', '>=', '<<', '>>', '<', '>', '+', '-', '/', '*', '&', '^', '!'];
+        var str = ['(', ')', '{', '}', '[', ']', '==', '!=', '&&', '||', '<=', '>=', '<<', '>>', '<', '>', '+', '-', '/', '*', '&', '^', '!', ','];
         var arr = select.split(' ');
+        //var arr = cool.split(select, " ,");
 
         for (cool.outPos = 0; cool.outPos < arr.length; ++cool.outPos)
         {
