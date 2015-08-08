@@ -62,7 +62,10 @@
       <Link>cool.js</Link>
     </Content>
     <Content Include="core\fields.js" />
+    <Content Include="core\helper.js" />
     <Content Include="core\init.js" />
+    <Content Include="core\metaStream.js" />
+    <Content Include="h.js" />
     <Content Include="index.html" />
     <Content Include="qunit-1.18.0.css" />
     <Content Include="qunit-1.18.0.js" />

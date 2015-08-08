@@ -99,7 +99,7 @@
         {
             if (!this.first || this.first && !this.once)
             {
-                this.field.set(this.tval.getValue());
+                this.field.set(this.tval.get());
 
                 this.first = true;
             }
@@ -110,7 +110,7 @@
         {
             if (this.tcan != null)
             {
-                this.field.set(this.tcan.getValue());
+                this.field.set(this.tcan.get());
             }
 
             this.cancelBase();
@@ -145,7 +145,7 @@
         var response = obj.getAttribute("response");
         var once = obj.getAttribute("once") != null;
         var nocache = obj.getAttribute("nocache") != null;
-
+        
         if (method == null || method == "")
         {
             method = "GET";
@@ -198,13 +198,25 @@
                 {
                     var par_name = par.getAttribute("name");
                     var par_value = par.getAttribute("value");
-
+                    var isVar = par.getAttribute("var") != null;
+                    
                     if (par_name == null || par_value == null || par_name == "" || par_value == "")
                     {
                         console.log("Ajax param have empty 'name/value' attribute.");
                     }
 
-                    obj._cool.params.push({ name: par_name, value: cool.createField(par_value) });
+                    var val;
+
+                    if (isVar)
+                    {
+                        val = cool.createTypedValue("js-ajax-param", "var", par_value);
+                    }
+                    else
+                    {
+                        val = cool.createTypedValue("js-ajax-param", "string", par_value);
+                    }
+
+                    obj._cool.params.push({ name: par_name, value: val });
                 }
             }
         }
@@ -260,7 +272,7 @@
 
                         if (pp.name == "nocache")
                         {
-                            pp.value = cool.getRandomString();
+                            pp.value = cool.createTypedValue("js-ajax-param", "string", cool.getRandomString());
 
                             ff = true;
                         }
@@ -268,7 +280,7 @@
 
                     if (!ff)
                     {
-                        this.params.push({ name: "nocache", value: cool.getRandomString() });
+                        this.params.push({ name: "nocache", value: cool.createTypedValue("js-ajax-param", "string", cool.getRandomString()) });
                     }
                 }
 
@@ -286,17 +298,8 @@
                     for (var n = 0; n < this.params.length; ++n)
                     {
                         var par = this.params[n];
-
-                        //src_tmp += par.name + "=" + par.value.get();
-
-                        if (typeof par.value == "object")
-                        {
-                            src_tmp += par.name + "=" + par.value.get();
-                        }
-                        else
-                        {
-                            src_tmp += par.name + "=" + par.value;
-                        }
+                        
+                        src_tmp += par.name + "=" + par.value.get();
 
                         if (n < this.params.length - 1)
                         {
@@ -1694,7 +1697,7 @@
             {
                 var itm = this.params[i];
 
-                pars.push(itm.getValue());
+                pars.push(itm.get());
             }
 
             tmp[this.method].apply(tmp, pars);
@@ -2518,7 +2521,7 @@
             fieldVal: null,
             fieldCan: null,
             fastType: 0,
-            getValue: function ()
+            get: function ()
             {
                 if (this.fastType == 1)
                 {
@@ -3312,7 +3315,7 @@
                             }
                             else if (name[name.length - 1] == 'b')
                             {
-                                val = cool.parseBool[val];
+                                val = cool.parseBool(val);
                             }
 
                             name = name.substr(0, name.length - 2);
@@ -3621,7 +3624,7 @@
                 {
                     arr.push("w");
 
-                    var sign = obj.getAttribute("name");
+                    var sign = obj.getAttribute("sign");
 
                     if (sign == null || sign == "")
                     {
@@ -3644,19 +3647,19 @@
                 }
                 else if (type == "int")
                 {
-                    arr.push("-i");
+                    arr.push("v:-i");
                 }
                 else if (type == "bool")
                 {
-                    arr.push("-b");
+                    arr.push("v:-b");
                 }
                 else if (type == "float")
                 {
-                    arr.push("-f");
+                    arr.push("v:-f");
                 }
                 else if (type == "string")
                 {
-                    arr.push("");
+                    arr.push("v:");
                 }
 
                 arr.push("e");
@@ -4690,7 +4693,7 @@
         }
 
         // expression types
-        // 0 - none
+        // 0 - nope
         // 1 - object
         // 2 - array
         // 3 - string
@@ -4801,7 +4804,7 @@
             return 0;
         }
 
-        if (str.length > 1 && str[0] == '"' && str[str.length - 1] == '"')
+        if (str.length > 1 && (str[0] == '"' && str[str.length - 1] == '"' || str[0] == "'" && str[str.length - 1] == "'"))
         {
             return 3;
         }
@@ -4954,7 +4957,7 @@
         {
             var set = sets[i];
 
-            set._cool.field.set(set._cool.tval.getValue());
+            set._cool.field.set(set._cool.tval.get());
         }
 
         cool.lockObserve = false;
@@ -5027,7 +5030,7 @@
                 return num;
             }
         }
-
+        
         return str;
     },
 

@@ -21,7 +21,7 @@
         // raise action
         obj._cool.action();
 
-        jsQueryTest.checkData(jsQueryTest.createTestUserData(10), obj._cool.data, assert);
+        h.checkData(jsQueryTest.createTestUserData(10), obj._cool.data, assert);
 
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
@@ -66,7 +66,7 @@
             return 0;
         });
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
 
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
@@ -99,7 +99,7 @@
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 3);
         
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -132,7 +132,7 @@
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 1);
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
         
         area.innerHTML = "";
@@ -165,7 +165,7 @@
 
         var tdata = jsQueryTest.createTestUserData(10).slice(9);
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -209,7 +209,7 @@
             return 0;
         });
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -254,7 +254,7 @@
             return 0;
         });
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -288,7 +288,7 @@
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -323,7 +323,7 @@
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["code", "name"], assert);
 
         area.innerHTML = "";
@@ -366,7 +366,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -409,7 +409,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -451,7 +451,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -517,7 +517,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -583,7 +583,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -626,7 +626,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -693,7 +693,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -760,7 +760,7 @@
             tdata.push({ user: u[i], profile: p[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -838,7 +838,7 @@
         });
 
         // full data check impossible
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money"], assert);
 
         area.innerHTML = "";
@@ -883,7 +883,7 @@
             tdata.push({ user: u[i], profile: p[i], file: f[i] });
         }
 
-        jsQueryTest.checkData(tdata, obj._cool.data, assert);
+        h.checkData(tdata, obj._cool.data, assert);
         jsQueryTest.checkGen(obj, obj._cool.data, ["user.code", "user.name", "profile.money", "file.name"], assert);
 
         area.innerHTML = "";
@@ -969,102 +969,6 @@
         }
 
         return arr;
-    },
-
-    // check result data with source
-    checkData: function (src, dst, assert)
-    {
-        var flag = src.length == dst.length;
-
-        assert.ok(flag, "Data len fine");
-
-        if (flag)
-        {
-            for (var i = 0; i < src.length; ++i)
-            {
-                var itm0 = src[i];
-                var itm1 = dst[i];
-
-                if (typeof itm0 == "object")
-                {
-                    flag = jsQueryTest.compareObjects(itm0, itm1, assert);
-
-                    if (!flag)
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    flag = itm0 != itm1;
-
-                    if (!flag)
-                    {
-                        assert.ok(false, "[" + i + "]" + " Data has value: " + itm1 + ", but must be: " + itm0);
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (flag)
-        {
-            assert.ok(true, "Data check done.");
-        }
-    },
-
-    // comparing all properties
-    compareObjects: function (itm0, itm1, assert)
-    {
-        var flag = true;
-
-        for (var p in itm0)
-        {
-            if (itm0.hasOwnProperty(p))
-            {
-                if (typeof itm0[p] == "object")
-                {
-                    flag = typeof itm1[p] == "object";
-
-                    if (!flag)
-                    {
-                        assert.ok(false, "Destination property is not object: " + p);
-
-                        break;
-                    }
-
-                    flag = jsQueryTest.compareObjects(itm0[p], itm1[p], assert);
-
-                    if (!flag)
-                    {
-                        break;
-                    }
-
-                    continue;
-                }
-
-                flag = itm1[p] != null;
-
-                if (!flag)
-                {
-                    assert.ok(false, "Destination data object dosn't have property: " + p);
-
-                    break;
-                }
-
-                flag = itm0[p] == itm1[p];
-
-                if (!flag)
-                {
-                    assert.ok(false, "Property " + p + " has value: " + itm1[p] + ", but must be: " + itm0[p]);
-
-                    break;
-                }
-            }
-        }
-
-        return flag;
     },
 
     // check DOM elements generations
