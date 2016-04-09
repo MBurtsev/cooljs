@@ -39,7 +39,7 @@
 
         html._cool.init("html", html);
         html._cool.cancelDisplay = true;
-        html._cool.action();
+        html._cool.action({}, false);
 
         if (cool.lastUrlHash != window.location.hash)
         {
@@ -95,16 +95,18 @@
         obj._cool.once = once;
         obj._cool.first = false;
         obj._cool.field = cool.createField(name);
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (!this.first || this.first && !this.once)
             {
-                this.field.set(this.tval.get());
+                var tmp = this.tval.get();
+
+                this.field.set(tmp);
 
                 this.first = true;
             }
 
-            this.actionBase();
+            this.actionBase(context, force);
         }
         obj._cool.cancel = function()
         {
@@ -242,8 +244,8 @@
         }
 
         // init event
-        obj._cool.eventComplate = document.createEvent('Event');
-        obj._cool.eventComplate.initEvent('complate', true, true);
+        obj._cool.eventComplete = document.createEvent('Event');
+        obj._cool.eventComplete.initEvent('complete', true, true);
         
         obj._cool.src = src;
         obj._cool.type = type;
@@ -256,7 +258,7 @@
         obj._cool.first = false;
         obj._cool.nocache = nocache;
         //obj._cool.count = 0;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.once && !this.first || !this.once)
             {
@@ -372,7 +374,7 @@
                     tag.first = true;
 
                     // fire
-                    tag.obj.dispatchEvent(tag.obj._cool.eventComplate);
+                    tag.obj.dispatchEvent(tag.obj._cool.eventComplete);
                 });
 
                 if (this.request != null)
@@ -426,7 +428,7 @@
 
             if (this.parent._cool.isActive)
             {
-                this.action();
+                this.action({}, false);
             }
         }
         obj._cool.cancelNav = function()
@@ -434,16 +436,16 @@
             this.isActiveNav = false;
             this.cancelBase();
         }
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.isActiveNav)
             {
-                this.actionBase();
+                this.actionBase(context, force);
             }
-        }
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
+            else
+            {
+                this.cancelBase();
+            }
         }
     },
 
@@ -477,11 +479,14 @@
             return console.log("js-load: Wrong type");
         }
 
+        // init event
+        obj._cool.eventComplete = document.createEvent('Event');
+        obj._cool.eventComplete.initEvent('complete', true, true);
         obj._cool.type = type;
         obj._cool.src = src;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.firstDone = false;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             this.obj.style.display = this.display;
 
@@ -493,10 +498,18 @@
                     {
                         var script = document.createElement('script');
 
+                        script._cool = this.obj._cool;
+                        script.context = context;
+                        script.force = force;
+                        script.onload = function()
+                        {
+                            // fire
+                            this._cool.obj.dispatchEvent(this._cool.eventComplete);
+                            this._cool.actionBase(this.context, this.force);
+                        };
                         script.src = this.src;
 
                         obj.appendChild(script);
-
                         obj._cool.firstDone = true;
 
                         break;
@@ -505,6 +518,15 @@
                     {
                         var link = document.createElement('link');
 
+                        link._cool = this.obj._cool;
+                        link.context = context;
+                        link.force = force;
+                        link.onload = function ()
+                        {
+                            // fire
+                            this._cool.obj.dispatchEvent(this._cool.eventComplete);
+                            this._cool.actionBase(this.context, this.force);
+                        };
                         link.rel = 'stylesheet';
                         link.type = 'text/css';
                         link.href = this.src;
@@ -516,22 +538,22 @@
                     }
                     case "html":
                     {
+                        obj._cool.force = force;
+                        obj._cool.context = context;
+
                         cool.ajaxGet(this.src, this.obj, function(http, tag)
                         {
-                            var tmp = http.responseText;
+                            var tmp = cool.toQueryScript(http.responseText);
                                 
-                            if (tmp.indexOf("<js-query") >= 0)
-                            {
-                                tmp = tmp.replace(new RegExp("<js-query", 'g'), "<script type='js-query'").replace(new RegExp("</js-query",'g'), "</script");
-                            }
-                            
                             tag._cool.clear();
                             tag.innerHTML = tmp;
 
                             cool.processElement(tag);
-                            tag._cool.actionBase();
 
-                            obj._cool.firstDone = true;
+                            tag._cool.firstDone = true;
+                            tag.dispatchEvent(tag._cool.eventComplete);
+
+                            tag._cool.actionBase(tag._cool.context, tag._cool.force);
 
                         }).go();
 
@@ -546,7 +568,7 @@
             }
             else
             {
-                this.obj._cool.actionBase();
+                this.obj._cool.actionBase(context, force);
             }
         }
         obj._cool.cancel = function()
@@ -565,7 +587,20 @@
             return console.log("js-query: The 'select' attribute is empty");
         }
 
-        obj._cool.refresh = function (path, itm, method, args)
+        //var cur = obj._cool.parent;
+
+        //// check for no active parent query
+        //while (cur != null)
+        //{
+        //    if ((cur._cool.tagName == "js-query" || cur._cool.tagName == "script") && !cur._cool.isActive)
+        //    {
+        //        return;
+        //    }
+
+        //    cur = cur._cool.parent;
+        //}
+
+        obj._cool.refresh = function (context, path, itm, method, args)
         {
             var c = itm.element._cool;
 
@@ -573,7 +608,7 @@
 
             if (c.isActive)
             {
-                c.action();
+                c.action(context, false);
             }
         };
         
@@ -604,7 +639,10 @@
                         return console.log("js-query: Operator 'From' must be first.");
                     }
 
-                    var fieldName = arr[i + 1];
+                    end = cool.findNextOperator(i, arr);
+
+                    //var fieldName = arr[i + end];
+                    var fieldName = arr.slice(i + 1, end).join("");
 
                     prog.from =
                     {
@@ -902,45 +940,92 @@
         {
             tmp = cool.decodeEntities(obj.innerHTML);
         }
+        
+        tmp = cool.toQueryScript(tmp);
 
         var pl_start = null;
         var pl_end = null;
-        var ind1 = tmp.indexOf("#placeholder");
+        var inds = cool.findCloseTag(tmp, "#placeholder-start", "#placeholder-end");
         
-        if (ind1 != -1)
+        if (inds.start != -1)
         {
-            var ind2 = tmp.indexOf("#placeholder-end");
+            var skip = false;
+            var test = tmp.indexOf("<js-script");
 
-            if (ind2 != -1)
+            if (test >= 0 && inds.start > test)
             {
-                pl_start = tmp.substr(0 ,ind1);
-                pl_end = tmp.substr(ind2 + 16);
-                tmp = tmp.substr(ind1 + 12, ind2 - ind1 - 12);
+                skip = true;
             }
             else
             {
-                pl_start = tmp.substr(0, ind1);
-                tmp = tmp.substr(ind1 + 12);
+                test = tmp.indexOf("<script");
+
+                if (test >= 0)
+                {
+                    var ind_scr = tmp.indexOf(">", test);
+
+                    if (ind_scr > 0)
+                    {
+                        var ind_tpe = tmp.indexOf("type", test);
+
+                        if (ind_tpe > 0 && ind_tpe < ind_scr)
+                        {
+                            var jsq = tmp.indexOf("js-query", ind_tpe);
+
+                            if (jsq < ind_scr && inds.start > test)
+                            {
+                                skip = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!skip)
+            {
+                if (inds.end != -1)
+                {
+                    pl_start = tmp.substr(0, inds.start);
+                    pl_end = tmp.substr(inds.end + 16);
+                    tmp = tmp.substr(inds.start + 18, inds.end - inds.start - 18);
+                }
+                else
+                {
+                    pl_start = tmp.substr(0, inds.start);
+                    tmp = tmp.substr(inds.start + 18);
+                }
             }
         }
         
+        if (select == "atm From rec.Atoms")
+        {
+            var bp = 0;
+        }
+
         obj._cool.template = cool.buildTemplate(tmp, obj._cool.rootMap);
 
         obj._cool.template.pl_start = pl_start;
         obj._cool.template.pl_end = pl_end;
         
+        // init events
+        obj._cool.renderEnd = document.createEvent('Event');
+        obj._cool.renderEnd.initEvent('renderEnd', true, true);
+        obj._cool.beforeDestroy = document.createEvent('Event');
+        obj._cool.beforeDestroy.initEvent('beforeDestroy', true, true);
+        obj._cool.afterDestroy = document.createEvent('Event');
+        obj._cool.afterDestroy.initEvent('afterDestroy', true, true);
  
         obj._cool.select = select;
         obj._cool.isChanged = true;
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.firstDone = false;
-        obj._cool.action = function()
+        obj._cool.cache = [];
+        obj._cool.action = function (context, force)
         {
             // TODO extend observe meh
             //if (!this.isChanged)
             //{
             //    this.enable();
-
             //    return;
             //}
 
@@ -952,13 +1037,16 @@
             }
 
             if (this.data != null && (!this.firstDone || this.isAlways))
-            {
+            {   
                 this.firstDone = true;
 
                 if (this.parentQueryItem != null)
                 {
                     this.parentQueryItem._cool.fillMap(this.rootMap);
                 }
+
+                // fire
+                this.obj.dispatchEvent(this.beforeDestroy);
 
                 this.clear();
 
@@ -969,14 +1057,52 @@
                 }
                 else if (this.targetObject != null)
                 {
-                    this.targetObject.innerHTML = "";
+                    if (this.targetObject instanceof Array)
+                    {
+                        for (var s = 0; s < this.targetObject.length; ++s)
+                        {
+                            var itm = this.targetObject[s];
+
+                            if (this.obj.parentNode != itm.parentNode)
+                            {
+                                if (itm.coolDestroy != null)
+                                {
+                                    itm.coolDestroy(itm);
+                                }
+
+                                if (itm.parentNode != null)
+                                {
+                                    itm.parentNode.removeChild(itm);
+                                }
+                            }
+                            else
+                            {
+                                this.obj.parentNode.removeChild(itm);
+                            }
+                        }
+
+                        this.targetObject = null;
+                    }
+                    else
+                    {
+                        this.targetObject.innerHTML = "";
+                    }
                 }
+
+                // fire
+                this.obj.dispatchEvent(this.afterDestroy);
 
                 var arr = [];
 
                 if (this.template.pl_start != null)
                 {
                     arr.push(this.template.pl_start);
+                }
+
+
+                if (this.select == "atm From rec.Atoms")
+                {
+                    var bp = 0;
                 }
 
                 // fill template
@@ -995,8 +1121,49 @@
                         }
                     }
 
-                    var tmp = cool.makeQueryItem(this.template, this.rootMap, true, i);
+                    this.rootMap.args.push(i);
 
+                    //if (i == 95)
+                    //{
+                    //    var bp = 0;
+                    //}
+
+                    var tmp = cool.makeQueryItem(this, true, i);
+                    var ind = tmp.indexOf('<');
+
+                    while (ind >= 0)
+                    {
+                        var spc = -1;
+
+                        for (var t = ind; t < tmp.length; ++t)
+                        {
+                            if (tmp[t] == ' ' || tmp[t] == '>')
+                            {
+                                spc = t;
+
+                                break;
+                            }
+                        }
+
+                        if (spc == -1)
+                        {
+                            break;
+                        }
+                        
+                        var tag = tmp.substr(ind + 1, spc - 1 - ind);
+                        var end = tmp.indexOf('</' + tag, ind);
+
+                        if (end == -1)
+                        {
+                            break;
+                        }
+
+                        var inject = " data-query-index='" + i.toString() + "' ";
+
+                        tmp = tmp.substr(0, spc) + inject + tmp.substr(spc);
+                        ind = tmp.indexOf('<', end + inject.length + tag.length);
+                    }
+                    
                     arr.push(tmp);
                 }
 
@@ -1010,25 +1177,77 @@
                     this.obj.innerHTML = arr.join("");
 
                     cool.processElement(this.obj);
+
+                    var len = this.obj.childNodes.length;
+                    var del = 0;
+
+                    for (var n = 0; n < len; ++n)
+                    {
+                        var itm = this.obj.childNodes[del];
+
+                        if (itm.nodeType != 1)
+                        {
+                            del++;
+
+                            continue;
+                        }
+
+                        var dind = itm.getAttribute("data-query-index");
+
+                        if (dind != null && this.data[dind].complate != null)
+                        {
+                            this.data[dind].complate(itm, this.data[dind]);
+                        }
+                    }
                 }
                 else
                 {
-                    if (this.targetObject == null)
+                    this.targetObject = [];
+
+                    var div = document.createElement("div");
+
+                    div.innerHTML = arr.join("");
+
+                    var len = div.childNodes.length;
+                    var del = 0;
+
+                    for (var n = 0; n < len; ++n)
                     {
-                        this.targetObject = document.createElement("div");
-                        this.targetObject._cool = this;
-                        this.obj.parentNode.insertBefore(this.targetObject, this.obj);
+                        var itm = div.childNodes[del];
+
+                        if (itm.nodeType != 1)
+                        {
+                            del++;
+
+                            continue;
+                        }
+
+                        this.obj.parentNode.insertBefore(itm, this.obj);
+                        this.targetObject.push(itm);
+                        
                     }
 
-                    this.targetObject.innerHTML = arr.join("");
+                    cool.processElement(this.obj.parentNode, this.obj);
+                    
+                    for (var w = 0; w < this.targetObject.length; ++w)
+                    {
+                        var itm = this.targetObject[w];
+                        var dind = itm.getAttribute("data-query-index");
 
-                    cool.processElement(this.targetObject);
+                        if (dind != null && this.data[dind].complate != null)
+                        {
+                            this.data[dind].complate(itm, this.data[dind]);
+                        }
+                    }
                 }
 
                 this.firstDone = true;
+
+                // fire
+                this.obj.dispatchEvent(this.renderEnd);
             }
 
-            this.enable();
+            this.enable(context, force);
         }
         obj._cool.cancel = function()
         {
@@ -1036,23 +1255,43 @@
             {
                 if (this.targetObject != null)
                 {
-                    this.targetObject.style.display = this.cancelDisplayVal;
+                    if (this.targetObject instanceof Array)
+                    {
+                        for (var i = 0; i < this.targetObject.length; ++i)
+                        {
+                            this.targetObject[i].style.display = this.cancelDisplayVal;
+                        }
+                    }
+                    else
+                    {
+                        this.targetObject.style.display = this.cancelDisplayVal;
+                    }
                 }
             }
             
             this.cancelBase();
         }
-        obj._cool.enable = function()
+        obj._cool.enable = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
                 if (this.targetObject != null)
                 {
-                    this.targetObject.style.display = this.actionDisplay;
+                    if (this.targetObject instanceof Array)
+                    {
+                        for (var i = 0; i < this.targetObject.length; ++i)
+                        {
+                            this.targetObject[i].style.display = this.actionDisplay;
+                        }
+                    }
+                    else
+                    {
+                        this.targetObject.style.display = this.actionDisplay;
+                    }
                 }
             }
 
-            this.actionBase();            
+            this.actionBase(context, force);
         }
     },
 
@@ -1066,13 +1305,13 @@
             return console.log("The 'conditional' attribute is empty");
         }
 
-        obj._cool.refresh = function (path, itm, method, args)
+        obj._cool.refresh = function (context, path, itm, method, args)
         {
             var c = itm.element._cool;
 
             if (c.parent._cool.isActive)
             {
-                c.action();
+                c.action(context, false);
             }
         };
 
@@ -1081,13 +1320,13 @@
         obj._cool.conditional = con;
         obj._cool.isChanged = true;
         obj._cool.isFlug = null;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             var flag = eval(this.conditional);
 
             if (flag)
             {
-                this.actionBase();
+                this.actionBase(context, force);
             }
             else
             {
@@ -1125,11 +1364,11 @@
             return function()
             {
                 // #remove_line
-                console.log("Event: " + name);
+                //console.log("Event: " + name);
 
                 if (obj._cool.parent._cool.isActive)
                 {
-                    obj._cool.actionBase();
+                    obj._cool.actionBase({}, true);
                     obj._cool.eventActive = false;
                 }
                 else
@@ -1142,11 +1381,14 @@
         obj._cool.name = name;
         obj._cool.eventActive = false;
         obj._cool.onactive = onactive;
-        obj._cool.action = function()
+        obj._cool.initCall = obj.hasAttribute("init-call");
+        obj._cool.action = function (context, force)
         {
-            if (this.eventActive && this.onactive)
+            if (this.eventActive && this.onactive || this.initCall)
             {
-                this.actionBase();
+                this.initCall = false;
+
+                this.actionBase(context, force);
             }
 
             this.eventActive = false;
@@ -1198,7 +1440,7 @@
         obj._cool.value = value;
         obj._cool.cancelValue = obj.getAttribute("cancel");
         obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.arr == null || this.isAlways)
             {
@@ -1216,10 +1458,14 @@
             {
                 var itm = this.arr[i];
 
-                itm.style[name] = this.value;
+                var tmp;
+
+                eval("tmp = " + this.value);
+
+                itm.style[name] = tmp;
             }
 
-            this.actionBase();
+            this.actionBase(context, force);
         };
         obj._cool.cancel = function()
         {
@@ -1305,7 +1551,7 @@
         obj._cool.cancelValue = cool.getTypedValue(cancel);
         obj._cool.name = name;
         obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.arr == null || this.isAlways)
             {
@@ -1340,7 +1586,7 @@
                 }
             }
 
-            this.actionBase();
+            this.actionBase(context, force);
         };
         obj._cool.cancel = function()
         {
@@ -1466,7 +1712,7 @@
         obj._cool.set = set;
         obj._cool.validCount = 0;
         obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.arr == null)
             {
@@ -1524,7 +1770,7 @@
 
             if (this.validCount == this.arr.length)
             {
-                this.actionBase();
+                this.actionBase(context, force);
             }
         };
         obj._cool.cancel = function()
@@ -1567,7 +1813,7 @@
             {
                 if (!this.isActive)
                 {
-                    this.actionBase();
+                    this.actionBase(null, null);
                 }
             }
             else if (this.isActive)
@@ -1606,17 +1852,17 @@
         obj._cool.name = name;
         obj._cool.obj = obj;
 
-        obj._cool.refresh = function (path, itm, method, args)
+        obj._cool.refresh = function (context, path, itm, method, args)
         {
             var c = itm.element._cool;
             var val = c.field.get();
 
             itm.element.innerHTML = val;
         }
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             this.obj.innerHTML = this.field.get();
-            this.actionBase();
+            this.actionBase(context, force);
         };
 
         obj._cool.field = cool.createField(name, { depth: 2, callback : obj._cool.refresh, element: obj });
@@ -1633,11 +1879,11 @@
         }
         
         obj._cool.value = value;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             cool.go(this.value);
 
-            this.actionBase();
+            this.actionBase(context, force);
         };
         obj._cool.cancel = function()
         {
@@ -1683,7 +1929,7 @@
 
         obj._cool.name = name;
         obj._cool.method = method;
-        obj._cool.action = function()
+        obj._cool.action = function (context, force)
         {
             if (this.field == null)
             {
@@ -1704,7 +1950,7 @@
 
             cool.changed(this.field.path, this.method, pars);
 
-            this.actionBase();
+            this.actionBase(context, force);
         };
         obj._cool.cancel = function()
         {
@@ -1800,7 +2046,7 @@
             {
                 if (bind.isCheckbox)
                 {
-                    bind.refreshEx = function()
+                    bind.refreshEx = function ()
                     {
                         this.obj.checked = this.field.get();
                     };
@@ -1837,7 +2083,7 @@
                 };
             }
 
-            bind.refresh = function (path, itm, method, args)
+            bind.refresh = function (context, path, itm, method, args)
             {
                 var c = itm.element._cool.bind;
 
@@ -1896,6 +2142,13 @@
                         return tmp;
                     };
                 }
+            }
+            else if (bind.isSelect || bind.isTextaria)
+            {
+                bind.getVal = function ()
+                {
+                    return this.obj.value;
+                };
             }
 
             obj.addEventListener("change", function()
@@ -1984,7 +2237,7 @@
                 {
                     case 0:
                     {
-                        if (this._cool.obj.className.indexOf(itm.name) == -1)
+                        if (this._cool.obj.className.indexOf(itm.name) == -1)  
                         {
                             this._cool.obj.className += " " + itm.name;
                         }
@@ -2165,7 +2418,7 @@
             {
                 itm = list[i];
 
-                itm._cool.actionNav();
+                itm._cool.actionNav({}, false);
             }
         }
 
@@ -2184,15 +2437,16 @@
         //obj.responseType = "text";
         obj.open(method, encodeURI(url), true);
         obj.setRequestHeader('Content-Type', 'text/plain');
-        
-        obj.onreadystatechange = function()
+
+        InitCoolElement(null, obj).data = data;
+
+        obj.onreadystatechange = function ()
         {
             if (obj.readyState == 4)
             {
                 callback(obj, tag);
             }
         }
-        obj.cooljs().data = data;
         obj.go = function()
         {
             obj.send(this._cool.data);
@@ -2227,6 +2481,11 @@
         if (observe == null)
         {
             observe = { depth: 0, callback : null, element: null };
+        }
+
+        if (path == "data.catalog.ht[cat.code]")
+        {
+            var bp = 0;
         }
 
         var field =
@@ -2268,6 +2527,8 @@
                     target = window;
                 }
 
+                var last = this.get(target, property);
+
                 if (property == null)
                 {
                     property = "";
@@ -2281,10 +2542,10 @@
                 {
                     this.init(target);
                 }
-
+                
                 eval("target." + this.path + property + " = val;");
 
-                cool.changed(this.path + property, "set");
+                cool.changed(this.path + property, "set", last, val);
             },
             init: function (target)
             {
@@ -2471,10 +2732,14 @@
     },
 
     // call than property changed
-    // 
-    changed: function (path, method, args)
+    changed: function (path, method, args, last, curent)
     {
         if (cool.lockObserve)
+        {
+            return;
+        }
+
+        if (last != null && last == curent)
         {
             return;
         }
@@ -2491,6 +2756,8 @@
             // #remove_line
             cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
 
+            var context = {};
+
             for (var i = 0; i < ob.list.length; ++i)
             {
                 var itm = ob.list[i];
@@ -2498,7 +2765,12 @@
                 // #remove_line
                 console.log(cool.tagTostring("Refresh: ", itm.element));
 
-                itm.callback(path, itm, method, args);
+                if (context[itm.element._cool.hash] != true)
+                {
+                    context[itm.element._cool.hash] = true;
+
+                    itm.callback(context, path, itm, method, args);
+                }
             }
         }
     },
@@ -2536,7 +2808,7 @@
                 {
                     var tmp = null;
 
-                    eval("tmp = " + value);
+                    eval("tmp = " + this.value);
 
                     return tmp;
                 }
@@ -2555,7 +2827,7 @@
         }
         else if (type == "bool")
         {
-            ret.value = cool.parseBool[value];
+            ret.value = cool.parseBool(value);
         }
         else if (type == "var")
         {
@@ -2578,7 +2850,7 @@
     // Selector query
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-    // get elements by selector
+    // build selector
     compileSelector: function(query)
     {
         var arr = query.split(".");
@@ -2702,6 +2974,15 @@
                     ret.push(
                     {
                         cmd: "h"
+                    });
+
+                    continue;
+                }
+                case "window":
+                {
+                    ret.push(
+                    {
+                        cmd: "w"
                     });
 
                     continue;
@@ -2891,6 +3172,11 @@
                 }
                 case "s":
                 {
+                    if (cmd == "selector(" || cmd == "selector-all(")
+                    {
+                        cmd += "." + arr[++i];
+                    }
+
                     if (cmd.length > 10 && cmd.substr(0, 9) == "selector(" && cmd[cmd.length - 1] == ")")
                     {
                         ret.push(
@@ -2954,7 +3240,7 @@
         var i = 0;
         var tmp = null;
 
-        while (pos < prog.length)
+        while (pos < prog.length && cur != null)
         {
             var isLast = pos == prog.length - 1;
             var opr = prog[pos++];
@@ -3209,6 +3495,12 @@
                 }
                 case "m": // selector-all[n]
                 {
+
+                    break;
+                }
+                case "w": // window
+                {
+                    cur = window;
 
                     break;
                 }
@@ -3904,13 +4196,31 @@
                 if (join.data == null)
                 {
                     join.data = join.field.get();
+
+                    // todo reseach optimization
+                    var joinIsArray = join.data instanceof Array;
+
+                    if (!joinIsArray)
+                    {
+                        var arr_tmp = [];
+
+                        for (var itm in join.data)
+                        {
+                            if (join.data.hasOwnProperty(itm))
+                            {
+                                arr_tmp.push(join.data[itm]);
+                            }
+                        }
+
+                        join.data = arr_tmp;
+                    }
                 }
 
                 if (join.data == null)
                 {
                     return console.log("js-query: Join field " + join.conditional.str + " is underfined.");
                 }
-
+                
                 for (var c = 0; c < count; ++c)
                 {
                     var com = comp[c];
@@ -4059,7 +4369,7 @@
     exist: function (item, obj, path)
     {
         var itemKey;
-        var tmp = obj.cooljs(1);
+        var tmp = InitCoolElement(1, obj);
         var ht = null;
 
         if (path == null)
@@ -4106,13 +4416,18 @@
     },
 
     // make element from template
-    makeQueryItem: function (tmp, roots, flag, index)
+    makeQueryItem: function (cnt, flag, index)
     {
         var arr = [];
+
+        var tmp = cnt.template;
+        var roots = cnt.rootMap;
 
         for (var i = 0; i < tmp.list.length; ++i)
         {
             var itm = tmp.list[i];
+
+            itm.cache = cnt.cache;
 
             // text
             if (itm.type == 0)
@@ -4126,30 +4441,47 @@
                 {
                     if (document[itm.func].apply(window, roots.args))
                     {
-                        arr.push(cool.makeQueryItem(itm.main_block, roots, false, index));
+                        itm.template = itm.main_block;
+                        itm.rootMap = roots;
+
+                        arr.push(cool.makeQueryItem(itm, false, index));
                     }
                     else if (itm.else_block != null)
                     {
-                        arr.push(cool.makeQueryItem(itm.else_block, roots, false, index));
+                        itm.template = itm.main_block;
+                        itm.rootMap = roots;
+
+                        arr.push(cool.makeQueryItem(itm, false, index));
                     }
                 }
                 else
                 {
                     arr.push("#if");
-                    arr.push(cool.makeQueryItem(itm.conditional, roots, false, index));
-                    arr.push("#");
-                    arr.push(cool.makeQueryItem(itm.main_block, roots, false, index));
+
+                    itm.template = itm.conditional;
+                    itm.rootMap = roots;
+
+                    arr.push(cool.makeQueryItem(itm, false, index));
+                    arr.push(" #");// todo and here
+
+                    itm.template = itm.main_block;
+                    itm.rootMap = roots;
+
+                    arr.push(cool.makeQueryItem(itm, false, index));
 
                     if (itm.else_block != null)
                     {
+                        itm.template = itm.else_block;
+                        itm.rootMap = roots;
+
                         arr.push("#else");
-                        arr.push(cool.makeQueryItem(itm.else_block, roots, false, index));
+                        arr.push(cool.makeQueryItem(itm, false, index));
                     }
 
-                    arr.push("#end");
+                    arr.push("#end-if");
                 }
             }
-            // #script #else block
+            // #script block
             else if (itm.type == 2)
             {
                 if (itm.prog.selfVars)
@@ -4163,9 +4495,12 @@
                 }
                 else
                 {
+                    itm.template = itm.prog;
+                    itm.rootMap = roots;
+
                     arr.push("#script");
-                    arr.push(cool.makeQueryItem(itm.prog, roots, false, index));
-                    arr.push("#end");
+                    arr.push(cool.makeQueryItem(itm, false, index));
+                    arr.push("#end-script");
                 }
             }
             // variable
@@ -4177,11 +4512,24 @@
 
                     if (res2 != null)
                     {
-                        arr.push(res2);
+                        if (typeof res2 == "object")
+                        {
+                            var name = "v" + cool.getRandomString();
+
+                            cool.__cache[name] = res2;
+
+                            arr.push("cool.__cache." + name);
+
+                            cnt.cache.push(name);
+                        }
+                        else
+                        {
+                            arr.push(res2);
+                        }
                     }
                     else
                     {
-                        arr.push("null");
+                        arr.push(itm.text);
                     }
                 }
                 else
@@ -4214,6 +4562,283 @@
 
     // build js-query template
     buildTemplate : function(str, roots)
+    {
+        //str = unescape(str);
+
+        var tmp = { list: [], selfVars : true};
+
+        var len_end_if = "#end-if".length;
+        var len_end_sc = "#end-script".length;
+
+        // parse #if #else #end
+        for (var i = 0; i < str.length; ++i)
+        {
+            var inds = cool.findCloseTag(str, "#if", "#end-if", i);
+
+            if (inds.start == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                }); 
+
+                break;
+            }
+            // todo .... fuck here
+            var ind1 = str.indexOf(" #", inds.start + 1);
+
+            if (ind1 == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                }); 
+
+                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The close conditional char '#' not found.");
+
+                break;
+            }
+
+            if (inds.end == -1)
+            {
+                tmp.list.push(
+                {
+                    type : 0,
+                    text: str.substr(i)
+                });   
+
+                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The '#end' of block #if-#end-if not found.");
+
+                break;
+            }
+
+            // text space
+            tmp.list.push(
+            {
+                type: 0,
+                text: str.substr(i, inds.start - i)
+            });
+
+            var inds_else = cool.findCloseTag(str, "#if", "#else", inds.start);
+
+            var ind3 = inds_else.end;
+            var text0 = cool.buildTemplate(str.substr(inds.start + 3, ind1 - inds.start - 3), roots);
+
+            var obj1 =
+            {
+                type: 1,
+                conditional: text0
+            };
+
+            if (ind3 != -1 && ind3 < inds.end)
+            {
+                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind3 - ind1 - 1), roots);
+                obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
+            }
+            else
+            {
+                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, inds.end - ind1 - 2), roots);
+            }
+                
+            if (obj1.conditional.selfVars)
+            {
+                obj1.func = cool.getRandomString();
+
+                var args0 = "";
+
+                for (var m in roots)
+                {
+                    if (roots.hasOwnProperty(m))
+                    {
+                        args0 += m + ", ";
+                    }
+                }
+
+                args0 += "__index";
+
+                var scr0 = document.createElement('script');
+
+                scr0.type = 'text/javascript';
+                scr0.text = "document['" + obj1.func + "'] = function(" + args0 + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
+
+                document.getElementsByTagName('body')[0].appendChild(scr0);
+            }
+            
+            tmp.list.push(obj1);
+
+            i = inds.end + len_end_if;
+        }
+
+        // parse #script #end
+        for (var j = 0; j < tmp.list.length; ++j)
+        {
+            var itm0 = tmp.list[j];
+
+            if (itm0.type == 0)
+            {
+                itm0 = tmp.list.splice(j, 1)[0];
+
+                for (var k = 0; k < itm0.text.length; ++k)
+                {
+                    var inds = cool.findCloseTag(itm0.text, "#script", "#end-script", k);
+
+                    var ind4 = inds.start;
+
+                    if (ind4 == -1)
+                    {
+                        tmp.list.splice(j, 0,
+                        {
+                            type : 0,
+                            text: itm0.text.substr(k)
+                        }); 
+
+                        break;
+                    }
+
+                    var ind5 = inds.end;
+
+                    if (ind5 == -1)
+                    {
+                        tmp.list.splice(j, 0,
+                        {
+                            type : 0,
+                            text: itm0.text.substr(k)
+                        }); 
+
+                        console.log("js-query template warning at " + k + "char: Possible wrong #script syntax. The '#end-script' of #script block not found.");
+
+                        break;
+                    }
+
+                    // text space
+                    tmp.list.splice(j++, 0,
+                    {
+                        type: 0,
+                        text: itm0.text.substr(k, ind4 - k)
+                    });
+                    
+                    var text = itm0.text.substr(ind4 + 7, ind5 - ind4 - 7);
+                    var prog = cool.buildTemplate(text, roots);
+                    var func = null;
+
+                    if (prog.selfVars)
+                    {
+                        func = cool.getRandomString();
+
+                        var args1 = "";
+
+                        for (var l in roots)
+                        {
+                            if (roots.hasOwnProperty(l))
+                            {
+                                args1 += l + ", ";
+                            }
+                        }
+
+                        args1 += " __index";
+
+                        var scr1 = document.createElement('script');
+
+                        scr1.type = 'text/javascript';
+                        scr1.text = "document['" + func + "'] = function(" + args1 + "){" + cool.concateTmpFrag(prog) + ";}"; // args1.substr(0, args1.length - 2)
+
+                        document.getElementsByTagName('body')[0].appendChild(scr1);
+                    }
+                    
+                    tmp.list.splice(j++, 0,
+                    {
+                        type : 2,
+                        prog: prog,
+                        text: text,
+                        func : func
+                    }); 
+
+                    k = ind5 + len_end_sc;
+                }
+            }
+        }
+
+        // parse variables
+        for (var n = 0; n < tmp.list.length; ++n)
+        {
+            var itm1 = tmp.list[n];
+
+            if (itm1.type == 0)
+            {
+                itm1 = tmp.list.splice(n, 1)[0];
+
+                for (var r = 0; r < itm1.text.length; ++r)
+                {
+                    var ind6 = itm1.text.indexOf("{{", r);
+
+                    if (ind6 == -1)
+                    {
+                        tmp.list.splice(n, 0,
+                        {
+                            type: 0,
+                            text: itm1.text.substr(r)
+                        });
+
+                        break;
+                    }
+
+                    var ind7 = itm1.text.indexOf("}}", ind6);
+
+                    if (ind7 == -1)
+                    {
+                        tmp.list.splice(n, 0,
+                        {
+                            type: 0,
+                            text: itm1.text.substr(r)
+                        });
+
+                        console.log("js-query template warning at " + r + "char: Possible wrong {{...}} syntax. Closing braces '}}' not found.");
+
+                        break;
+                    }
+
+                    // text space
+                    tmp.list.splice(n++, 0,
+                    {
+                        type: 0,
+                        text: itm1.text.substr(r, ind6 - r)
+                    });
+
+                    var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
+                    var vField = cool.createField(text2);
+                    var selfVar = roots[vField.list[0].path] != null;
+
+                    vField.offset = 1;
+
+                    tmp.selfVars = tmp.selfVars && selfVar;
+
+                    var ttt = 3;
+
+                    if (vField.list.length == 2 && vField.list[1].path == "#index")
+                    {
+                        ttt = 4;
+                    }
+                    
+                    tmp.list.splice(n++, 0,
+                    {
+                        type: ttt,
+                        text: text2,
+                        vField: vField,
+                        selfVar: selfVar
+                    });
+
+                    r = ind7 + 1;
+                }
+            }
+        }
+
+        return tmp;
+    },
+
+    // build js-query template
+    buildTemplate2 : function(str, roots)
     {
         //str = unescape(str);
 
@@ -4288,8 +4913,9 @@
             }
             else
             {
-                obj1.main_block = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
-                obj1.else_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1), roots);
+                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1 - 1), roots);
+                //obj1.main_block = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
+                //obj1.else_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1 - 1), roots);
             }
                 
             if (obj1.conditional.selfVars)
@@ -4383,10 +5009,12 @@
                             }
                         }
 
+                        args1 += " __index";
+
                         var scr1 = document.createElement('script');
 
                         scr1.type = 'text/javascript';
-                        scr1.text = "document['" + func + "'] = function(" + args1.substr(0, args1.length - 2) + "){" + cool.concateTmpFrag(prog) + ";}";
+                        scr1.text = "document['" + func + "'] = function(" + args1 + "){" + cool.concateTmpFrag(prog) + ";}"; // args1.substr(0, args1.length - 2)
 
                         document.getElementsByTagName('body')[0].appendChild(scr1);
                     }
@@ -4516,11 +5144,117 @@
             {
                 str += itm.text;
             }
+            // #index
+            else if (itm.type == 4)
+            {
+                str += "__index";
+            }
         }
 
         return str;
     },
 
+    // make script tags
+    toQueryScript: function(str)
+    {
+        var cur = 0;
+        var ret = str;
+        var inds = cool.findCloseTag(str, "<js-query", "</js-query", cur);
+
+        while (inds.start >= 0 && inds.end > 0)
+        {
+            var tmp_s = str.indexOf("<script", cur);
+
+            if (tmp_s != -1)
+            {
+                var tmp_e = str.indexOf(">", tmp_s);
+
+                if (tmp_e != -1)
+                {
+                    var tmp_c = str.indexOf("</script", tmp_e);
+                    var tmp_t = str.indexOf("type", tmp_s);
+
+                    if (tmp_t != -1 && tmp_t < tmp_e && tmp_c != -1)
+                    {
+                        var tmp_q = str.indexOf("js-query", tmp_t);
+
+                        if (tmp_q != -1 && tmp_q < tmp_e && tmp_s < inds.start && tmp_c > inds.start)
+                        {
+                            cur = tmp_c;
+
+                            inds = cool.findCloseTag(ret, "<js-query", "</js-query", cur);
+                            
+                            continue;
+                        }
+                    }
+                }
+            }
+            
+            ret = ret.substr(0, inds.start) + "<script type='js-query'" + ret.substring(inds.start + "<js-query".length, inds.end) + "</script" + ret.substring(inds.end + "</js-query".length, ret.length);
+
+            cur = inds.end;
+
+            inds = cool.findCloseTag(ret, "<js-query", "</js-query", cur);
+        }
+
+        return ret;
+    },
+
+    // find close tag
+    findCloseTag: function(str, stg, etg, init)
+    {
+        str = str.toLowerCase();
+
+        if (init == null)
+        {
+            init = 0;
+        }
+        
+        var lvl = 0;
+        var ind = str.indexOf(stg, init);
+        var start = ind;
+        var end = -1;
+
+        while (ind >= 0)
+        {
+            lvl++;
+
+            var stop = str.indexOf(etg, ind);
+            var tmp = ind;
+
+            if (stop == -1)
+            {
+                break;
+            }
+
+            while (stop >= 0 || lvl == 0)
+            {
+                lvl--;
+
+                end = stop;
+
+                tmp = str.indexOf(stg, tmp + 1);
+
+                if (tmp < 0 || tmp > stop)
+                {
+                    break;
+                }
+
+                lvl++;
+
+                stop = str.indexOf(etg, stop + 1);
+            }
+
+            if (lvl == 0 || stop < 0)
+            {
+                break;
+            }
+
+            ind = str.indexOf(stg, stop + 1);
+        }
+
+        return { start: start, end: end };
+    },
     
     // Helpers
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4825,7 +5559,7 @@
     // random string for function name
     getRandomString : function()
     {
-        return (performance.now().toString(36) + Math.random().toString(36)).split(".").join("_");
+        return "rnd" + (performance.now().toString(36) + Math.random().toString(36)).split(".").join("_");
     },
 
     // finding next query operator. Used on select query compile.
@@ -4843,23 +5577,48 @@
     },
 
     // init dom tree
-    processElement : function(elm)
+    processElement : function(elm, forceParent)
     {
         var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
-        var code = elm.cooljs().hash;
         var ht = {}; 
         var i = 0;
         var itm = null;
         var name = "";
 
+        var code = InitCoolElement(null, elm).hash;
+
         ht[code] = elm;
 
+        //if (forceParent != null)
+        //{
+        //    code = InitCoolElement(null, elm).hash;
+
+        //    ht[code] = forceParent;
+
+        //    //InitCoolElement(null, elm);
+
+        //    //code = forceParent._cool.hash;
+        //    //ht[code] = forceParent;
+        //}
+        //else
+        //{
+        //    code = InitCoolElement(null, elm).hash;
+
+        //    ht[code] = elm;
+        //}
+        
         var arr = [];
 
         // filter tags and init base function
         for (i = 0; i < tmp.length; ++i)
         {
             itm = tmp[i];
+
+            if (itm._cool != null)
+            {
+                continue;
+            }
+
             name = itm.tagName.toLowerCase();
 
             for (var n in cool.jsA)
@@ -4872,7 +5631,7 @@
                     {
                         if (itm._cool == null)
                         {
-                            itm.cooljs();
+                            InitCoolElement(null, itm);
                         }
 
                         if (cool.jsF[name] == null)
@@ -4894,7 +5653,7 @@
             {
                 arr.push({obj : itm, name : name});
 
-                code = itm.cooljs().hash;
+                code = InitCoolElement(null, itm).hash;
 
                 itm._cool.init(name, itm);
 
@@ -4908,7 +5667,8 @@
         var sets = [];
 
         // build tag tree
-        for (i = arr.length - 1; i >= 0; --i)
+        for (i = 0 ; i < arr.length; ++i)
+        //for (i = arr.length - 1; i >= 0; --i)
         {
             itm = arr[i];
 
@@ -4918,7 +5678,7 @@
             {
                 if (cur._cool != null)
                 {
-                    if (cur._cool == true || cur._cool.tagName == "js-query")
+                    if (cur._cool == true || cur._cool.tagName == "js-query" && !cur._cool.isActive)
                     {
                         itm._cool = true;
 
@@ -4932,8 +5692,18 @@
                             sets.push(itm.obj);
                         }
                         
-                        cur._cool.chields.push(itm.obj);
-                        itm.obj._cool.parent = cur;
+                        if (forceParent != null && cur == elm)
+                        {
+                            itm.obj._cool.parent = forceParent;
+
+                            forceParent._cool.chields.push(itm.obj);
+                        }
+                        else
+                        {
+                            itm.obj._cool.parent = cur;
+
+                            cur._cool.chields.push(itm.obj);
+                        }
 
                         break;
                     }
@@ -4948,7 +5718,10 @@
         {
             itm = arr[i];
 
-            cool.jsF[itm.name](itm.obj);
+            if (itm.obj._cool.parent != null)
+            {
+                cool.jsF[itm.name](itm.obj);
+            }
         }
 
         cool.lockObserve = true;
@@ -4957,7 +5730,9 @@
         {
             var set = sets[i];
 
-            set._cool.field.set(set._cool.tval.get());
+            var tmp = set._cool.tval.get();
+
+            set._cool.field.set(tmp);
         }
 
         cool.lockObserve = false;
@@ -5070,6 +5845,7 @@
     defaultHash: "",
     lastUrlHash: "",
     outPos: 0,
+    __cache: {},
 
     // headers for requests
     ajaxHeaders:
@@ -5121,6 +5897,167 @@
         }
     },
     
+    // 
+    createBinRW: function(obj)
+    {
+        var dv = null;
+
+        if (obj instanceof ArrayBuffer)
+        {
+            dv = new DataView(obj, 0);
+        }
+        else if (obj instanceof DataView)
+        {
+            dv = obj;
+        }
+        else
+        {
+            throw "Incorrect parameter type";
+        }
+
+        var ret =
+        {
+            dv: dv,
+            position: 0,
+            length: dv.byteLength,
+            inverse: true,
+            getInt8: function()
+            {
+                var val = this.dv.getInt8(this.position);
+
+                this.position += 1;
+
+                return val;
+            },
+            getInt16: function ()
+            {
+                var val = this.dv.getInt16(this.position, this.inverse);
+
+                this.position += 2;
+
+                return val;
+            },
+            getInt32: function ()
+            {
+                var val = this.dv.getInt32(this.position, this.inverse);
+
+                this.position += 4;
+
+                return val;
+            },
+            getUint8: function ()
+            {
+                var val = this.dv.getUint8(this.position, this.inverse);
+
+                this.position += 1;
+
+                return val;
+            },
+            getUint16: function ()
+            {
+                var val = this.dv.getUint16(this.position, this.inverse);
+
+                this.position += 2;
+
+                return val;
+            },
+            getUint32: function ()
+            {
+                var val = this.dv.getUint32(this.position, this.inverse);
+
+                this.position += 4;
+
+                return val;
+            },
+            getFloat32: function ()
+            {
+                var val = this.dv.getFloat32(this.position, this.inverse);
+
+                this.position += 4;
+
+                return val;
+            },
+            getFloat64: function ()
+            {
+                var val = this.dv.getFloat64(this.position, this.inverse);
+
+                this.position += 8;
+
+                return val;
+            },
+            getString: function ()
+            {
+                var buf = [];
+                var len = this.dv.getInt32(this.position, this.inverse);
+
+                this.position += 4;
+
+                for (var i = 0; i < len; ++i)
+                {
+                    var chr = this.dv.getInt16(this.position, this.inverse);
+
+                    this.position += 2;
+
+                    buf.push(String.fromCharCode(chr));
+                }
+
+                var val = buf.join("");
+
+                return val;
+            },
+            setInt8: function (val)
+            {
+                this.dv.setInt8(this.position, val);
+
+                this.position += 1;
+            },
+            setInt16: function (val)
+            {
+                this.dv.setInt16(this.position, val, this.inverse);
+
+                this.position += 2;
+            },
+            setInt32: function (val)
+            {
+                this.dv.setInt32(this.position, val, this.inverse);
+
+                this.position += 4;
+            },
+            setUint8: function (val)
+            {
+                this.dv.setUint8(this.position, val, this.inverse);
+
+                this.position += 1;
+            },
+            setUint16: function (val)
+            {
+                this.dv.setUint16(this.position, val, this.inverse);
+
+                this.position += 2;
+            },
+            setUint32: function (val)
+            {
+                this.dv.setUint32(this.position, val, this.inverse);
+
+                this.position += 4;
+            },
+            setFloat32: function (val)
+            {
+                this.dv.setFloat32(this.position, val, this.inverse);
+
+                this.position += 4;
+            },
+            setFloat64: function (val)
+            {
+                this.dv.setFloat64(this.position, val, this.inverse);
+
+                this.position += 8;
+            }
+        };
+        
+        return ret;
+    },
+
     // For debug #remove_block
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -5132,7 +6069,13 @@
         while (f)
         {
             level++;
+
             f = f.caller;
+
+            if (level > 30)
+            {
+                break;
+            }
         }
 
         console.log(Array(level * 2).join(' ') + str);
@@ -5149,6 +6092,11 @@
         {
             level++;
             f = f.caller;
+
+            if (level > 30)
+            {
+                break;
+            }
         }
 
         var str = Array(level * 2).join(' ') + name + c.tagName;
@@ -5246,14 +6194,13 @@
     // #remove_block_end
 };
 
-Object.prototype._cool = null;
-Object.prototype.cooljs = function(base)
+function InitCoolElement(base, elm)
 {
     if (base == null)
     {
-        if (this._cool == null || this._cool == true)
+        if (elm._cool == null || elm._cool == true)
         {
-            this._cool =
+            elm._cool =
             {
                 attributes: [],
                 hash: cool.lastHash++,
@@ -5274,15 +6221,15 @@ Object.prototype.cooljs = function(base)
                         this.cancelDisplayVal = this.cancelDispayVal != null ? this.cancelDisplayVal : "none";
                     }
                 },
-                action: function ()
+                action: function (context, force)
                 {
-                    this.actionBase();
+                    this.actionBase(context, force);
                 },
                 cancel: function ()
                 {
                     this.cancelBase();
                 },
-                actionBase: function ()
+                actionBase: function (context, force)
                 {
                     this.isActive = true;
 
@@ -5306,7 +6253,16 @@ Object.prototype.cooljs = function(base)
                             }
                         }
 
-                        itm._cool.action();
+                        if (!itm._cool.isActive || force)
+                        {
+                            if (context[itm._cool.hash] != true)
+                            {
+                                context[itm._cool.hash] = true;
+
+                                itm._cool.isActive = true;
+                                itm._cool.action(context, force);
+                            }
+                        }
                     }
 
                     if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
@@ -5338,7 +6294,11 @@ Object.prototype.cooljs = function(base)
                             }
                         }
 
-                        itm._cool.cancel();
+                        if (itm._cool.isActive)
+                        {
+                            itm._cool.isActive = false;
+                            itm._cool.cancel();
+                        }
                     }
 
                     if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
@@ -5353,19 +6313,19 @@ Object.prototype.cooljs = function(base)
             };
         }
     }
-    else if (this._cool != null)
+    else if (elm._cool != null)
     {
-        return this._cool;
+        return elm._cool;
     }
     else if (base == 1)
     {
-        this._cool =
+        elm._cool =
         {
             hash: cool.lastHash++
         };
     }
 
-    return this._cool;
+    return elm._cool;
 };
 
 window.onload = cool.init;
