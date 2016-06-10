@@ -32,23 +32,29 @@
             "js-class-cancel": cool.atrCancelClass
         };
 
-        var html = document.documentElement;
-
         cool.initNavigator();
-        cool.processElement(html);
 
-        html._cool.init("html", html);
-        html._cool.cancelDisplay = true;
-        html._cool.action({}, false);
+        //InitCoolElement(null, document.documentElement);
 
-        if (cool.lastUrlHash != window.location.hash)
+        cool.processElementWithPreload(document.body, function()
         {
-            cool.setPage();
-        }
-        else if (cool.defaultHash != "")
-        {
-            cool.go(cool.defaultHash);
-        }
+            var html = document.documentElement;
+
+            cool.processElement(html);
+
+            html._cool.init("html", html); 
+            html._cool.cancelDisplay = true;
+            html._cool.action({}, false);
+
+            if (cool.lastUrlHash != window.location.hash)
+            {
+                cool.setPage();
+            }
+            else if (cool.defaultHash != "")
+            {
+                cool.go(cool.defaultHash);
+            }
+        });
     },
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -419,7 +425,7 @@
 
         cool.hashList[hash].push(obj);
 
-        obj._cool.hash = hash;
+        obj._cool.hashurl = hash;
         obj._cool.first = false;
         obj._cool.isActiveNav = false;
         obj._cool.actionNav = function()
@@ -1842,16 +1848,15 @@
     // js-text
     tagText: function(obj)
     {
-        var name = obj.getAttribute("name");
+        var path = obj.getAttribute("path");
 
-        if (name == null || name == "")
+        if (path == null || path == "")
         {
-            return console.log("js-text: The 'name' attribute is empty.");
+            return console.log("js-text: The 'path' attribute is empty.");
         }
 
-        obj._cool.name = name;
+        obj._cool.path = path;
         obj._cool.obj = obj;
-
         obj._cool.refresh = function (context, path, itm, method, args)
         {
             var c = itm.element._cool;
@@ -1865,7 +1870,7 @@
             this.actionBase(context, force);
         };
 
-        obj._cool.field = cool.createField(name, { depth: 2, callback : obj._cool.refresh, element: obj });
+        obj._cool.field = cool.createField(path, { depth: 2, callback: obj._cool.refresh, element: obj });
     },
     
     // js-go
@@ -1944,6 +1949,11 @@
                 var itm = this.params[i];
 
                 pars.push(itm.get());
+            }
+
+            if (tmp[this.method] == null)
+            {
+                return console.log("js-call: Method '" + this.method + "' underfined.");
             }
 
             tmp[this.method].apply(tmp, pars);
@@ -2739,7 +2749,7 @@
             return;
         }
 
-        if (last != null && last == curent)
+        if (last != null && last == curent && typeof last != "object" && !(last instanceof Array))
         {
             return;
         }
@@ -2749,6 +2759,11 @@
             args = [];
         }
         
+        if (method == null)
+        {
+            method = "set";
+        }
+
         if (cool.obHt[path] != null)
         {
             var ob = cool.obHt[path];
@@ -4448,7 +4463,7 @@
                     }
                     else if (itm.else_block != null)
                     {
-                        itm.template = itm.main_block;
+                        itm.template = itm.else_block;
                         itm.rootMap = roots;
 
                         arr.push(cool.makeQueryItem(itm, false, index));
@@ -4634,7 +4649,7 @@
 
             if (ind3 != -1 && ind3 < inds.end)
             {
-                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind3 - ind1 - 1), roots);
+                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, ind3 - ind1 - 2), roots);
                 obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
             }
             else
@@ -4668,7 +4683,7 @@
             
             tmp.list.push(obj1);
 
-            i = inds.end + len_end_if;
+            i = inds.end + len_end_if - 1;
         }
 
         // parse #script #end
@@ -4755,7 +4770,7 @@
                         func : func
                     }); 
 
-                    k = ind5 + len_end_sc;
+                    k = ind5 + len_end_sc - 1;
                 }
             }
         }
@@ -5576,6 +5591,60 @@
         return arr.length;
     },
 
+    // init dom tree and preload resource
+    processElementWithPreload : function(elm, callback)
+    {
+        var arr = [];
+
+        for (var i = 0; i < elm.childNodes.length; ++i)
+        {
+            var itm = elm.childNodes[i];
+
+            if (itm.tagName == "JS-LOAD")
+            {
+                arr.push(itm);
+            }
+        }
+
+        if (arr.length > 0)
+        {
+            for (var j = 0; j < arr.length; ++j)
+            {
+                var itm = arr[j];
+                var src = itm.getAttribute("src");
+
+                if (src == null)
+                {
+                    continue;
+                }
+
+                cool.ajaxGet(src, {arr: arr, index: j, elm: elm, callback: callback}, function (http, tag)
+                {
+                    tag.arr.splice(tag.index, 1);
+
+                    if (tag.arr.length == 0)
+                    {
+                        //cool.processElement(tag.elm);
+
+                        if (tag.callback != null)
+                        {
+                            tag.callback();
+                        }
+                    }
+                }).go();
+            }
+        }
+        else
+        {
+            //cool.processElement(elm);
+
+            if (callback != null)
+            {
+                callback();
+            }
+        }
+    },
+
     // init dom tree
     processElement : function(elm, forceParent)
     {
@@ -6115,7 +6184,7 @@
         }
         else if (c.tagName == "js-page")
         {
-            str += " " + c.hash;
+            str += " " + c.hashurl;
         }
         else if (c.tagName == "js-load")
         {
@@ -6172,7 +6241,7 @@
         }
         else if (c.tagName == "js-text")
         {
-            str += " " + c.name;
+            str += " " + c.path;
         }
 
         return str;
