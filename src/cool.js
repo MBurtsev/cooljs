@@ -20,7 +20,8 @@
             "js-validate": cool.tagValidate,
             "js-atr-proxy": cool.tagAtrProxy,
             "js-go": cool.tagGo,
-            "js-call": cool.tagCall
+            "js-call": cool.tagCall,
+            "js-width": cool.tagWidth
         };
 
         cool.jsA =
@@ -1105,12 +1106,6 @@
                     arr.push(this.template.pl_start);
                 }
 
-
-                if (this.select == "atm From rec.Atoms")
-                {
-                    var bp = 0;
-                }
-
                 // fill template
                 for (var i = 0; i < this.data.length; ++i)
                 {
@@ -1135,40 +1130,41 @@
                     //}
 
                     var tmp = cool.makeQueryItem(this, true, i);
-                    var ind = tmp.indexOf('<');
 
-                    while (ind >= 0)
-                    {
-                        var spc = -1;
+                    //var ind = tmp.indexOf('<');
 
-                        for (var t = ind; t < tmp.length; ++t)
-                        {
-                            if (tmp[t] == ' ' || tmp[t] == '>')
-                            {
-                                spc = t;
+                    //while (ind >= 0)
+                    //{
+                    //    var spc = -1;
 
-                                break;
-                            }
-                        }
+                    //    for (var t = ind; t < tmp.length; ++t)
+                    //    {
+                    //        if (tmp[t] == ' ' || tmp[t] == '>')
+                    //        {
+                    //            spc = t;
 
-                        if (spc == -1)
-                        {
-                            break;
-                        }
+                    //            break;
+                    //        }
+                    //    }
+
+                    //    if (spc == -1)
+                    //    {
+                    //        break;
+                    //    }
                         
-                        var tag = tmp.substr(ind + 1, spc - 1 - ind);
-                        var end = tmp.indexOf('</' + tag, ind);
+                    //    var tag = tmp.substr(ind + 1, spc - 1 - ind);
+                    //    var end = tmp.indexOf('</' + tag, ind);
 
-                        if (end == -1)
-                        {
-                            break;
-                        }
+                    //    if (end == -1)
+                    //    {
+                    //        break;
+                    //    }
 
-                        var inject = " data-query-index='" + i.toString() + "' ";
+                    //    var inject = " data-query-index='" + i.toString() + "' ";
 
-                        tmp = tmp.substr(0, spc) + inject + tmp.substr(spc);
-                        ind = tmp.indexOf('<', end + inject.length + tag.length);
-                    }
+                    //    tmp = tmp.substr(0, spc) + inject + tmp.substr(spc);
+                    //    ind = tmp.indexOf('<', end + inject.length + tag.length);
+                    //}
                     
                     arr.push(tmp);
                 }
@@ -1178,31 +1174,47 @@
                     arr.push(this.template.pl_end);
                 }
 
+                var arr_ric = [];
+
                 if (!this.isScript)
                 {
                     this.obj.innerHTML = arr.join("");
 
                     cool.processElement(this.obj);
 
-                    var len = this.obj.childNodes.length;
-                    var del = 0;
+                    //var len = this.obj.childNodes.length;
+                    //var del = 0;
 
-                    for (var n = 0; n < len; ++n)
+                    //for (var n = 0; n < len; ++n)
+                    //{
+                    //    var itm = this.obj.childNodes[del];
+
+                    //    if (itm.nodeType != 1)
+                    //    {
+                    //        del++;
+
+                    //        continue;
+                    //    }
+
+                    //    var dind = itm.getAttribute("data-query-index");
+
+                    //    if (dind != null && this.data[dind].complate != null)
+                    //    {
+                    //        this.data[dind].complate(itm, this.data[dind]);
+                    //    }
+                    //}
+
+                    var tmp_arr = this.obj.querySelectorAll("[render-element-complate]");
+
+                    for (var ta = 0; ta < tmp_arr.length; ++ta)
                     {
-                        var itm = this.obj.childNodes[del];
+                        var tit = tmp_arr[ta];
 
-                        if (itm.nodeType != 1)
+                        method = tit.getAttribute("render-element-complate");
+
+                        if (method.length > 0)
                         {
-                            del++;
-
-                            continue;
-                        }
-
-                        var dind = itm.getAttribute("data-query-index");
-
-                        if (dind != null && this.data[dind].complate != null)
-                        {
-                            this.data[dind].complate(itm, this.data[dind]);
+                            arr_ric.push(tit);
                         }
                     }
                 }
@@ -1234,16 +1246,72 @@
                     }
 
                     cool.processElement(this.obj.parentNode, this.obj);
+
+
                     
+                    //for (var w = 0; w < this.targetObject.length; ++w)
+                    //{
+                    //    var itm = this.targetObject[w];
+
+                    //    var tmp_arr = itm.querySelectorAll("[data-query-index]");
+
+                    //    for (var ta = 0; ta < tmp_arr.length; ++ta)
+                    //    {
+                    //        var tit = tmp_arr[ta];
+
+                    //        var dind = tit.getAttribute("data-query-index");
+
+                    //        if (dind != null && this.data[dind].complate != null)
+                    //        {
+                    //            this.data[dind].complate(tit, this.data[dind]);
+                    //        }
+                    //    }
+                    //}
+
+                    // calling render complate
+
                     for (var w = 0; w < this.targetObject.length; ++w)
                     {
                         var itm = this.targetObject[w];
-                        var dind = itm.getAttribute("data-query-index");
+                        var method = itm.getAttribute("render-element-complate");
 
-                        if (dind != null && this.data[dind].complate != null)
+                        if (method != null && method.length > 0)
                         {
-                            this.data[dind].complate(itm, this.data[dind]);
+                            arr_ric.push(itm);
                         }
+                        var tmp_arr = itm.querySelectorAll("[render-element-complate]");
+
+                        for (var ta = 0; ta < tmp_arr.length; ++ta)
+                        {
+                            var tit = tmp_arr[ta];
+
+                            method = tit.getAttribute("render-element-complate");
+                            
+                            if (method.length > 0)
+                            {
+                                arr_ric.push(tit);
+                            }
+                        }
+                    }
+                }
+
+                // Calling render-element-complate functions
+                for (var ta = 0; ta < arr_ric.length; ++ta)
+                {
+                    var tit = arr_ric[ta];
+
+                    method = tit.getAttribute("render-element-complate");
+
+                    var fld = cool.createField(method);
+                    var tmp = fld.get();
+
+                    if (tmp == null)
+                    {
+                        console.log("render-element-complate: The function '" + method + "' is underfined.")
+                    }
+                    else
+                    {
+                        tmp(tit);
                     }
                 }
 
@@ -1577,13 +1645,17 @@
 
                 if (this.mode == 0)
                 {
+                    var tmp;
+
+                    eval("tmp = " + this.value);
+
                     if (itm[this.name] != null)
                     {
-                        itm[this.name] = this.value;
+                        itm[this.name] = tmp;
                     }
                     else
                     {
-                        itm.setAttribute(this.name, this.value);
+                        itm.setAttribute(this.name, tmp);
                     }
                 }
                 else if (this.mode == 1)
@@ -1968,6 +2040,80 @@
         };
     },
 
+    // js-call
+    tagWidth: function (obj)
+    {
+        obj._cool.target = obj.getAttribute("target");
+        obj._cool.min = obj.getAttribute("min");
+        obj._cool.max = obj.getAttribute("max");
+
+        if (obj._cool.target == null || obj._cool.target == "")
+        {
+            obj._cool.target = "window";
+        }
+
+        if (obj._cool.min == null || obj._cool.min == "")
+        {
+            obj._cool.min = 0;
+        }
+        else
+        {
+            obj._cool.min = parseInt(obj._cool.min);
+        }
+
+        if (obj._cool.max == null || obj._cool.max == "")
+        {
+            obj._cool.max = 4096;
+        }
+        else
+        {
+            obj._cool.max = parseInt(obj._cool.max);
+        }
+
+        obj._cool.prog = cool.compileSelector(obj._cool.target);
+        
+        obj._cool.action = function (context, force)
+        {
+            var arr = cool.getBySelector(this.prog, this.obj);
+
+            if (arr.length > 0)
+            {
+                var w = 0;
+
+                if (arr[0] == window)
+                {
+                    w = arr[0].innerWidth;
+                }
+                else
+                {
+                    w = arr[0].getBoundingClientRect().width;
+                }
+
+                if (w >= this.min && w <= this.max)
+                {
+                    this.actionBase(context, force);
+                }
+                else
+                {
+                    this.cancelBase();
+                }
+            }
+            else
+            {
+                this.actionBase(context, force);
+            }
+        };
+
+        function initEvent(obj)
+        {
+            return function ()
+            {
+                obj._cool.action({}, false);
+            }
+        };
+
+        window.addEventListener('resize', initEvent(obj), true);
+    },
 
     // Attributes
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1975,29 +2121,29 @@
     // js-bind
     atrBindBoth: function(obj, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index].value, false, false);
+        cool.atrBindEx(obj, obj._cool.attributes[index], false, false);
     },
 
     // js-read
     atrBindRead: function(obj, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index].value, true, false);
+        cool.atrBindEx(obj, obj._cool.attributes[index], true, false);
     },
 
     // js-write
     atrBindWrite: function(obj, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index].value, false, true);
+        cool.atrBindEx(obj, obj._cool.attributes[index], false, true);
     },
 
     // js-bind all modes
-    atrBindEx: function(obj, value, isReadOnly, isWriteOnly)
+    atrBindEx: function (obj, bind, isReadOnly, isWriteOnly)
     {
-        var bind = {};
+        //var bind = {};
 
         obj._cool.bind = bind;
 
-        bind.path = value;
+        bind.path = bind.value;
 
         if (bind.path == null || bind.path == "")
         {
@@ -2017,6 +2163,8 @@
         bind.isText = false;
         bind.isNumber = false;
         bind.obj = obj;
+        bind.isReadOnly = isReadOnly;
+        bind.isWriteOnly = isWriteOnly;
 
         // validate
         if (bind.isInput)
@@ -2112,6 +2260,8 @@
             bind.field = cool.createField(bind.path);
         }
 
+        bind.isInited = false;
+
         // event changes
         if (!isReadOnly)
         {
@@ -2177,6 +2327,18 @@
                     this._cool.bind.lock2 = false;
                 }
             });
+        }
+
+        bind.action = function()
+        {
+            if (!this.isInited && !this.isWriteOnly)
+            {
+                this.lock1 = true;
+                this.refreshEx();
+                this.lock1 = false;
+
+                this.isInited = true;
+            }
         }
     },
 
@@ -4197,6 +4359,8 @@
             {
                 var tmp = {};
 
+                main[i]["$source"] = i;
+
                 tmp[prog.from.v] = main[i];
 
                 comp.push(tmp);
@@ -4313,6 +4477,8 @@
             // init main
             for (var i = 0; i < main.length; ++i)
             {
+                main[i]["$source"] = i;
+
                 comp.push(main[i]);
             }
         }
@@ -4376,6 +4542,8 @@
         {
             comp.sort(document[prog.order.func]);
         }
+
+        cool.queryContext.itemsResult = comp;
 
         return comp;
     },
@@ -4567,6 +4735,14 @@
                     arr.push(itm.text);
                     arr.push("}}");
                 }
+            }
+            else if (itm.type == 5)
+            {
+                var __tmp;
+
+                eval("__tmp = " + itm.text.substr(1));
+
+                arr.push(__tmp);
             }
         }
 
@@ -4834,6 +5010,11 @@
                     if (vField.list.length == 2 && vField.list[1].path == "#index")
                     {
                         ttt = 4;
+                    }
+
+                    if (vField.list.length > 0 && vField.list[0].path[0] == "$")
+                    {
+                        ttt = 5;
                     }
                     
                     tmp.list.splice(n++, 0,
@@ -5648,7 +5829,7 @@
     // init dom tree
     processElement : function(elm, forceParent)
     {
-        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var ht = {}; 
         var i = 0;
         var itm = null;
