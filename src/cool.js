@@ -21,7 +21,8 @@
             "js-atr-proxy": cool.tagAtrProxy,
             "js-go": cool.tagGo,
             "js-call": cool.tagCall,
-            "js-width": cool.tagWidth
+            "js-width": cool.tagWidth,
+            "js-move": cool.tagMove
         };
 
         cool.jsA =
@@ -45,7 +46,7 @@
 
             html._cool.init("html", html); 
             html._cool.cancelDisplay = true;
-            html._cool.action({}, false);
+            html._cool.action({ initial: html._cool.hash}, false);
 
             if (cool.lastUrlHash != window.location.hash)
             {
@@ -108,21 +109,21 @@
             {
                 var tmp = this.tval.get();
 
+                this.field._context = context;
                 this.field.set(tmp);
-
                 this.first = true;
             }
 
             this.actionBase(context, force);
         }
-        obj._cool.cancel = function()
+        obj._cool.cancel = function (context, force)
         {
             if (this.tcan != null)
             {
                 this.field.set(this.tcan.get());
             }
 
-            this.cancelBase();
+            this.cancelBase(context, force);
         }
     },
 
@@ -393,13 +394,9 @@
             }
             else
             {
-                this.actionBase();
+                this.actionBase(context, force);
             }
-        }
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
-        }
+        };
     },
 
     // js-page
@@ -435,15 +432,15 @@
 
             if (this.parent._cool.isActive)
             {
-                this.action({}, false);
+                this.action({ initial: this.hash }, false);
             }
         }
         obj._cool.cancelNav = function()
         {
             this.isActiveNav = false;
-            this.cancelBase();
+            this.cancelBase({ initial: this.hash }, false);
         }
-        obj._cool.action = function (context, force)
+        obj._cool.action = function(context, force)
         {
             if (this.isActiveNav)
             {
@@ -451,7 +448,7 @@
             }
             else
             {
-                this.cancelBase();
+                this.cancelBase({initial: this.hash}, false);
             }
         }
     },
@@ -577,10 +574,6 @@
             {
                 this.obj._cool.actionBase(context, force);
             }
-        }
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
         }
     },
 
@@ -1323,7 +1316,7 @@
 
             this.enable(context, force);
         }
-        obj._cool.cancel = function()
+        obj._cool.cancel = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
@@ -1343,7 +1336,7 @@
                 }
             }
             
-            this.cancelBase();
+            this.cancelBase(context, force);
         }
         obj._cool.enable = function (context, force)
         {
@@ -1404,12 +1397,8 @@
             }
             else
             {
-                this.cancel();
+                this.cancelBase({ initial: this.hash }, false);
             }
-        };
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
         };
     },
 
@@ -1442,7 +1431,7 @@
 
                 if (obj._cool.parent._cool.isActive)
                 {
-                    obj._cool.actionBase({}, true);
+                    obj._cool.actionBase({ initial: obj._cool.hash }, true);
                     obj._cool.eventActive = false;
                 }
                 else
@@ -1541,7 +1530,7 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function()
+        obj._cool.cancel = function (context, force)
         {
             if (this.cancelValue != null)
             {
@@ -1565,7 +1554,7 @@
                 }
             }
 
-            this.cancelBase();
+            this.cancelBase(context, force);
         }
     },
 
@@ -1666,7 +1655,7 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function()
+        obj._cool.cancel = function (context, force)
         {
             if (this.cancelValue != null)
             {
@@ -1697,7 +1686,7 @@
                 }
             }
 
-            this.cancelBase();
+            this.cancelBase(context, force);
         }
     },
 
@@ -1851,10 +1840,6 @@
                 this.actionBase(context, force);
             }
         };
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
-        };
         obj._cool.func = function(arg)
         {
             var elm = ((window.event)?(event.srcElement):(arg.currentTarget));
@@ -1891,7 +1876,7 @@
             {
                 if (!this.isActive)
                 {
-                    this.actionBase(null, null);
+                    this.actionBase({ initial: this.hash }, false);
                 }
             }
             else if (this.isActive)
@@ -1962,10 +1947,6 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
-        };
     },
 
     // js-call
@@ -2034,13 +2015,9 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function()
-        {
-            this.cancelBase();
-        };
     },
 
-    // js-call
+    // js-width
     tagWidth: function (obj)
     {
         obj._cool.target = obj.getAttribute("target");
@@ -2095,7 +2072,7 @@
                 }
                 else
                 {
-                    this.cancelBase();
+                    this.cancelBase({ initial: this.hash }, false);
                 }
             }
             else
@@ -2104,15 +2081,131 @@
             }
         };
 
+        obj._cool.cancel = function(context, force)
+        {
+            this.cancelBase(context, force);
+        }
+
         function initEvent(obj)
         {
             return function ()
             {
-                obj._cool.action({}, false);
+                obj._cool.action({initial: obj._cool.hash}, false);
             }
         };
 
         window.addEventListener('resize', initEvent(obj), true);
+    },
+
+    // js-move
+    tagMove: function (obj)
+    {
+        obj._cool.target = obj.getAttribute("target");
+        obj._cool.isCancel = obj.getAttribute("cancel") != null;
+        obj._cool.isAlways = obj.getAttribute("always") != null;
+
+        if (obj._cool.target == null || obj._cool.target == "")
+        {
+            return console.log("js-move: The 'target' attribute is empty.");
+        }
+
+        obj._cool.prog = cool.compileSelector(obj._cool.target);
+        obj._cool.move = function(context)
+        {
+            //if (!this.isAlways)
+            //{
+            //    for (var p in context)
+            //    {
+            //        if (context.hasOwnProperty(p))
+            //        {
+            //            if (p != this.parent._cool.hash && p != this.hash)
+            //            {
+            //                return;
+            //            }
+            //        }
+            //    }
+            //}
+
+            var arr = cool.getBySelector(this.prog, this.obj);
+
+            if (arr.length > 0)
+            {
+                var tar = arr[0];
+                var tmp = [];
+
+                for (var i = 0; i < this.obj.childNodes.length; ++i)
+                {
+                    var itm = this.obj.childNodes[i];
+
+                    if (itm.nodeType == 1)
+                    {
+                        tmp.push(itm);
+                    }
+                }
+
+                for (var i = 0; i < tmp.length; ++i)
+                {
+                    var itm = tmp[i];
+
+                    tar.appendChild(itm);
+                }
+
+                // fiend parent cool tag
+                var car = tar;
+
+                while (car != null)
+                {
+                    if (car._cool != null)
+                    {
+                        break;
+                    }
+
+                    car = car.parentNode;
+                }
+
+                // move
+                for (var i = 0; i < this.chields.length; ++i)
+                {
+                    var itm = this.chields[i];
+
+                    car._cool.chields.push(itm);
+                    itm._cool.parent = car;
+                }
+
+                this.chields = [];
+            }
+        };
+        obj._cool.action = function (context, force)
+        {
+            if (context.initial == this.parent._cool.hash)
+            {
+                this.move(context);
+            }
+            
+            if (this.isCancel)
+            {
+                this.cancelBase(context, force);
+
+                this.isActive = null;
+            }
+            else
+            {
+                this.actionBase(context, force);
+            }
+        };
+        obj._cool.cancel = function (context, force)
+        {
+            if (this.isCancel)
+            {
+                this.actionBase(context, force);
+
+                //this.isActive = false;
+            }
+            else
+            {
+                this.cancelBase(context, force);
+            }
+        };
     },
 
     // Attributes
@@ -2717,7 +2810,7 @@
                 
                 eval("target." + this.path + property + " = val;");
 
-                cool.changed(this.path + property, "set", last, val);
+                cool.changed(this.path + property, "set", null, last, val, this._context);
             },
             init: function (target)
             {
@@ -2904,7 +2997,7 @@
     },
 
     // call than property changed
-    changed: function (path, method, args, last, curent)
+    changed: function (path, method, args, last, curent, context)
     {
         if (cool.lockObserve)
         {
@@ -2926,14 +3019,17 @@
             method = "set";
         }
 
+        if (context == null)
+        {
+            context = { initial: 0 };
+        }
+        
         if (cool.obHt[path] != null)
         {
             var ob = cool.obHt[path];
 
             // #remove_line
             cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
-
-            var context = {};
 
             for (var i = 0; i < ob.list.length; ++i)
             {
@@ -5829,7 +5925,7 @@
     // init dom tree
     processElement : function(elm, forceParent)
     {
-        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, js-move, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
         var ht = {}; 
         var i = 0;
         var itm = null;
@@ -5838,25 +5934,7 @@
         var code = InitCoolElement(null, elm).hash;
 
         ht[code] = elm;
-
-        //if (forceParent != null)
-        //{
-        //    code = InitCoolElement(null, elm).hash;
-
-        //    ht[code] = forceParent;
-
-        //    //InitCoolElement(null, elm);
-
-        //    //code = forceParent._cool.hash;
-        //    //ht[code] = forceParent;
-        //}
-        //else
-        //{
-        //    code = InitCoolElement(null, elm).hash;
-
-        //    ht[code] = elm;
-        //}
-        
+       
         var arr = [];
 
         // filter tags and init base function
@@ -5970,6 +6048,7 @@
 
             if (itm.obj._cool.parent != null)
             {
+                itm.obj._cool.isCancel = itm.obj.getAttribute("cancel") != null;
                 cool.jsF[itm.name](itm.obj);
             }
         }
@@ -6308,7 +6387,7 @@
         return ret;
     },
 
-    // For debug #remove_block
+    // #remove_block For debug
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     logEx: function(str)
@@ -6424,6 +6503,10 @@
         {
             str += " " + c.path;
         }
+        else if (c.tagName == "js-width")
+        {
+            str += " min:" + c.min + ", max:" + c.max + " target:" + c.target;
+        }
 
         return str;
     },
@@ -6457,7 +6540,7 @@ function InitCoolElement(base, elm)
                 tagName: null,
                 parent: null,
                 chields: [],
-                isActive: false,
+                isActive: null,
                 init: function (name, obj)
                 {
                     this.tagName = name;
@@ -6475,17 +6558,42 @@ function InitCoolElement(base, elm)
                 {
                     this.actionBase(context, force);
                 },
-                cancel: function ()
+                cancel: function (context, force)
                 {
-                    this.cancelBase();
+                    this.cancelBase(context, force);
                 },
                 actionBase: function (context, force)
                 {
+                    // #remove_block
+                    if (context == null || context.initial == null)
+                    {
+                        debugger;
+                        alert("context is null");
+                    }
+                    // #remove_block_end
+                    
                     this.isActive = true;
 
                     for (var i = 0; i < this.chields.length; ++i)
                     {
                         var itm = this.chields[i];
+
+                        // call cancel
+                        if (itm._cool.isCancel)
+                        {
+                            if (itm._cool.isActive == null || itm._cool.isActive || force)
+                            {
+                                if (context[itm._cool.hash] != true)
+                                {
+                                    context[itm._cool.hash] = true;
+
+                                    itm._cool.isActive = false;
+                                    itm._cool.cancel(context, force);
+                                }
+                            }
+
+                            continue;
+                        }
 
                         // #remove_line
                         console.log(cool.tagTostring("Action: ", itm));
@@ -6499,11 +6607,11 @@ function InitCoolElement(base, elm)
                                 // #remove_line
                                 console.log("Action atr: " + cool.atrTostring(atr));
 
-                                atr.action();
+                                atr.action(context);
                             }
                         }
 
-                        if (!itm._cool.isActive || force)
+                        if (itm._cool.isActive == null || !itm._cool.isActive || force)
                         {
                             if (context[itm._cool.hash] != true)
                             {
@@ -6520,13 +6628,38 @@ function InitCoolElement(base, elm)
                         this.obj.style.display = this.actionDisplay;
                     }
                 },
-                cancelBase: function ()
+                cancelBase: function (context, force)
                 {
+                    // #remove_block
+                    if (context == null || context.initial == null)
+                    {
+                        debugger;
+                        alert("context is null");
+                    }
+                    // #remove_block_end
+
                     this.isActive = false;
 
                     for (var i = 0; i < this.chields.length; ++i)
                     {
                         var itm = this.chields[i];
+
+                        // call action
+                        if (itm._cool.isCancel)
+                        {
+                            if (itm._cool.isActive == null || !itm._cool.isActive || force)
+                            {
+                                if (context[itm._cool.hash] != true)
+                                {
+                                    context[itm._cool.hash] = true;
+
+                                    itm._cool.isActive = true;
+                                    itm._cool.action(context, force);
+                                }
+                            }
+
+                            continue;
+                        }
 
                         // #remove_line
                         console.log(cool.tagTostring("Cancel: ", itm));
@@ -6540,14 +6673,19 @@ function InitCoolElement(base, elm)
                                 // #remove_line
                                 console.log("Cancel atr: " + cool.atrTostring(atr));
 
-                                atr.cancel();
+                                atr.cancel(context);
                             }
                         }
 
-                        if (itm._cool.isActive)
+                        if (itm._cool.isActive == null || itm._cool.isActive || force)
                         {
-                            itm._cool.isActive = false;
-                            itm._cool.cancel();
+                            if (context[itm._cool.hash] != true)
+                            {
+                                context[itm._cool.hash] = true;
+
+                                itm._cool.isActive = false;
+                                itm._cool.cancel(context, force);
+                            }
                         }
                     }
 
