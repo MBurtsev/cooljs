@@ -382,6 +382,7 @@
                     tag.first = true;
 
                     // fire
+                    tag.obj._cool.eventComplete.context = context;
                     tag.obj.dispatchEvent(tag.obj._cool.eventComplete);
                 });
 
@@ -444,6 +445,30 @@
         {
             if (this.isActiveNav)
             {
+                var hpg = window.location.hash;
+                var arr = hpg.split("/");
+
+                if ((arr.length - 1) % 2 != 0)
+                {
+                    console.log("The 'hash' has wrong format. Params must contain key/value pairs. Like this  #main/name_1/value_1/name_2/value_2");
+                }
+                else
+                {
+                    for (var n = 1; n < arr.length; n += 2)
+                    {
+                        var f = arr[n];
+                        var v = null;
+
+                        eval("v = " + cool.decorateString(arr[n + 1]) + ";");
+
+                        var fld = cool.createField(f);
+
+                        fld._context = context;
+
+                        fld.set(v);
+                    }
+                }
+
                 this.actionBase(context, force);
             }
             else
@@ -525,6 +550,7 @@
                         script.onload = function()
                         {
                             // fire
+                            this._cool.eventComplete.context = context;
                             this._cool.obj.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
@@ -545,6 +571,7 @@
                         link.onload = function ()
                         {
                             // fire
+                            this._cool.eventComplete.context = context;
                             this._cool.obj.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
@@ -579,6 +606,7 @@
                             cool.processElement(tag);
 
                             tag._cool.firstDone = true;
+                            tag._cool.eventComplete.context = context;
                             tag.dispatchEvent(tag._cool.eventComplete);
 
                             tag._cool.actionBase(tag._cool.context, tag._cool.force);
@@ -636,7 +664,11 @@
             if (c.isActive )// || c.isActive == null && c.parent._cool.isActive
             {
                 c.action(context, false);
+
+                return true;
             }
+
+            return false;
         };
         
         // compile query
@@ -1024,10 +1056,10 @@
             }
         }
         
-        if (select == "atm From rec.Atoms")
-        {
-            var bp = 0;
-        }
+        //if (select == "atm From rec.Atoms")
+        //{
+        //    var bp = 0;
+        //}
 
         obj._cool.template = cool.buildTemplate(tmp, obj._cool.rootMap);
 
@@ -1035,10 +1067,16 @@
         obj._cool.template.pl_end = pl_end;
         
         // init events
+
+        //obj._cool.renderEnd = new CustomEvent('renderEnd', { 'context' : null });
+
         obj._cool.renderEnd = document.createEvent('Event');
         obj._cool.renderEnd.initEvent('renderEnd', true, true);
+
+
         obj._cool.beforeDestroy = document.createEvent('Event');
         obj._cool.beforeDestroy.initEvent('beforeDestroy', true, true);
+
         obj._cool.afterDestroy = document.createEvent('Event');
         obj._cool.afterDestroy.initEvent('afterDestroy', true, true);
  
@@ -1056,13 +1094,23 @@
             //    return;
             //}
 
+            if (this.select == "catalog From cat.cur.List")
+            {
+                var bp = 0;
+            }
+
             if (this.data == null || this.isAlways || this.isChanged)
             {
                 this.data = cool.computeData(this.prog);
             }
 
             if (this.data != null && (!this.firstDone || this.isAlways || this.isChanged))
-            {   
+            {
+                if (this.obj.parentNode == null)
+                {
+                    return;
+                }
+                
                 this.firstDone = true;
 
                 if (this.parentQueryItem != null)
@@ -1071,6 +1119,7 @@
                 }
 
                 // fire
+                this.beforeDestroy.context = context;
                 this.obj.dispatchEvent(this.beforeDestroy);
 
                 this.clear();
@@ -1088,6 +1137,11 @@
                         {
                             var itm = this.targetObject[s];
 
+                            if (itm == this.obj)
+                            {
+                                continue;
+                            }
+
                             if (this.obj.parentNode != itm.parentNode)
                             {
                                 if (itm.coolDestroy != null)
@@ -1100,7 +1154,7 @@
                                     itm.parentNode.removeChild(itm);
                                 }
                             }
-                            else
+                            else//if (this.obj.parentNode != null)
                             {
                                 this.obj.parentNode.removeChild(itm);
                             }
@@ -1115,6 +1169,7 @@
                 }
 
                 // fire
+                this.afterDestroy.context = context;
                 this.obj.dispatchEvent(this.afterDestroy);
 
                 var arr = [];
@@ -1142,48 +1197,8 @@
 
                     this.rootMap.args.push(i);
 
-                    //if (i == 95)
-                    //{
-                    //    var bp = 0;
-                    //}
-
                     var tmp = cool.makeQueryItem(this, true, i);
-
-                    //var ind = tmp.indexOf('<');
-
-                    //while (ind >= 0)
-                    //{
-                    //    var spc = -1;
-
-                    //    for (var t = ind; t < tmp.length; ++t)
-                    //    {
-                    //        if (tmp[t] == ' ' || tmp[t] == '>')
-                    //        {
-                    //            spc = t;
-
-                    //            break;
-                    //        }
-                    //    }
-
-                    //    if (spc == -1)
-                    //    {
-                    //        break;
-                    //    }
-                        
-                    //    var tag = tmp.substr(ind + 1, spc - 1 - ind);
-                    //    var end = tmp.indexOf('</' + tag, ind);
-
-                    //    if (end == -1)
-                    //    {
-                    //        break;
-                    //    }
-
-                    //    var inject = " data-query-index='" + i.toString() + "' ";
-
-                    //    tmp = tmp.substr(0, spc) + inject + tmp.substr(spc);
-                    //    ind = tmp.indexOf('<', end + inject.length + tag.length);
-                    //}
-                    
+                  
                     arr.push(tmp);
                 }
 
@@ -1200,35 +1215,12 @@
 
                     cool.processElement(this.obj);
 
-                    //var len = this.obj.childNodes.length;
-                    //var del = 0;
-
-                    //for (var n = 0; n < len; ++n)
-                    //{
-                    //    var itm = this.obj.childNodes[del];
-
-                    //    if (itm.nodeType != 1)
-                    //    {
-                    //        del++;
-
-                    //        continue;
-                    //    }
-
-                    //    var dind = itm.getAttribute("data-query-index");
-
-                    //    if (dind != null && this.data[dind].complate != null)
-                    //    {
-                    //        this.data[dind].complate(itm, this.data[dind]);
-                    //    }
-                    //}
-
                     var tmp_arr = this.obj.querySelectorAll("[render-element-complate]");
 
                     for (var ta = 0; ta < tmp_arr.length; ++ta)
                     {
                         var tit = tmp_arr[ta];
-
-                        method = tit.getAttribute("render-element-complate");
+                        var method = tit.getAttribute("render-element-complate");
 
                         if (method.length > 0)
                         {
@@ -1265,29 +1257,6 @@
 
                     cool.processElement(this.obj.parentNode, this.obj);
 
-
-                    
-                    //for (var w = 0; w < this.targetObject.length; ++w)
-                    //{
-                    //    var itm = this.targetObject[w];
-
-                    //    var tmp_arr = itm.querySelectorAll("[data-query-index]");
-
-                    //    for (var ta = 0; ta < tmp_arr.length; ++ta)
-                    //    {
-                    //        var tit = tmp_arr[ta];
-
-                    //        var dind = tit.getAttribute("data-query-index");
-
-                    //        if (dind != null && this.data[dind].complate != null)
-                    //        {
-                    //            this.data[dind].complate(tit, this.data[dind]);
-                    //        }
-                    //    }
-                    //}
-
-                    // calling render complate
-
                     for (var w = 0; w < this.targetObject.length; ++w)
                     {
                         var itm = this.targetObject[w];
@@ -1318,14 +1287,14 @@
                 {
                     var tit = arr_ric[ta];
 
-                    method = tit.getAttribute("render-element-complate");
+                    var method = tit.getAttribute("render-element-complate");
 
                     var fld = cool.createField(method);
                     var tmp = fld.get();
 
                     if (tmp == null)
                     {
-                        console.log("render-element-complate: The function '" + method + "' is underfined.")
+                        console.log("render-element-complate: The function '" + method + "' is underfined.");
                     }
                     else
                     {
@@ -1336,12 +1305,16 @@
                 this.firstDone = true;
 
                 // fire
+                this.enable(context, force);
+                this.renderEnd.context = context;
                 this.obj.dispatchEvent(this.renderEnd);
+            }
+            else
+            {
+                this.enable(context, force);
             }
 
             this.isChanged = false;
-
-            this.enable(context, force);
         }
         obj._cool.cancel = function (context, force)
         {
@@ -1410,7 +1383,11 @@
                 if (c.parent._cool.isActive)// || c.parent._cool.isActive == null
                 {
                     c.action(context, false);
+
+                    return true;
                 }
+
+                return false;
             };
 
             obj._cool.fieldCond = cool.createField(con, { depth: 2, callback: obj._cool.refresh, element: obj });
@@ -1456,14 +1433,27 @@
 
         function initEvent(obj, name)
         {
-            return function()
+            return function(e)
             {
                 // #remove_line
                 //console.log("Event: " + name);
 
                 if (obj._cool.parent._cool.isActive)
                 {
-                    obj._cool.actionBase({ initial: obj._cool.hash }, true);
+                    var context = null;
+                    var force = true;
+
+                    if (e.context != null)
+                    {
+                        context = e.context;
+                    }
+                    else
+                    {
+                        force = false;
+                        context = { initial: obj._cool.hash };
+                    }
+
+                    obj._cool.actionBase(context, force);
                     obj._cool.eventActive = false;
                 }
                 else
@@ -1984,6 +1974,8 @@
             var val = c.field.get();
 
             itm.element.innerHTML = val;
+
+            return true;
         }
         obj._cool.action = function (context, force)
         {
@@ -2067,6 +2059,8 @@
 
                 pars.push(itm.get());
             }
+
+            pars.push(context);
 
             if (tmp[this.method] == null)
             {
@@ -2406,6 +2400,8 @@
                     c.refreshEx();
                     c.lock1 = false;
                 }
+
+                return true;
             };
 
             bind.field = cool.createField(bind.path, { depth: 1, callback : bind.refresh, element:  obj });
@@ -2706,22 +2702,22 @@
         var page = arr[0];
         var lastPage = cool.lastUrlHash.split("/")[0];
 
-        if ((arr.length - 1) % 2 != 0)
-        {
-            console.log("The 'hash' has wrong format. Params must contain key/value pairs. Like this  #main/name_1/value_1/name_2/value_2");
-        }
-        else
-        {
-            for (var n = 1; n < arr.length; n += 2)
-            {
-                var f = arr[n];
-                var v = null;
+        //if ((arr.length - 1) % 2 != 0)
+        //{
+        //    console.log("The 'hash' has wrong format. Params must contain key/value pairs. Like this  #main/name_1/value_1/name_2/value_2");
+        //}
+        //else
+        //{
+        //    for (var n = 1; n < arr.length; n += 2)
+        //    {
+        //        var f = arr[n];
+        //        var v = null;
 
-                eval("v = " + cool.decorateString(arr[n + 1]) + ";");
+        //        eval("v = " + cool.decorateString(arr[n + 1]) + ";");
             
-                cool.createField(f).set(v);
-            }
-        }
+        //        cool.createField(f).set(v);
+        //    }
+        //}
         
         var i = 0;
         var itm = null;
@@ -2761,7 +2757,7 @@
         cool.changed("cool.currentPage", "set", null, lastPage, page, context);
         cool.changed("cool.lastPage", "set", null, tmp, lastPage, context);
 
-        var t = 0;
+        cool.contextProcess(context);
     },
 
 
@@ -2838,7 +2834,7 @@
             root : "",
             get: function (target, property)
             {
-                var tmp;
+                var tmp = null;
 
                 if (target == null)
                 {
@@ -2855,8 +2851,17 @@
                 }
 
                 // todo make function, for set too
-                eval("tmp = target." + this.path + property);
 
+                try
+                {
+                    eval("tmp = target." + this.path + property);
+                }
+                catch (e)
+                {
+                    // #remove_line
+                    console.log(e);
+                } 
+                
                 return tmp;
             },
             set: function (val, target, property)
@@ -2882,9 +2887,17 @@
                     this.init(target);
                 }
                 
-                eval("target." + this.path + property + " = val;");
+                try
+                {
+                    eval("target." + this.path + property + " = val;");
 
-                cool.changed(this.path + property, "set", null, last, val, this._context);
+                    cool.changed(this.path + property, "set", null, last, val, this._context);
+                }
+                catch (e)
+                {
+                    // #remove_line
+                    console.log(e);
+                }
             },
             init: function (target)
             {
@@ -3071,7 +3084,7 @@
     },
 
     // call than property changed
-    changed: function (path, method, args, last, curent, context)
+    changed2: function (path, method, args, last, curent, context)
     {
         if (cool.lockObserve)
         {
@@ -3097,7 +3110,14 @@
         {
             context = { initial: 0 };
         }
-        
+
+        if (context[path] == true)
+        {
+            return;
+        }
+
+        context[path] = true;
+
         if (cool.obHt[path] != null)
         {
             var ob = cool.obHt[path];
@@ -3116,14 +3136,15 @@
                 {
                     if (context[itm.element._cool.hash] != true)
                     {
-                        context[itm.element._cool.hash] = true;
-
                         if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
                         {
                             itm.element._cool.isActive = true;
                         }
 
-                        itm.callback(context, path, itm, method, args);
+                        if (itm.callback(context, path, itm, method, args) == true)
+                        {
+                            context[itm.element._cool.hash] = true;
+                        }
                     }
                 }
                 else
@@ -3143,6 +3164,73 @@
                     }
                 }
             }
+        }
+    },
+
+    // call than property changed
+    changed: function (path, method, args, last, curent, context)
+    {
+        var iamowner = false;
+
+        if (cool.lockObserve)
+        {
+            return;
+        }
+
+        if (last != null && last == curent && typeof last != "object" && !(last instanceof Array))
+        {
+            return;
+        }
+
+        if (args == null)
+        {
+            args = [];
+        }
+
+        if (method == null)
+        {
+            method = "set";
+        }
+
+        if (context == null)
+        {
+            context = { initial: 0 };
+            iamowner = true;
+        }
+
+        if (cool.obHt[path] != null)
+        {
+            var ob = cool.obHt[path];
+
+            // #remove_line
+            cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
+
+            for (var i = 0; i < ob.list.length; ++i)
+            {
+                var itm = ob.list[i];
+
+                // #remove_line
+                console.log(cool.tagTostring("Refresh: ", itm.element));
+
+                if (context.map == null)
+                {
+                    context.map = {};
+                }
+
+                if (context.map[itm.element._cool.hash] == null)
+                {
+                    itm.path = path;
+                    itm.method = method;
+                    itm.args = args;
+
+                    context.map[itm.element._cool.hash] = itm;
+                }
+            }
+        }
+
+        if (iamowner)
+        {
+            cool.contextProcess(context);
         }
     },
 
@@ -6280,14 +6368,15 @@
 
                 if (context[itm.element._cool.hash] != true)
                 {
-                    context[itm.element._cool.hash] = true;
-
                     if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
                     {
                         itm.element._cool.isActive = true;
                     }
 
-                    itm.callback(context, itm.path, itm, itm.method, itm.args);
+                    if (itm.callback(context, itm.path, itm, itm.method, itm.args) == true)
+                    {
+                        context[itm.element._cool.hash] = true;
+                    }
                 }
             }
         }
@@ -6686,6 +6775,8 @@ function InitCoolElement(base, elm)
                         this.cancelDisplayVal = obj.getAttribute("display-cancel");
                         this.cancelDisplayVal = this.cancelDispayVal != null ? this.cancelDisplayVal : "none";
                     }
+
+                    this.ever = obj.getAttribute("ever");
                 },
                 action: function (context, force)
                 {
@@ -6744,7 +6835,7 @@ function InitCoolElement(base, elm)
                             }
                         }
 
-                        if (itm._cool.isActive == null || !itm._cool.isActive || force)
+                        if (itm._cool.isActive == null || !itm._cool.isActive || force || itm._cool.ever != null)
                         {
                             if (context[itm._cool.hash] != true)
                             {
