@@ -1449,7 +1449,8 @@
                     }
                     else
                     {
-                        force = false;
+                        //var force = true;
+                        //var force = false;
                         context = { initial: obj._cool.hash };
                     }
 
@@ -1460,6 +1461,8 @@
                 {
                     obj._cool.eventActive = true;
                 }
+
+                return false;
             }
         };
 
@@ -1989,20 +1992,30 @@
     // js-go
     tagGo: function(obj)
     {
-        var value = obj.getAttribute("value");
-
-        if (value == null)
+        obj._cool.atrMap =
         {
-            return console.log("js-go: The 'value' attribute is empty.");
-        }
-        
-        obj._cool.value = value;
+            obj: obj,
+            value: function()
+            {
+                var value = this.obj.getAttribute("value");
+
+                if (value == null)
+                {
+                    return console.log("js-go: The 'value' attribute is empty.");
+                }
+
+                this.obj._cool.value = value;
+            }
+        };
+
         obj._cool.action = function (context, force)
         {
             cool.go(this.value);
 
             this.actionBase(context, force);
         };
+
+        obj._cool.atrMap.value();
     },
 
     // js-call
@@ -2355,7 +2368,13 @@
                 {
                     bind.refreshEx = function ()
                     {
-                        this.obj.checked = this.field.get();
+                        //this.obj.checked = this.field.get();
+                        var tmp = this.field.get();
+
+                        if (tmp != null)
+                        {
+                            this.obj.checked = tmp;
+                        }
                     };
                 }
                 else if (bind.isRadio)
@@ -2376,7 +2395,10 @@
                     {
                         var tmp = this.field.get();
 
-                        this.obj.value = tmp;
+                        if (tmp != null)
+                        {
+                            this.obj.value = tmp;
+                        }
                     };
                 }
             }
@@ -2386,7 +2408,10 @@
                 {
                     var tmp = this.field.get();
 
-                    this.obj.value = tmp;
+                    if (tmp != null)
+                    {
+                        this.obj.value = tmp;
+                    }
                 };
             }
 
