@@ -36,8 +36,6 @@
 
         cool.initNavigator();
 
-        //InitCoolElement(null, document.documentElement);
-
         cool.processElementWithPreload(document.body, function()
         {
             var html = document.documentElement;
@@ -1442,26 +1440,30 @@
                 {
                     var context = null;
                     var force = true;
+                    //var force = false;
 
+                    var id = e.srcElement.id;
+                    
                     if (e.context != null)
                     {
                         context = e.context;
                     }
                     else
                     {
-                        //var force = true;
-                        //var force = false;
                         context = { initial: obj._cool.hash };
                     }
-
+                    
+                    cool.currentEventElement = e.srcElement;
                     obj._cool.actionBase(context, force);
                     obj._cool.eventActive = false;
+                    obj._cool.cancelBase(context);
+                    cool.currentEventElement = null;
                 }
                 else
                 {
                     obj._cool.eventActive = true;
                 }
-
+                
                 return false;
             }
         };
@@ -1472,23 +1474,31 @@
         obj._cool.initCall = obj.hasAttribute("init-call");
         obj._cool.action = function (context, force)
         {
-            if (this.eventActive && this.onactive || this.initCall)
+            //if (this.eventActive && this.onactive || this.initCall)
+            //{
+            //    this.initCall = false;
+
+            //    this.actionBase(context, force);
+            //}
+
+            //this.eventActive = false;
+
+            if (this.initCall)
             {
                 this.initCall = false;
 
                 this.actionBase(context, force);
             }
-
-            this.eventActive = false;
         };
 
-        obj._cool.event = initEvent(obj, name);
+        //obj._cool.event = initEvent(obj, name);
 
         for (var i = 0; i < arr.length; ++i)
         {
             var itm = arr[i];
 
-            itm.addEventListener(name, obj._cool.event);
+            //itm.addEventListener(name, obj._cool.event);
+            itm.addEventListener(name, initEvent(obj, name));
         }
     },
 
@@ -1838,11 +1848,6 @@
         obj._cool.isAlways = obj.getAttribute("always") != null;
         obj._cool.action = function (context, force)
         {
-            if (this.arr == null)
-            {
-                this.cancel();
-            }
-
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
@@ -1860,7 +1865,7 @@
 
                     if (itm._validate == null)
                     {
-                        itm._validate =
+                        itm._validate = 
                         {
                             validateLast : null
                         }
@@ -1888,13 +1893,17 @@
                         }
                     }
 
-                    itm.addEventListener("change", this.func.bind(this));
+                    itm.addEventListener("keyup", this.func.bind(this));
                 }
             }
 
-            if (this.validCount == this.arr.length)
+            if (this.arr.length > 0 && this.validCount == this.arr.length)
             {
                 this.actionBase(context, force);
+            }
+            else
+            {
+                this.cancel(context);
             }
         };
         obj._cool.func = function(arg)
@@ -1931,14 +1940,14 @@
 
             if (this.validCount == this.arr.length)
             {
-                if (!this.isActive)// || this.isActive == null
+                if (!this.isActive)
                 {
                     this.actionBase({ initial: this.hash }, false);
                 }
             }
-            else if (this.isActive)// || this.isActive == null
+            else if (this.isActive)
             {
-                this.cancel();
+                this.cancelBase({ initial: this.hash }, false);
             }
         };
     },
@@ -2023,6 +2032,7 @@
     {
         var name = obj.getAttribute("name");
         var method = obj.getAttribute("method");
+        var context = obj.getAttribute("context") != null;
         
         if (name == null || name == "")
         {
@@ -2056,6 +2066,7 @@
 
         obj._cool.name = name;
         obj._cool.method = method;
+        obj._cool.isContext = context;
         obj._cool.action = function (context, force)
         {
             if (this.field == null)
@@ -2073,7 +2084,10 @@
                 pars.push(itm.get());
             }
 
-            pars.push(context);
+            if (this.isContext)
+            {
+                pars.push(context);
+            }
 
             if (tmp[this.method] == null)
             {
@@ -3339,9 +3353,9 @@
     {
         var arr = query.split(".");
         var ret = [];
-        var s,
-            e = 0;
+        var s, e = 0;
         var err = "Unknown operation: ";
+        // last cmd - m
 
         for (var i = 0; i < arr.length; ++i)
         {
@@ -3703,6 +3717,58 @@
                     break;
 
                 }
+                case "o":
+                {
+                    if (cmd.length > 7 && cmd.substr(0, 7) == "object(") //&& cmd[cmd.length - 1] == ")"
+                    {
+                        var j = i;
+
+                        for (;j < arr.length; ++j)
+                        {
+                            var itm = arr[j];
+
+                            if (itm[itm.length - 1] == ")")
+                            {
+                                break;
+                            }
+                        }
+                        
+                        if (j < arr.length)
+                        {
+                            var q = cmd.substr(7, cmd.length - 7);
+
+                            for (var n = i + 1; n < j; ++n)
+                            {
+                                q += '.' + arr[n];
+                            }
+
+                            if (j > i)
+                            {
+                                q += '.' + arr[j].substr(0, arr[j].length - 1);
+                            }
+
+                            i = j;
+
+                            ret.push
+                            ({
+                                cmd: "o",
+                                query: q
+                            });
+                        }
+                        else
+                        {
+                            
+                        }
+                    }
+                    else
+                    {
+                        console.log(err + cmd);
+
+                        return [];
+                    }
+
+                    break;
+                }
                 default:
                 {
                     console.log(err + cmd);
@@ -3979,6 +4045,17 @@
                 }
                 case "m": // selector-all[n]
                 {
+
+                    break;
+                }
+                case "o": // object(query)
+                {
+                    cur = eval(opr.query);
+
+                    if (cur == null || !(cur instanceof HTMLElement))
+                    {
+                        cur = null;
+                    }
 
                     break;
                 }
@@ -6419,10 +6496,11 @@
     defaultHash: "",
     lastUrlHash: "",
     currentPage: "",
+    currentEventElement: null,
     lastPage: "",
     outPos: 0,
     __cache: {},
-
+    
     // headers for requests
     ajaxHeaders:
     [
@@ -6453,12 +6531,12 @@
         },
         password:
         {
-            pattern : "(?=^.{8,}$)((?=.*\\d)|(?=.*\\W+))(?![.\\n])(?=.*[A-Z])(?=.*[a-z]).*$",//(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}
+            pattern : "(?=^.{8,}$)((?=.*\\d)|(?=.*\\W+))(?![.\\n])(?=.*[A-Z])(?=.*[a-z]).*$",
             title : "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters."
         },
         email:
         {
-            pattern : "[^@]+@[^@]+\.[a-zA-Z]{2,6}",//"^\w+([.-]?\w+)*@\w+([.-]?\w+)*(.\w{2,3})+$"
+            pattern : "^\\w+([\\.-]?\\w+)*@\\w+([\\.-]?\\w+)*(\\.\\w{2,3})+$",
             title : "Email is not valid."
         },
         url:
