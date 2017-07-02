@@ -457,7 +457,9 @@
                         var f = arr[n];
                         var v = null;
 
-                        eval("v = " + cool.decorateString(arr[n + 1]) + ";");
+                        //eval("v = " + cool.decorateString(arr[n + 1]) + ";");
+
+                        eval("v = " + arr[n + 1] + ";");
 
                         var fld = cool.createField(f);
 
@@ -1436,13 +1438,25 @@
                 // #remove_line
                 //console.log("Event: " + name);
 
+                var srcelm = null;
+
+                if (e.srcElement != null)
+                {
+                    srcelm = e.srcElement;
+                }
+                else
+                {
+                    srcelm = e.target;
+                }
+
+
                 if (obj._cool.parent._cool.isActive)
                 {
                     var context = null;
                     var force = true;
                     //var force = false;
 
-                    var id = e.srcElement.id;
+                    var id = srcelm.id;
                     
                     if (e.context != null)
                     {
@@ -1453,7 +1467,7 @@
                         context = { initial: obj._cool.hash };
                     }
                     
-                    cool.currentEventElement = e.srcElement;
+                    cool.currentEventElement = srcelm;
                     obj._cool.actionBase(context, force);
                     obj._cool.eventActive = false;
                     obj._cool.cancelBase(context);
@@ -2724,8 +2738,7 @@
             }
 
             cool.setPage();
-        },
-        false);
+        }, false);
     },
 
     // activate page
@@ -2740,24 +2753,7 @@
         var arr = hpg.split("/");
         var page = arr[0];
         var lastPage = cool.lastUrlHash.split("/")[0];
-
-        //if ((arr.length - 1) % 2 != 0)
-        //{
-        //    console.log("The 'hash' has wrong format. Params must contain key/value pairs. Like this  #main/name_1/value_1/name_2/value_2");
-        //}
-        //else
-        //{
-        //    for (var n = 1; n < arr.length; n += 2)
-        //    {
-        //        var f = arr[n];
-        //        var v = null;
-
-        //        eval("v = " + cool.decorateString(arr[n + 1]) + ";");
-            
-        //        cool.createField(f).set(v);
-        //    }
-        //}
-        
+      
         var i = 0;
         var itm = null;
         var list = cool.hashList[lastPage];
