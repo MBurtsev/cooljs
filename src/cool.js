@@ -192,42 +192,7 @@
             }
         }
 
-        obj._cool.params = [];
-
-        if (obj._cool.paramsIndex != null)
-        {
-            var pars = obj.children[obj._cool.paramsIndex];
-
-            for (var j = 0; j < pars.children.length; ++j)
-            {
-                var par = pars.children[j];
-
-                if (par.tagName != null && par.tagName.toLowerCase() == "js-ajax-param")
-                {
-                    var par_name = par.getAttribute("name");
-                    var par_value = par.getAttribute("value");
-                    var isVar = par.getAttribute("var") != null;
-                    
-                    if (par_name == null || par_value == null || par_name == "" || par_value == "")
-                    {
-                        console.log("Ajax param have empty 'name/value' attribute.");
-                    }
-
-                    var val;
-
-                    if (isVar)
-                    {
-                        val = cool.createTypedValue("js-ajax-param", "var", par_value);
-                    }
-                    else
-                    {
-                        val = cool.createTypedValue("js-ajax-param", "string", par_value);
-                    }
-
-                    obj._cool.params.push({ name: par_name, value: val });
-                }
-            }
-        }
+        obj._cool.params = null;
 
         if (type == "stream")
         {
@@ -266,6 +231,46 @@
         //obj._cool.count = 0;
         obj._cool.action = function (context, force)
         {
+            if (this.params == null)
+            {
+                this.params = [];
+
+                if (this.paramsIndex != null)
+                {
+                    var pars = obj.children[this.paramsIndex];
+
+                    for (var j = 0; j < pars.children.length; ++j)
+                    {
+                        var par = pars.children[j];
+
+                        if (par.tagName != null && par.tagName.toLowerCase() == "js-ajax-param")
+                        {
+                            var par_name = par.getAttribute("name");
+                            var par_value = par.getAttribute("value");
+                            var isVar = par.getAttribute("var") != null;
+                    
+                            if (par_name == null || par_value == null || par_name == "" || par_value == "")
+                            {
+                                console.log("Ajax param have empty 'name/value' attribute.");
+                            }
+
+                            var val;
+
+                            if (isVar)
+                            {
+                                val = cool.createTypedValue("js-ajax-param", "var", par_value);
+                            }
+                            else
+                            {
+                                val = cool.createTypedValue("js-ajax-param", "string", par_value);
+                            }
+
+                            this.params.push({ name: par_name, value: val });
+                        }
+                    }
+                }
+            }
+            
             if (this.once && !this.first || !this.once)
             {
                 var src_tmp = this.src;
@@ -326,7 +331,10 @@
                     }
                     else if (type == "text")
                     {
-                        // todo
+                        var text = xhr.responseText;
+                        //var prop = cool.createField(this.target);
+
+                        tag.target.set(text);
                     }
                     else if (type == "json")
                     {
@@ -401,7 +409,7 @@
     // js-page
     tagPage: function(obj)
     {
-        var hash = obj.getAttribute("hash");
+        var hash = obj.getAttribute("hash");4
 
         if (hash == null || hash == "")
         {
@@ -459,7 +467,7 @@
 
                         //eval("v = " + cool.decorateString(arr[n + 1]) + ";");
 
-                        eval("v = " + arr[n + 1] + ";");
+                        eval("v = " + decodeURIComponent(arr[n + 1]) + ";");
 
                         var fld = cool.createField(f);
 
@@ -595,13 +603,6 @@
                                 
                             tag._cool.clear();
                             tag.innerHTML = tmp;
-
-                            if (window.loginStep != null)
-                            {
-                                console.log("++++++++++++++++++++++++++++++++++++++++++++++++++");
-                                console.log("++++++++++++++++++++++++++++++++++++++++++++++++++");
-                                console.log("loginStep : " + window.loginStep);
-                            }
 
                             cool.processElement(tag);
 
@@ -2535,14 +2536,18 @@
 
         bind.action = function()
         {
-            if (!this.isInited && !this.isWriteOnly)
-            {
+            //if (!this.isInited && !this.isWriteOnly)
+            //{
+            //    this.lock1 = true;
+            //    this.refreshEx();
+            //    this.lock1 = false;
+
+            //    this.isInited = true;
+            //}
                 this.lock1 = true;
                 this.refreshEx();
                 this.lock1 = false;
 
-                this.isInited = true;
-            }
         }
     },
 
@@ -2671,27 +2676,29 @@
         {
             window.open(src);
 
-            return;
+            return false;
         }
 
         if (src == "back")
         {
             history.go(-1);
 
-            return;
+            return false;
         }
 
         if (src == "next")
         {
             history.go(1);
 
-            return;
+            return false;
         }
 
         if (window.location.hash != src)
         {
             window.location.hash = src;
         }
+
+        return false;
     },
 
     // init navigator enveroupment
@@ -3325,7 +3332,7 @@
         }
         else if (type == "var")
         {
-            ret.fastType = 1;
+            ret.fastType = 2; // 1
             ret.value = value;
         }
         else if (type == "object" || type == "array")
