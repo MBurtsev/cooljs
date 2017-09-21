@@ -1095,7 +1095,7 @@
             //    return;
             //}
 
-            if (this.select == "catalog From cat.cur.List")
+            if (this.select == "role From io.UserRole")
             {
                 var bp = 0;
             }
@@ -2090,6 +2090,12 @@
             }
 
             var tmp = this.field.get();
+
+            if (tmp == null)
+            {
+                return console.log("js-call: The field '" + this.field.path + "' is undefined.");
+            }
+            
             var pars = [];
 
             for (var i = 0; i < this.params.length; ++i)
@@ -4732,12 +4738,28 @@
     {
         var comp = [];
         var main = prog.from.field.get();
-        cool.queryContext = { items: main, index: 0 };
 
         if (main == null)
         {
             return console.log("js-query: From's field " + prog.from.field.path + " is underfined.");
         }
+
+        if (!(main instanceof Array))
+        {
+            var arr_tmp = [];
+
+            for (var itm in main)
+            {
+                if (main.hasOwnProperty(itm))
+                {
+                    arr_tmp.push({ key: itm, val: main[itm]});
+                }
+            }
+
+            main = arr_tmp;
+        }
+        
+        cool.queryContext = { items: main, index: 0 };
 
         if (prog.join != null)
         {
@@ -6554,12 +6576,16 @@
         }
     },
     
-    // 
+    // Class for binary io 
     createBinRW: function(obj)
     {
         var dv = null;
 
-        if (obj instanceof ArrayBuffer)
+        if (obj == null)
+        {
+            dv = new DataView(new ArrayBuffer(512), 0);
+        }
+        else if (obj instanceof ArrayBuffer)
         {
             dv = new DataView(obj, 0);
         }
@@ -6578,7 +6604,10 @@
             position: 0,
             length: dv.byteLength,
             inverse: true,
-            getInt8: function()
+            epochMicrotimeDiff : Math.abs(new Date(0, 0, 1).setFullYear(1)),
+
+            // Reads
+            ReadSByte: function()
             {
                 var val = this.dv.getInt8(this.position);
 
@@ -6586,7 +6615,7 @@
 
                 return val;
             },
-            getInt16: function ()
+            ReadInt16: function ()
             {
                 var val = this.dv.getInt16(this.position, this.inverse);
 
@@ -6594,7 +6623,7 @@
 
                 return val;
             },
-            getInt32: function ()
+            ReadInt32: function ()
             {
                 var val = this.dv.getInt32(this.position, this.inverse);
 
@@ -6602,7 +6631,34 @@
 
                 return val;
             },
-            getUint8: function ()
+            ReadInt64 : function()
+            {
+                var v0 = this.ReadUInt32();
+                var v1 = this.ReadInt32();
+
+                var val = this.to_int52(v1, v0);
+
+                return val;
+            },
+            to_int52: function(hi, lo) 
+            {
+                if ((lo !== lo|0) && (lo !== (lo|0)+4294967296))
+                {
+                    throw new Error ("lo out of range: "+lo);
+                }
+                if (hi !== hi|0 && hi >= 1048576)
+                {
+                    throw new Error ("hi out of range: "+hi);
+                }
+
+                if (lo < 0)
+                {
+                    lo += 4294967296;
+                }
+
+                return hi * 4294967296 + lo;
+            },
+            ReadByte: function ()
             {
                 var val = this.dv.getUint8(this.position, this.inverse);
 
@@ -6610,7 +6666,7 @@
 
                 return val;
             },
-            getUint16: function ()
+            ReadUInt16: function ()
             {
                 var val = this.dv.getUint16(this.position, this.inverse);
 
@@ -6618,7 +6674,7 @@
 
                 return val;
             },
-            getUint32: function ()
+            ReadUInt32: function ()
             {
                 var val = this.dv.getUint32(this.position, this.inverse);
 
@@ -6626,7 +6682,7 @@
 
                 return val;
             },
-            getFloat32: function ()
+            ReadSingle: function ()
             {
                 var val = this.dv.getFloat32(this.position, this.inverse);
 
@@ -6634,7 +6690,7 @@
 
                 return val;
             },
-            getFloat64: function ()
+            ReadDouble: function ()
             {
                 var val = this.dv.getFloat64(this.position, this.inverse);
 
@@ -6642,7 +6698,7 @@
 
                 return val;
             },
-            getString: function ()
+            ReadString: function ()
             {
                 var buf = [];
                 var len = this.dv.getInt32(this.position, this.inverse);
@@ -6662,53 +6718,228 @@
 
                 return val;
             },
-            setInt8: function (val)
+            ReadBoolean: function()
             {
+                var val = this.dv.getUint8(this.position, this.inverse);
+
+                this.position += 1;
+
+                return val == 1;
+            },
+            ReadSplitedDateTime : function ()
+            {
+                var y = this.ReadInt16();
+                var m = this.ReadByte();
+                var d = this.ReadByte();
+                var h = this.ReadByte();
+                var a = this.ReadByte();
+                var s = this.ReadByte();
+
+                var dt = new Date(y, m - 1, d, h, a, s, 0);
+
+                return dt;
+            },
+            ReadDateTime : function ()
+            {
+                var ticks = this.ReadInt64();
+
+                var ticksToMicrotime = ticks / 10000;
+                var d = new Date(ticksToMicrotime - this.epochMicrotimeDiff);      
+            
+                return d;
+            },
+            
+            // Write
+            WriteSByte: function (val)
+            {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setInt8(this.position, val);
 
                 this.position += 1;
             },
-            setInt16: function (val)
+            WriteInt16: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setInt16(this.position, val, this.inverse);
 
                 this.position += 2;
             },
-            setInt32: function (val)
+            WriteInt32: function (val)
             {
-                this.dv.setInt32(this.position, val, this.inverse);
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
 
+                this.Check();
+                this.dv.setInt32(this.position, val, this.inverse);
                 this.position += 4;
             },
-            setUint8: function (val)
+            WriteInt64: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                var v0 = Math.floor(val / 4294967296);
+                var v1 = (val & 0xFFFFFFFF);
+
+                this.WriteInt32(v1);
+                this.WriteUInt32(v0);
+            },
+            WriteByte: function (val)
+            {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setUint8(this.position, val, this.inverse);
 
                 this.position += 1;
             },
-            setUint16: function (val)
+            WriteUInt16: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setUint16(this.position, val, this.inverse);
 
                 this.position += 2;
             },
-            setUint32: function (val)
+            WriteUInt32: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setUint32(this.position, val, this.inverse);
 
                 this.position += 4;
             },
-            setFloat32: function (val)
+            WriteSingle: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setFloat32(this.position, val, this.inverse);
 
                 this.position += 4;
             },
-            setFloat64: function (val)
+            WriteDouble: function (val)
             {
+                if (typeof val != 'number')
+                {
+                    val = Number(val);
+                }
+
+                this.Check();
                 this.dv.setFloat64(this.position, val, this.inverse);
 
                 this.position += 8;
+            },
+            WriteString: function(val)
+            {
+                if (typeof val != 'string')
+                {
+                    val = val.toString();
+                }
+
+                this.WriteInt32(val.length);
+
+                for (var i = 0; i < val.length; ++i)
+                {
+                    var char = val.charCodeAt(i);
+
+                    this.WriteUInt16(char);
+                }
+            },
+            WriteBoolean: function(val)
+            {
+                if (typeof val != 'boolean')
+                {
+                    val = parseBool(val);
+                }
+
+                if (val)
+                {
+                    this.WriteByte(1);
+                }
+                else
+                {
+                    this.WriteByte(0);
+                }
+            },
+            WriteDateTime: function(val)
+            {
+                var ticks = (val.getTime() + this.epochMicrotimeDiff) * 10000;
+
+                this.WriteInt64(ticks);
+            },
+            Write: function(val, type)
+            {
+                eval("this.Write" + type + "(val);");
+            },
+
+            // API
+            TrimToPosition: function()
+            {
+                this.Resize(this.position);
+            },
+            Check: function()
+            {
+                if (this.position >= this.dv.byteLength)
+                {
+                    this.Resize(this.dv.byteLength * 2);
+                }
+            },
+            Resize: function(size)
+            {
+                var buf0 = this.dv.buffer;
+                var buf1 = new ArrayBuffer(size);
+                var dv = new DataView(buf1);
+
+                var len = buf0.byteLength;
+
+                if (len > buf1.byteLength)
+                {
+                    len = buf1.byteLength;
+                }
+
+                for (var i = 0; i < len; i++)
+                {
+                    var b = this.dv.getUint8(i, this.inverse);
+
+                    dv.setUint8(i, b, this.inverse);
+
+                    //buf1[i] = buf0[i];
+                }
+
+                this.dv = dv;
+            },
+            GetBuffer: function()
+            {
+                return this.dv.buffer;
             }
         };
         
@@ -6723,15 +6954,20 @@
         var level = 0;
         var f = cool.logEx;
 
-        while (f)
+        var isStrict = (function() { return !this; })();
+
+        if (!isStrict)
         {
-            level++;
-
-            f = f.caller;
-
-            if (level > 30)
+            while (f)
             {
-                break;
+                level++;
+
+                f = f.caller;
+
+                if (level > 30)
+                {
+                    break;
+                }
             }
         }
 
