@@ -542,7 +542,7 @@
         obj._cool.firstDone = false;
         obj._cool.action = function (context, force)
         {
-            this.obj.style.display = this.display;
+            //this.obj.style.display = this.display;
 
             if (this.isAlways || !this.firstDone)
             {
@@ -643,19 +643,6 @@
             return console.log("js-query: The 'select' attribute is empty");
         }
 
-        //var cur = obj._cool.parent;
-
-        //// check for no active parent query
-        //while (cur != null)
-        //{
-        //    if ((cur._cool.tagName == "js-query" || cur._cool.tagName == "script") && !cur._cool.isActive)
-        //    {
-        //        return;
-        //    }
-
-        //    cur = cur._cool.parent;
-        //}
-
         obj._cool.refresh = function (context, path, itm, method, args)
         {
             var c = itm.element._cool;
@@ -673,7 +660,6 @@
         };
         
         // compile query
-
         var prog = { ht: {} };
         var tmp;
         var end;
@@ -1095,11 +1081,6 @@
             //    return;
             //}
 
-            if (this.select == "role From io.UserRole")
-            {
-                var bp = 0;
-            }
-
             if (this.data == null || this.isAlways || this.isChanged)
             {
                 this.data = cool.computeData(this.prog);
@@ -1179,6 +1160,11 @@
                 {
                     arr.push(this.template.pl_start);
                 }
+
+                //if (this.select == "itm From adm.doc.cur.Templates")
+                //{
+                //    var bp = 0;
+                //}
 
                 // fill template
                 for (var i = 0; i < this.data.length; ++i)
@@ -2542,18 +2528,12 @@
 
         bind.action = function()
         {
-            //if (!this.isInited && !this.isWriteOnly)
-            //{
-            //    this.lock1 = true;
-            //    this.refreshEx();
-            //    this.lock1 = false;
-
-            //    this.isInited = true;
-            //}
+            if (!this.isWriteOnly)
+            {
                 this.lock1 = true;
                 this.refreshEx();
                 this.lock1 = false;
-
+            }
         }
     },
 
@@ -2866,19 +2846,16 @@
             observe = { depth: 0, callback : null, element: null };
         }
 
-        if (path == "data.catalog.ht[cat.code]")
-        {
-            var bp = 0;
-        }
-
         var field =
         {
             observe: observe,
-            list: cool.parseJs(path),
+            js: cool.parseJs(path),
             vars: [],
+            ht: {},
             isInited : false,
             offset: 0,
             path: path,
+            checkedPath: false,
             root : "",
             get: function (target, property)
             {
@@ -2898,10 +2875,28 @@
                     property = this.path.length > 0 ? "." + property + ";" : property + ";";
                 }
 
-                // todo make function, for set too
-
                 try
                 {
+                    if (!this.checkedPath)
+                    {
+                        var cur = target;
+                        var arr = this.root.split('.');
+
+                        for (var i = 0; i < arr.length; ++i)
+                        {
+                            var itm = arr[i];
+
+                            if (cur[itm] == null)
+                            {
+                                return null;
+                            }
+
+                            cur = cur[itm];
+                        }
+
+                        this.checkedPath = true;
+                    }
+                    
                     eval("tmp = target." + this.path + property);
                 }
                 catch (e)
@@ -2920,6 +2915,7 @@
                 }
 
                 var last = this.get(target, property);
+                var empty = true;
 
                 if (property == null)
                 {
@@ -2928,6 +2924,33 @@
                 else
                 {
                     property = this.path.length > 0 ? "." + property : property;
+                    empty = false;
+                }
+
+                if (!this.checkedPath)
+                {
+                    var cur = target;
+                    var arr = this.root.split('.');
+                    var len = arr.length;
+
+                    if (empty)
+                    {
+                        len -= 1;
+                    }
+
+                    for (var i = 0; i < len; ++i)
+                    {
+                        var itm = arr[i];
+
+                        if (cur[itm] == null)
+                        {
+                            return null;
+                        }
+
+                        cur = cur[itm];
+                    }
+
+                    this.checkedPath = true;
                 }
 
                 if (!this.isInited)
@@ -2952,9 +2975,9 @@
                 var cur = target;
                 var path = "";
 
-                for (var i = 0; i < this.list.length - 1; ++i)
+                for (var i = 0; i < this.js.list.length - 1; ++i)
                 {
-                    var prp = this.list[i];
+                    var prp = this.js.list[i];
 
                     path += i == 0 ? prp.path : "." + prp.path;
 
@@ -3000,49 +3023,71 @@
             },
             refreshVars: function(arr, role)
             {
+                var t = cool.expressionType;
+
                 if (arr == null)
                 {
-                    arr = this.list;
+                    arr = this.js.list;
                     role = 0;
                 }
 
                 var path = "";
                 var start = 0;
                 var end = 0;
+                var skipRoot = false;
 
                 for (; end < arr.length; ++end)
                 {
                     var itm = arr[end];
 
-                    // property
-                    if (itm.type == 9)
+                    if (itm.type == t.var)
                     {
-                        path += end == 0 ? itm.path : "." + itm.path;
+                        if (!skipRoot)
+                        {
+                            path += end == 0 ? itm.path : "." + itm.path;
+                        }
                     }
-                    // array
-                    else if (itm.type == 2)
+                    else if (itm.type == t.array)
                     {
-                        path += end == 0 ? itm.path : "." + itm.path;
+                        if (!skipRoot)
+                        {
+                            path += end == 0 ? itm.path : "." + itm.path;
+                            
+                            this.root = path;
+                            this.addVar(path, 0, arr, start, end);
 
+                            //path = "";
+                        }
+
+                        if ((itm.bodyFlags & t.function) == t.function || (itm.bodyFlags & t.var) == t.var || (itm.bodyFlags & t.object) == t.object)
+                        {
+                            skipRoot = true;
+                        }
+                        else
+                        {
+                            path += itm.bodyExp;
+                        }
+                        
                         this.refreshVars(itm.body, 1);
                     }
-                    // function
-                    else if (itm.type == 6)
+                    else if (itm.type == t.function)
                     {
-                        path += end == 0 ? itm.path : "." + itm.path;
+                        //path += end == 0 ? itm.path : "." + itm.path;
+
+                        skipRoot = true;
 
                         this.refreshVars(itm.body, 2);
                     }
-                    // operator or conditional or nope
-                    else if (itm.type == 7 || itm.type == 8 || itm.type == 0)
+                    else if (itm.type == t.operator || itm.type == t.conditional || itm.type == t.nope)
                     {
                         this.addVar(path, role, arr, start, end);
 
+                        skipRoot = false;
                         path = "";
                         start = end + 1;
                     }
                 }
-
+                
                 this.addVar(path, role, arr, start, end);
 
                 // roles
@@ -3062,10 +3107,19 @@
                     path = path.substr(1);
                 }
 
+                if (this.ht[path] != null)
+                {
+                    return;
+                }
+                else
+                {
+                    this.ht[path] = true;
+                }
+
                 // todo future arr convert to variable map in field
                 this.vars.push({ path: path, role: role, raw: arr.slice(start, end), start : start, end : end });
 
-                if (role == 0)
+                if (role == 0 && this.root.length == 0)
                 {
                     this.root = path;
                 }
@@ -3073,6 +3127,7 @@
         };
 
         field.refreshVars();
+        delete field.ht;
 
         if (observe.depth > 0 && observe.callback != null)
         {
@@ -3087,8 +3142,48 @@
         return field;
     },
 
-    // add field to observe
+    // add field to observe, ignore depth
     addToObserve: function (path, field, fieldVar, depth, callback, element)
+    {
+        var arr = path.split(".");
+
+        for (var j = 0; j < arr.length; ++j)
+        {
+            var str = "";
+
+            for (var i = 0; i <= j; ++i)
+            {
+                str += arr[i] + (i < j ? "." : "");
+            }
+
+            if (cool.obHt[str] == null)
+            {
+                cool.obHt[str] = { list: [] };
+            }
+
+            var ind = -1;
+            var list = cool.obHt[str].list;
+            
+            // check exist
+            for (var f = 0; f < list.length; ++f)
+            {
+                if (list[f].field == field)
+                {
+                    ind = f;
+
+                    break;
+                }
+            }
+
+            if (ind == -1)
+            {
+                list.push({ path: str, field: field, fieldVar: fieldVar, depth: depth, callback: callback, element: element });
+            }
+        }
+    },
+
+    // add field to observe
+    addToObserve2: function (path, field, fieldVar, depth, callback, element)
     {
         if (cool.obHt[path] == null)
         {
@@ -3132,90 +3227,6 @@
     },
 
     // call than property changed
-    changed2: function (path, method, args, last, curent, context)
-    {
-        if (cool.lockObserve)
-        {
-            return;
-        }
-
-        if (last != null && last == curent && typeof last != "object" && !(last instanceof Array))
-        {
-            return;
-        }
-
-        if (args == null)
-        {
-            args = [];
-        }
-        
-        if (method == null)
-        {
-            method = "set";
-        }
-
-        if (context == null)
-        {
-            context = { initial: 0 };
-        }
-
-        if (context[path] == true)
-        {
-            return;
-        }
-
-        context[path] = true;
-
-        if (cool.obHt[path] != null)
-        {
-            var ob = cool.obHt[path];
-
-            // #remove_line
-            cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
-
-            for (var i = 0; i < ob.list.length; ++i)
-            {
-                var itm = ob.list[i];
-
-                // #remove_line
-                console.log(cool.tagTostring("Refresh: ", itm.element));
-                
-                if (context.initial == 0)
-                {
-                    if (context[itm.element._cool.hash] != true)
-                    {
-                        if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
-                        {
-                            itm.element._cool.isActive = true;
-                        }
-
-                        if (itm.callback(context, path, itm, method, args) == true)
-                        {
-                            context[itm.element._cool.hash] = true;
-                        }
-                    }
-                }
-                else
-                {
-                    if (context.map == null)
-                    {
-                        context.map = {};
-                    }
-
-                    if (context.map[itm.element._cool.hash] == null)
-                    {
-                        itm.path = path;
-                        itm.method = method;
-                        itm.args = args;
-
-                        context.map[itm.element._cool.hash] = itm;
-                    }
-                }
-            }
-        }
-    },
-
-    // call than property changed
     changed: function (path, method, args, last, curent, context)
     {
         var iamowner = false;
@@ -3246,19 +3257,24 @@
             iamowner = true;
         }
 
+        //if (path == "cat.cur.CatalogsCount" || path == "cat.cur.Records" || path == "cat.cur.Records.length")
+        //{
+        //    var bp = 0;
+        //}
+
         if (cool.obHt[path] != null)
         {
             var ob = cool.obHt[path];
 
             // #remove_line
-            cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
+            if (cool.trace) cool.logEx("Changed: " + path + "; Observe count: " + ob.list.length);
 
             for (var i = 0; i < ob.list.length; ++i)
             {
                 var itm = ob.list[i];
 
                 // #remove_line
-                console.log(cool.tagTostring("Refresh: ", itm.element));
+                if (cool.trace) console.log(cool.tagLvlToString("Refresh: ", itm.element));
 
                 if (context.map == null)
                 {
@@ -3298,8 +3314,8 @@
         {
             type: type,
             fieldVal: null,
-            fieldCan: null,
-            fastType: 0,
+            //fieldCan: null,
+            fastType: 0, // 0 - inline, 1 - var, 2 - object
             get: function ()
             {
                 if (this.fastType == 1)
@@ -3313,11 +3329,7 @@
                 }
                 else if (this.fastType == 2)
                 {
-                    var tmp = null;
-
-                    eval("tmp = " + this.value);
-
-                    return tmp;
+                    return cool.cloneObj(this.value);
                 }
 
                 return this.value;
@@ -3338,13 +3350,14 @@
         }
         else if (type == "var")
         {
-            ret.fastType = 2; // 1
+            ret.fastType = 1; 
             ret.value = value;
         }
         else if (type == "object" || type == "array")
         {
             ret.fastType = 2;
-            ret.value = value;
+
+            eval("ret.value = " + value);
         }
         else
         {
@@ -4130,8 +4143,7 @@
 
         return ret;
     },
-
-
+    
     // Stream data protocol
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
@@ -5408,7 +5420,7 @@
 
                     var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
                     var vField = cool.createField(text2);
-                    var selfVar = roots[vField.list[0].path] != null;
+                    var selfVar = roots[vField.js.list[0].path] != null;
 
                     vField.offset = 1;
 
@@ -5416,286 +5428,14 @@
 
                     var ttt = 3;
 
-                    if (vField.list.length == 2 && vField.list[1].path == "#index")
+                    if (vField.js.list.length == 2 && vField.js.list[1].path == "#index")
                     {
                         ttt = 4;
                     }
 
-                    if (vField.list.length > 0 && vField.list[0].path[0] == "$")
+                    if (vField.js.list.length > 0 && vField.js.list[0].path[0] == "$")
                     {
                         ttt = 5;
-                    }
-                    
-                    tmp.list.splice(n++, 0,
-                    {
-                        type: ttt,
-                        text: text2,
-                        vField: vField,
-                        selfVar: selfVar
-                    });
-
-                    r = ind7 + 1;
-                }
-            }
-        }
-
-        return tmp;
-    },
-
-    // build js-query template
-    buildTemplate2 : function(str, roots)
-    {
-        //str = unescape(str);
-
-        var tmp = { list: [], selfVars : true};
-
-        // parse #if #else #end
-        for (var i = 0; i < str.length; ++i)
-        {
-            var ind0 = str.indexOf("#if", i);
-
-            if (ind0 == -1)
-            {
-                tmp.list.push(
-                {
-                    type : 0,
-                    text: str.substr(i)
-                }); 
-
-                break;
-            }
-
-            var ind1 = str.indexOf("#", ind0 + 1);
-
-            if (ind1 == -1)
-            {
-                tmp.list.push(
-                {
-                    type : 0,
-                    text: str.substr(i)
-                }); 
-
-                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The close conditional char '#' not found.");
-
-                break;
-            }
-
-            var ind2 = str.indexOf("#end", ind1 + 1);
-
-            if (ind2 == -1)
-            {
-                tmp.list.push(
-                {
-                    type : 0,
-                    text: str.substr(i)
-                });   
-
-                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The '#end' of block #if-#end not found.");
-
-                break;
-            }
-
-            // text space
-            tmp.list.push(
-            {
-                type: 0,
-                text: str.substr(i, ind0 - i)
-            });
-            
-            var ind3 = str.indexOf("#else", ind1 + 1);
-            var text0 = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
-
-            var obj1 =
-            {
-                type: 1,
-                conditional: text0
-            };
-
-            if (ind3 != -1 && ind3 < ind2)
-            {
-                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind3 - ind1 - 1), roots);
-                obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, ind2 - ind3 - 5), roots);
-            }
-            else
-            {
-                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1 - 1), roots);
-                //obj1.main_block = cool.buildTemplate(str.substr(ind0 + 3, ind1 - ind0 - 3), roots);
-                //obj1.else_block = cool.buildTemplate(str.substr(ind1 + 1, ind2 - ind1 - 1), roots);
-            }
-                
-            if (obj1.conditional.selfVars)
-            {
-                obj1.func = cool.getRandomString();
-
-                var args0 = "";
-
-                for (var m in roots)
-                {
-                    if (roots.hasOwnProperty(m))
-                    {
-                        args0 += m + ", ";
-                    }
-                }
-
-                var scr0 = document.createElement('script');
-
-                scr0.type = 'text/javascript';
-                scr0.text = "document['" + obj1.func + "'] = function(" + args0.substr(0, args0.length - 2) + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
-
-                document.getElementsByTagName('body')[0].appendChild(scr0);
-            }
-            
-            tmp.list.push(obj1);
-
-            i = ind2 + 3;
-        }
-
-        // parse #script #end
-        for (var j = 0; j < tmp.list.length; ++j)
-        {
-            var itm0 = tmp.list[j];
-
-            if (itm0.type == 0)
-            {
-                itm0 = tmp.list.splice(j, 1)[0];
-
-                for (var k = 0; k < itm0.text.length; ++k)
-                {
-                    var ind4 = itm0.text.indexOf("#script", k);
-
-                    if (ind4 == -1)
-                    {
-                        tmp.list.splice(j, 0,
-                        {
-                            type : 0,
-                            text: itm0.text.substr(k)
-                        }); 
-
-                        break;
-                    }
-
-                    var ind5 = itm0.text.indexOf("#end", ind4);
-
-                    if (ind5 == -1)
-                    {
-                        tmp.list.splice(j, 0,
-                        {
-                            type : 0,
-                            text: itm0.text.substr(k)
-                        }); 
-
-                        console.log("js-query template warning at " + k + "char: Possible wrong #script syntax. The '#end' of block #script-#end not found.");
-
-                        break;
-                    }
-
-                    // text space
-                    tmp.list.splice(j++, 0,
-                    {
-                        type: 0,
-                        text: itm0.text.substr(k, ind4 - k)
-                    });
-                    
-                    var text = itm0.text.substr(ind4 + 7, ind5 - ind4 - 7);
-                    var prog = cool.buildTemplate(text, roots);
-                    var func = null;
-
-                    if (prog.selfVars)
-                    {
-                        func = cool.getRandomString();
-
-                        var args1 = "";
-
-                        for (var l in roots)
-                        {
-                            if (roots.hasOwnProperty(l))
-                            {
-                                args1 += l + ", ";
-                            }
-                        }
-
-                        args1 += " __index";
-
-                        var scr1 = document.createElement('script');
-
-                        scr1.type = 'text/javascript';
-                        scr1.text = "document['" + func + "'] = function(" + args1 + "){" + cool.concateTmpFrag(prog) + ";}"; // args1.substr(0, args1.length - 2)
-
-                        document.getElementsByTagName('body')[0].appendChild(scr1);
-                    }
-                    
-                    tmp.list.splice(j++, 0,
-                    {
-                        type : 2,
-                        prog: prog,
-                        text: text,
-                        func : func
-                    }); 
-
-                    k = ind5 + 3;
-                }
-            }
-        }
-
-        // parse variables
-        for (var n = 0; n < tmp.list.length; ++n)
-        {
-            var itm1 = tmp.list[n];
-
-            if (itm1.type == 0)
-            {
-                itm1 = tmp.list.splice(n, 1)[0];
-
-                for (var r = 0; r < itm1.text.length; ++r)
-                {
-                    var ind6 = itm1.text.indexOf("{{", r);
-
-                    if (ind6 == -1)
-                    {
-                        tmp.list.splice(n, 0,
-                        {
-                            type: 0,
-                            text: itm1.text.substr(r)
-                        });
-
-                        break;
-                    }
-
-                    var ind7 = itm1.text.indexOf("}}", ind6);
-
-                    if (ind7 == -1)
-                    {
-                        tmp.list.splice(n, 0,
-                        {
-                            type: 0,
-                            text: itm1.text.substr(r)
-                        });
-
-                        console.log("js-query template warning at " + r + "char: Possible wrong {{...}} syntax. Closing braces '}}' not found.");
-
-                        break;
-                    }
-
-                    // text space
-                    tmp.list.splice(n++, 0,
-                    {
-                        type: 0,
-                        text: itm1.text.substr(r, ind6 - r)
-                    });
-
-                    var text2 = itm1.text.substr(ind6 + 2, ind7 - ind6 - 2);
-                    var vField = cool.createField(text2);
-                    var selfVar = roots[vField.list[0].path] != null;
-
-                    vField.offset = 1;
-
-                    tmp.selfVars = tmp.selfVars && selfVar;
-
-                    var ttt = 3;
-
-                    if (vField.list.length == 2 && vField.list[1].path == "#index")
-                    {
-                        ttt = 4;
                     }
                     
                     tmp.list.splice(n++, 0,
@@ -5880,9 +5620,25 @@
         return "\"" + str + "\"";
     },
 
+    expressionType:
+    {
+        nope: 0,
+        object: 1,
+        array: 2,  
+        string: 4,
+        int: 8, 
+        float: 16,  
+        function: 32,  
+        operator: 64,  
+        conditional: 128,  
+        var: 256         
+    },
+    
     // parse Js expression
     parseJs: function (str, exps, start, end)
     {
+        var t = cool.expressionType;
+
         if (exps == null)
         {
             exps = cool.splitExpression(str);
@@ -5891,7 +5647,8 @@
             end = exps.length;
         }
 
-        var list = [];
+        var ret = { list: [], flags: t.nope };
+        var list = ret.list;
 
         for (var n = start; n < end; ++n)
         {
@@ -5903,17 +5660,17 @@
                 case "[" :
                 case "(" :
                 {
-                    var type = 6;
+                    var type = t.function;
                     var close = ")";
 
                     if (exp == "{")
                     {
-                        type = 1;
+                        type = t.object;
                         close = "}";
                     }
                     else if (exp == "[")
                     {
-                        type = 2;
+                        type = t.array;
                         close = "]";
                     }
                     
@@ -5931,18 +5688,24 @@
 
                     if (ind < 0)
                     {
-                        return console.log("Syntax error: closed brace ')' not found " + str);
+                        return console.log("Syntax error: closed brace '" + close + "' not found in " + str);
                     }
                     
                     var ppc = list.length - 1;
-
+                    var js = cool.parseJs(null, exps, n + 1, ind);
+                        
                     list[ppc] =
                     {
                         type: type,
                         head: list[ppc],
-                        body: cool.parseJs(null, exps, n + 1, ind)
+                        body: js.list,
+                        bodyFlags : js.flags,
+                        bodyExp: ""
                     };
-
+                    
+                    ret.flags |= type;
+                    ret.flags |= js.flags;
+                    
                     // todo make it rain
                     list[ppc].path = list[ppc].head.path;
                     list[ppc].inner = "";
@@ -5950,6 +5713,11 @@
                     for (var c = n + 1; c < ind; ++c)
                     {
                         list[ppc].inner += exps[c];
+                    }
+
+                    for (var c = n; c <= ind; ++c)
+                    {
+                        list[ppc].bodyExp += exps[c];
                     }
 
                     n = ind;
@@ -5967,10 +5735,12 @@
                 {
                     list.push
                     ({
-                        type: 8,
+                        type: t.conditional,
                         operator : exp
                     });
-
+                    
+                    ret.flags |= t.conditional;
+                    
                     break;
                 }
                 case '<<':
@@ -5985,9 +5755,11 @@
                 {
                     list.push
                     ({
-                        type: 7,
+                        type: t.operator,
                         operator : exp
                     });
+
+                    ret.flags |= t.operator;
 
                     break;
                 }
@@ -5995,9 +5767,11 @@
                 {
                     list.push
                     ({
-                        type: 0,
+                        type: t.nope,
                         operator: exp
                     });
+
+                    ret.flags |= t.nope;
 
                     continue;
                 }
@@ -6018,12 +5792,15 @@
                     for (var b = 0; b < tmp.length; ++b)
                     {
                         var tmp_itm = tmp[b];
+                        var tmp_t = cool.getType(tmp_itm);
 
                         list.push
                         ({
-                            type: cool.getType(tmp_itm),
+                            type: tmp_t,
                             path: tmp_itm
                         });
+
+                        ret.flags |= tmp_t;
                     }
 
                     break;
@@ -6031,18 +5808,7 @@
             }
         }
 
-        // expression types
-        // 0 - nope
-        // 1 - object
-        // 2 - array
-        // 3 - string
-        // 4 - int
-        // 5 - float
-        // 6 - function
-        // 7 - operator
-        // 8 - conditional
-        // 9 - var
-        return list;
+        return ret;
     },
 
     // split JS expression
@@ -6138,27 +5904,29 @@
     // get type value of string 
     getType: function(str)
     {
+        var t = cool.expressionType;
+
         if (str.length == 0)
         {
-            return 0;
+            return t.nope;
         }
 
         if (str.length > 1 && (str[0] == '"' && str[str.length - 1] == '"' || str[0] == "'" && str[str.length - 1] == "'"))
         {
-            return 3;
+            return t.string;
         }
 
         if (str == parseInt(str).toString())
         {
-            return 4;
+            return t.int;
         }
 
         if (str == parseFloat(str).toString())
         {
-            return 5;
+            return t.float;
         }
 
-        return 9;
+        return t.var;
     },
 
     // random string for function name
@@ -6571,7 +6339,7 @@
         },
         tel:
         {
-            pattern : "(\+?\d[- .]*){7,13}", //"(?:\(\d{3}\)|\d{3})[- ]?\d{3}[- ]?\d{4}",
+            pattern : "(\+?\d[- .]*){7,13}", 
             title : "Must contain only numbers, spaces and braces."
         }
     },
@@ -6602,11 +6370,10 @@
         {
             dv: dv,
             position: 0,
-            length: dv.byteLength,
             inverse: true,
             epochMicrotimeDiff : Math.abs(new Date(0, 0, 1).setFullYear(1)),
 
-            // Reads
+            // Read
             ReadSByte: function()
             {
                 var val = this.dv.getInt8(this.position);
@@ -6940,6 +6707,14 @@
             GetBuffer: function()
             {
                 return this.dv.buffer;
+            },
+            CanRead: function()
+            {
+                return this.position < this.dv.byteLength;
+            },
+            GetLength: function()
+            {
+                return dv.byteLength;
             }
         };
         
@@ -6948,13 +6723,23 @@
 
     // #remove_block For debug
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    debug: true,
+    trace: false,
 
     logEx: function(str)
     {
-        var level = 0;
-        var f = cool.logEx;
+        if (cool.debug)
+        {
+            var level = cool.getLevel();
+            console.log(Array(level * 2).join(' ') + str);
+        }
+    },
 
+    getLevel: function()
+    {
+        var level = 1;
         var isStrict = (function() { return !this; })();
+        var f = cool.getLevel;
 
         if (!isStrict)
         {
@@ -6971,28 +6756,28 @@
             }
         }
 
-        console.log(Array(level * 2).join(' ') + str);
+        return level;
     },
 
-    tagTostring : function(name, obj)
+    tagLvlToString : function(name, obj)
     {
-        var c = obj._cool;
-        var level = 0;
-
-        var f = cool.tagTostring;
-
-        while (f)
+        if (!cool.debug)
         {
-            level++;
-            f = f.caller;
-
-            if (level > 30)
-            {
-                break;
-            }
+            return "";
         }
 
-        var str = Array(level * 2).join(' ') + name + c.tagName;
+        var c = obj._cool;
+        var level = cool.getLevel();
+        var str = Array(level * 2).join(' ') + name + cool.tagToString(obj);
+
+        return str;
+    },
+
+    tagToString : function(obj)
+    {
+        var c = obj._cool;
+
+        var str = c.tagName;
 
         if (c.tagName == "js-if")
         {
@@ -7075,7 +6860,7 @@
         return str;
     },
 
-    atrTostring : function(obj)
+    atrToString : function(obj)
     {
         var c = obj._cool;
         var str = c.tagName;
@@ -7086,8 +6871,21 @@
         }
         
         return str;
-    }
+    },
 
+    getStack: function(obj)
+    {
+        var arr = [];
+
+        while (obj != null && obj._cool != null)
+        {
+            arr.unshift(cool.tagToString(obj));
+
+            obj = obj._cool.parent;
+        }
+
+        return arr.join('   -->   ');
+    }
     // #remove_block_end
 };
 
@@ -7162,7 +6960,7 @@ function InitCoolElement(base, elm)
                         }
 
                         // #remove_line
-                        console.log(cool.tagTostring("Action: ", itm));
+                        if (cool.trace) console.log(cool.tagLvlToString("Action: ", itm));
 
                         for (var j = 0; j < itm._cool.attributes.length; ++j)
                         {
@@ -7171,9 +6969,18 @@ function InitCoolElement(base, elm)
                             if (atr.action != null)
                             {
                                 // #remove_line
-                                console.log("Action atr: " + cool.atrTostring(atr));
-
-                                atr.action(context);
+                                if (cool.trace) console.log("Action atr: " + cool.atrToString(atr));
+                                
+                                try 
+                                {
+                                    atr.action(context);
+                                }
+                                catch (e) 
+                                {
+                                    console.log("Exeption on atr action: " + e);
+                                    // #remove_line
+                                    console.log(cool.getStack(itm));
+                                }
                             }
                         }
 
@@ -7184,7 +6991,17 @@ function InitCoolElement(base, elm)
                                 context[itm._cool.hash] = true;
 
                                 itm._cool.isActive = true;
-                                itm._cool.action(context, force);
+
+                                try 
+                                {
+                                    itm._cool.action(context, force);                                    
+                                }
+                                catch (e) 
+                                {
+                                    console.log("Exeption on " + itm._cool.tagName + " action: " + e);
+                                    // #remove_line
+                                    console.log(cool.getStack(itm));
+                                }
                             }
                         }
                     }
@@ -7233,7 +7050,7 @@ function InitCoolElement(base, elm)
                         }
 
                         // #remove_line
-                        console.log(cool.tagTostring("Cancel: ", itm));
+                        if (cool.trace) console.log(cool.tagLvlToString("Cancel: ", itm));
 
                         for (var j = 0; j < itm._cool.attributes.length; ++j)
                         {
@@ -7242,9 +7059,18 @@ function InitCoolElement(base, elm)
                             if (atr.cancel != null)
                             {
                                 // #remove_line
-                                console.log("Cancel atr: " + cool.atrTostring(atr));
+                                if (cool.trace) console.log("Cancel atr: " + cool.atrToString(atr));
 
-                                atr.cancel(context);
+                                try 
+                                {
+                                    atr.cancel(context);
+                                }
+                                catch (e) 
+                                {
+                                    console.log("Exeption on atr " + itm._cool.tagName + " cancel: " + e);
+                                    // #remove_line
+                                    console.log(cool.getStack(itm));
+                                }
                             }
                         }
 
@@ -7255,7 +7081,17 @@ function InitCoolElement(base, elm)
                                 context[itm._cool.hash] = true;
 
                                 itm._cool.isActive = false;
-                                itm._cool.cancel(context, force);
+
+                                try 
+                                {
+                                    itm._cool.cancel(context, force);
+                                }
+                                catch (e) 
+                                {
+                                    console.log("Exeption on " + itm._cool.tagName + " cancel: " + e);
+                                    // #remove_line
+                                    console.log(cool.getStack(itm));
+                                }
                             }
                         }
                     }
