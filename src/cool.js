@@ -6006,16 +6006,21 @@
     // init dom tree
     processElement : function(elm, forceParent)
     {
-        var tmp = elm.querySelectorAll("js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, js-move, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel]");
+        var ptn = "js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, js-move, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel], html";
+        var tmp = elm.querySelectorAll(ptn);
         var ht = {}; 
         var i = 0;
         var itm = null;
         var name = "";
+        var code = 0;
 
-        var code = InitCoolElement(null, elm).hash;
+        if (ptn.indexOf(elm.tagName.toLowerCase()) > 0)
+        {
+            code = InitCoolElement(null, elm).hash;
 
-        ht[code] = elm;
-       
+            ht[code] = elm;
+        }
+      
         var arr = [];
 
         // filter tags and init base function
@@ -6077,7 +6082,6 @@
 
         // build tag tree
         for (i = 0 ; i < arr.length; ++i)
-        //for (i = arr.length - 1; i >= 0; --i)
         {
             itm = arr[i];
 
@@ -6087,21 +6091,21 @@
             {
                 if (cur._cool != null)
                 {
-                    if (cur._cool == true || cur._cool.tagName == "js-query" && (!cur._cool.isActive))//cur._cool.isActive == null || 
+                    if (cur._cool == true || cur._cool.tagName == "js-query" && (!cur._cool.isActive)) //cur._cool.isActive == null || 
                     {
                         itm._cool = true;
 
                         break;
                     }
 
-                    if (ht[cur._cool.hash] != null)
-                    {
-                        if (itm.name == "js-set")
+                    //if (ht[cur._cool.hash] != null)
+                    //{
+                        if (itm.name == "js-set" && ht[cur._cool.hash] != null)
                         {
                             sets.push(itm.obj);
                         }
                         
-                        if (forceParent != null && cur == elm)
+                        if (forceParent != null && (cur == elm || ht[cur._cool.hash] == null))
                         {
                             itm.obj._cool.parent = forceParent;
 
@@ -6115,7 +6119,7 @@
                         }
 
                         break;
-                    }
+                    //}
                 }
 
                 cur = cur.parentNode;
