@@ -2336,7 +2336,7 @@
         var tnm = obj.tagName.toLowerCase();
 
         bind.isInput = tnm == "input";
-        bind.isTextaria = tnm == "textaria";
+        bind.isTextarea = tnm == "textarea";//Textarea
         bind.isSelect = tnm == "select";
         bind.isFloat = obj.hasAttribute("float");
         bind.lock1 = false;
@@ -2371,7 +2371,7 @@
                 bind.isText = true;
             }
         }
-        else if (bind.isTextaria || bind.isSelect)
+        else if (bind.isTextarea || bind.isSelect)
         {
             bind.isText = true;
         }
@@ -2389,7 +2389,6 @@
                 {
                     bind.refreshEx = function ()
                     {
-                        //this.obj.checked = this.field.get();
                         var tmp = this.field.get();
 
                         if (tmp != null)
@@ -2500,7 +2499,7 @@
                     };
                 }
             }
-            else if (bind.isSelect || bind.isTextaria)
+            else if (bind.isSelect || bind.isTextarea)
             {
                 bind.getVal = function ()
                 {
