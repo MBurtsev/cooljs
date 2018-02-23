@@ -1043,10 +1043,10 @@
             }
         }
         
-        //if (select == "atm From rec.Atoms")
-        //{
-        //    var bp = 0;
-        //}
+        if (select == "atm From rec.Atoms")
+        {
+            var bp = 0;
+        }
 
         obj._cool.template = cool.buildTemplate(tmp, obj._cool.rootMap);
 
@@ -1054,9 +1054,6 @@
         obj._cool.template.pl_end = pl_end;
         
         // init events
-
-        //obj._cool.renderEnd = new CustomEvent('renderEnd', { 'context' : null });
-
         obj._cool.renderEnd = document.createEvent('Event');
         obj._cool.renderEnd.initEvent('renderEnd', true, true);
 
@@ -1161,10 +1158,10 @@
                     arr.push(this.template.pl_start);
                 }
 
-                //if (this.select == "itm From adm.doc.cur.Templates")
-                //{
-                //    var bp = 0;
-                //}
+                if (this.select == "atm From rec.Atoms")
+                {
+                    var bp = 0;
+                }
 
                 // fill template
                 for (var i = 0; i < this.data.length; ++i)
@@ -5174,19 +5171,88 @@
     // build js-query template
     buildTemplate : function(str, roots)
     {
-        //str = unescape(str);
-
         var tmp = { list: [], selfVars : true};
 
         var len_end_if = "#end-if".length;
         var len_end_sc = "#end-script".length;
 
-        // parse #if #else #end
+        var skip_map = [];
+
+        // build skip map for internal queries
         for (var i = 0; i < str.length; ++i)
         {
-            var inds = cool.findCloseTag(str, "#if", "#end-if", i);
+            var inds = cool.findCloseTag(str, "<js-query", "</js-query", i);
 
-            if (inds.start == -1)
+            if (inds.start > -1)
+            {
+                inds.type = 1;
+                skip_map.push(inds);
+
+                i += inds.end + "</js-query".length - 1;
+
+                continue;
+            }
+
+            inds = cool.findCloseTag(str, "type='js-query", "</script", i);
+
+            if (inds.start > -1)
+            {
+                inds.type = 1;
+                skip_map.push(inds);
+
+                i += inds.end + "</script".length - 1;
+
+                continue;
+            }
+
+            inds = cool.findCloseTag(str, "type=\"js-query", "</script", i);
+
+            if (inds.start > -1)
+            {
+                inds.type = 1;
+                skip_map.push(inds);
+
+                i += inds.end + "</script".length - 1;
+
+                continue;
+            }
+
+
+            break;
+        }
+
+        for (var i = 0; i < str.length; ++i)
+        {
+            var inds0 = cool.findCloseTag(str, "#if", "#end-if", i);
+            var inds1 = cool.findCloseTag(str, "#script", "#end-script", i);
+
+            var inds = null;
+            var flag = true;
+
+            if (inds0.start > -1 && inds1.start > -1)
+            {
+                if (inds0.start < inds1.start) 
+                {
+                    inds = inds0;
+                }
+                else
+                {
+                    inds = inds1;
+                    flag = false;
+                }
+            }
+            else if (inds0.start > -1)
+            {
+                inds = inds0;
+            }
+            else if (inds1.start > -1)
+            {
+                inds = inds1;
+                flag = false;
+            }
+
+            // nothing here exit
+            if (inds == null)
             {
                 tmp.list.push(
                 {
@@ -5196,178 +5262,192 @@
 
                 break;
             }
-            // todo .... fuck here
-            var ind1 = str.indexOf(" #", inds.start + 1);
+            
+            var need_skip = false;
 
-            if (ind1 == -1)
+            // check skip
+            for (var j = 0; j < skip_map.length; ++j)
             {
+                var skip = skip_map[j];
+
+                if (inds.start > skip.start && inds.start < skip.end)
+                {
+                    need_skip = true;
+
+                    break;
+                }
+            }
+
+            if (need_skip)
+            {
+                var len = 0;
+
+                if (flag)
+                {
+                    len = inds.end + len_end_if;
+                }
+                else
+                {
+                    len = inds.end + len_end_sc;
+                }
+
                 tmp.list.push(
                 {
                     type : 0,
-                    text: str.substr(i)
+                    text: str.substr(i, len)
                 }); 
 
-                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The close conditional char '#' not found.");
+                i += len - 1;
 
-                break;
+                continue;
             }
 
-            if (inds.end == -1)
+            if (flag)
             {
+               // todo .... fuck here
+                var ind1 = str.indexOf(" #", inds.start + 1);
+
+                if (ind1 == -1)
+                {
+                    tmp.list.push(
+                    {
+                        type : 0,
+                        text: str.substr(i)
+                    }); 
+
+                    console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The close conditional char '#' not found.");
+
+                    break;
+                }
+
+                if (inds.end == -1)
+                {
+                    tmp.list.push(
+                    {
+                        type : 0,
+                        text: str.substr(i)
+                    });   
+
+                    console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The '#end' of block #if-#end-if not found.");
+
+                    break;
+                }
+
+                // text space
                 tmp.list.push(
                 {
-                    type : 0,
-                    text: str.substr(i)
-                });   
+                    type: 0,
+                    text: str.substr(i, inds.start - i)
+                });
 
-                console.log("js-query template warning at " + i + "char: Possible wrong #if syntax. The '#end' of block #if-#end-if not found.");
+                var inds_else = cool.findCloseTag(str, "#if", "#else", inds.start);
 
-                break;
-            }
+                var ind3 = inds_else.end;
+                var text0 = cool.buildTemplate(str.substr(inds.start + 3, ind1 - inds.start - 3), roots);
 
-            // text space
-            tmp.list.push(
-            {
-                type: 0,
-                text: str.substr(i, inds.start - i)
-            });
+                var obj1 =
+                {
+                    type: 1,
+                    conditional: text0
+                };
 
-            var inds_else = cool.findCloseTag(str, "#if", "#else", inds.start);
+                if (ind3 != -1 && ind3 < inds.end)
+                {
+                    obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, ind3 - ind1 - 2), roots);
+                    obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
+                }
+                else
+                {
+                    obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, inds.end - ind1 - 2), roots);
+                }
+                
+                if (obj1.conditional.selfVars)
+                {
+                    obj1.func = cool.getRandomString();
 
-            var ind3 = inds_else.end;
-            var text0 = cool.buildTemplate(str.substr(inds.start + 3, ind1 - inds.start - 3), roots);
+                    var args0 = "";
 
-            var obj1 =
-            {
-                type: 1,
-                conditional: text0
-            };
+                    for (var m in roots)
+                    {
+                        if (roots.hasOwnProperty(m))
+                        {
+                            args0 += m + ", ";
+                        }
+                    }
 
-            if (ind3 != -1 && ind3 < inds.end)
-            {
-                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, ind3 - ind1 - 2), roots);
-                obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
+                    args0 += "__index";
+
+                    var scr0 = document.createElement('script');
+
+                    scr0.type = 'text/javascript';
+                    scr0.text = "document['" + obj1.func + "'] = function(" + args0 + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
+
+                    document.getElementsByTagName('body')[0].appendChild(scr0);
+                }
+            
+                tmp.list.push(obj1);
+
+                i = inds.end + len_end_if - 1;
             }
             else
             {
-                obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, inds.end - ind1 - 2), roots);
-            }
-                
-            if (obj1.conditional.selfVars)
-            {
-                obj1.func = cool.getRandomString();
-
-                var args0 = "";
-
-                for (var m in roots)
+                if (inds.end == -1)
                 {
-                    if (roots.hasOwnProperty(m))
+                    tmp.list.push(
                     {
-                        args0 += m + ", ";
-                    }
-                }
-
-                args0 += "__index";
-
-                var scr0 = document.createElement('script');
-
-                scr0.type = 'text/javascript';
-                scr0.text = "document['" + obj1.func + "'] = function(" + args0 + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
-
-                document.getElementsByTagName('body')[0].appendChild(scr0);
-            }
-            
-            tmp.list.push(obj1);
-
-            i = inds.end + len_end_if - 1;
-        }
-
-        // parse #script #end
-        for (var j = 0; j < tmp.list.length; ++j)
-        {
-            var itm0 = tmp.list[j];
-
-            if (itm0.type == 0)
-            {
-                itm0 = tmp.list.splice(j, 1)[0];
-
-                for (var k = 0; k < itm0.text.length; ++k)
-                {
-                    var inds = cool.findCloseTag(itm0.text, "#script", "#end-script", k);
-
-                    var ind4 = inds.start;
-
-                    if (ind4 == -1)
-                    {
-                        tmp.list.splice(j, 0,
-                        {
-                            type : 0,
-                            text: itm0.text.substr(k)
-                        }); 
-
-                        break;
-                    }
-
-                    var ind5 = inds.end;
-
-                    if (ind5 == -1)
-                    {
-                        tmp.list.splice(j, 0,
-                        {
-                            type : 0,
-                            text: itm0.text.substr(k)
-                        }); 
-
-                        console.log("js-query template warning at " + k + "char: Possible wrong #script syntax. The '#end-script' of #script block not found.");
-
-                        break;
-                    }
-
-                    // text space
-                    tmp.list.splice(j++, 0,
-                    {
-                        type: 0,
-                        text: itm0.text.substr(k, ind4 - k)
-                    });
-                    
-                    var text = itm0.text.substr(ind4 + 7, ind5 - ind4 - 7);
-                    var prog = cool.buildTemplate(text, roots);
-                    var func = null;
-
-                    if (prog.selfVars)
-                    {
-                        func = cool.getRandomString();
-
-                        var args1 = "";
-
-                        for (var l in roots)
-                        {
-                            if (roots.hasOwnProperty(l))
-                            {
-                                args1 += l + ", ";
-                            }
-                        }
-
-                        args1 += " __index";
-
-                        var scr1 = document.createElement('script');
-
-                        scr1.type = 'text/javascript';
-                        scr1.text = "document['" + func + "'] = function(" + args1 + "){" + cool.concateTmpFrag(prog) + ";}"; // args1.substr(0, args1.length - 2)
-
-                        document.getElementsByTagName('body')[0].appendChild(scr1);
-                    }
-                    
-                    tmp.list.splice(j++, 0,
-                    {
-                        type : 2,
-                        prog: prog,
-                        text: text,
-                        func : func
+                        type : 0,
+                        text: str.substr(i)
                     }); 
 
-                    k = ind5 + len_end_sc - 1;
+                    console.log("js-query template warning at " + i + "char: Possible wrong #script syntax. The '#end-script' of #script block not found.");
+
+                    break;
                 }
+
+                // text space
+                tmp.list.push(
+                {
+                    type: 0,
+                    text: str.substr(i, inds.start - i)
+                });
+                    
+                var text = str.substr(inds.start + 7, inds.end - inds.start - 7);
+                var prog = cool.buildTemplate(text, roots);
+                var func = null;
+
+                if (prog.selfVars)
+                {
+                    func = cool.getRandomString();
+
+                    var args1 = "";
+
+                    for (var l in roots)
+                    {
+                        if (roots.hasOwnProperty(l))
+                        {
+                            args1 += l + ", ";
+                        }
+                    }
+
+                    args1 += " __index";
+
+                    var scr1 = document.createElement('script');
+
+                    scr1.type = 'text/javascript';
+                    scr1.text = "document['" + func + "'] = function(" + args1 + "){" + cool.concateTmpFrag(prog) + ";}"; // args1.substr(0, args1.length - 2)
+
+                    document.getElementsByTagName('body')[0].appendChild(scr1);
+                }
+                    
+                tmp.list.push(
+                {
+                    type : 2,
+                    prog: prog,
+                    text: text,
+                    func : func
+                }); 
+
+                i = inds.end + len_end_sc - 1;
             }
         }
 
