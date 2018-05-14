@@ -1043,7 +1043,7 @@
             }
         }
         
-        if (select == "atm From rec.Atoms")
+        if (select == "atm From rec.Atoms Order atm.fld.Order")
         {
             var bp = 0;
         }
@@ -1077,6 +1077,11 @@
             //    this.enable();
             //    return;
             //}
+
+            if (select == "atm From rec.Atoms Order atm.fld.Order")
+            {
+                var bp = 0;
+            }
 
             if (this.data == null || this.isAlways || this.isChanged)
             {
@@ -1158,7 +1163,7 @@
                     arr.push(this.template.pl_start);
                 }
 
-                if (this.select == "atm From rec.Atoms")
+                if (select == "atm From rec.Atoms Order atm.fld.Order")
                 {
                     var bp = 0;
                 }
@@ -1891,7 +1896,10 @@
                         }
                     }
 
-                    itm.addEventListener("keyup", this.func.bind(this));
+                    var bind = this.func.bind(this);
+
+                    itm.addEventListener("keyup", bind);
+                    itm.addEventListener("change", bind);
                 }
             }
 
@@ -2856,10 +2864,14 @@
             get: function (target, property)
             {
                 var tmp = null;
+                var sckipInit = this.js.list.length > 0 && this.js.list[0].type == 32;
 
                 if (target == null)
                 {
-                    target = window;
+                    if (!sckipInit)
+                    {
+                        target = window;
+                    }
                 }
 
                 if (property == null)
@@ -2868,12 +2880,15 @@
                 }
                 else
                 {
-                    property = this.path.length > 0 ? "." + property + ";" : property + ";";
+                    if (!sckipInit)
+                    {
+                        property = this.path.length > 0 ? "." + property + ";" : property + ";";
+                    }
                 }
 
                 try
                 {
-                    if (!this.checkedPath)
+                    if (!this.checkedPath && !sckipInit)
                     {
                         var cur = target;
                         var arr = this.root.split('.');
@@ -2893,7 +2908,14 @@
                         this.checkedPath = true;
                     }
                     
-                    eval("tmp = target." + this.path + property);
+                    if (sckipInit)
+                    {
+                        eval("tmp = " + this.path + ";");
+                    }
+                    else
+                    {
+                        eval("tmp = target." + this.path + property);
+                    }
                 }
                 catch (e)
                 {
@@ -5769,10 +5791,17 @@
                     {
                         return console.log("Syntax error: closed brace '" + close + "' not found in " + str);
                     }
+
+
+                    var js = cool.parseJs(null, exps, n + 1, ind);
+
+                    if (list.length == 0)
+                    {
+                        list.push({path: ""});
+                    }
                     
                     var ppc = list.length - 1;
-                    var js = cool.parseJs(null, exps, n + 1, ind);
-                        
+                    
                     list[ppc] =
                     {
                         type: type,
