@@ -602,7 +602,13 @@
                             var tmp = cool.toQueryScript(http.responseText);
                                 
                             tag._cool.clear();
-                            tag.innerHTML = tmp;
+
+                            if (tag._cool.orign == null) 
+                            {
+                                 tag._cool.orign = tag.innerHTML;
+                            }
+
+                            tag.innerHTML = tag._cool.orign + tmp;
 
                             cool.processElement(tag);
 
@@ -1043,10 +1049,10 @@
             }
         }
         
-        if (select == "atm From rec.Atoms Order atm.fld.Order")
-        {
-            var bp = 0;
-        }
+        //if (select == "atm From rec.Atoms Order atm.fld.Order")
+        //{
+        //    var bp = 0;
+        //}
 
         obj._cool.template = cool.buildTemplate(tmp, obj._cool.rootMap);
 
@@ -1077,11 +1083,6 @@
             //    this.enable();
             //    return;
             //}
-
-            if (select == "atm From rec.Atoms Order atm.fld.Order")
-            {
-                var bp = 0;
-            }
 
             if (this.data == null || this.isAlways || this.isChanged)
             {
@@ -1287,7 +1288,14 @@
                     }
                     else
                     {
-                        tmp(tit);
+                        try 
+                        {
+                            tmp(tit);
+                        }
+                        catch(e)
+                        {
+                            console.log("Exception on render-element-complate event: " + e);
+                        }
                     }
                 }
 
@@ -3057,24 +3065,23 @@
                 for (; end < arr.length; ++end)
                 {
                     var itm = arr[end];
+                    var len = path == null ? 0 : path.length;
 
                     if (itm.type == t.var)
                     {
                         if (!skipRoot)
                         {
-                            path += end == 0 ? itm.path : "." + itm.path;
+                            path += len == 0 ? itm.path : "." + itm.path;
                         }
                     }
                     else if (itm.type == t.array)
                     {
                         if (!skipRoot)
                         {
-                            path += end == 0 ? itm.path : "." + itm.path;
+                            path += len == 0 ? itm.path : "." + itm.path;
                             
                             this.root = path;
                             this.addVar(path, 0, arr, start, end);
-
-                            //path = "";
                         }
 
                         if ((itm.bodyFlags & t.function) == t.function || (itm.bodyFlags & t.var) == t.var || (itm.bodyFlags & t.object) == t.object)
@@ -3090,8 +3097,6 @@
                     }
                     else if (itm.type == t.function)
                     {
-                        //path += end == 0 ? itm.path : "." + itm.path;
-
                         skipRoot = true;
 
                         this.refreshVars(itm.body, 2);
@@ -3200,51 +3205,7 @@
         }
     },
 
-    // add field to observe
-    addToObserve2: function (path, field, fieldVar, depth, callback, element)
-    {
-        if (cool.obHt[path] == null)
-        {
-            cool.obHt[path] = { list: [] };
-        }
-
-        var ind = -1;
-
-        for (var f = 0; f < cool.obHt[path].list.length; ++f)
-        {
-            if (cool.obHt[path].list[f].field == field)
-            {
-                ind = f;
-
-                break;
-            }
-        }
-
-        if (ind == -1)
-        {
-            cool.obHt[path].list.push({ path: path, field: field, fieldVar: fieldVar, depth: depth, callback: callback, element: element });
-        }
-
-        // for parent observe
-        if (depth > 1)
-        {
-            var arr = path.split(".");
-
-            for (var j = arr.length - depth; j >= 0 && j < arr.length - 1; ++j)
-            {
-                var str = "";
-
-                for (var n = 0; n <= j; ++n)
-                {
-                    str += arr[n] + (n < j ? "." : "");
-                }
-
-                cool.addToObserve(str, field, fieldVar, 1, callback, element);
-            }
-        }
-    },
-
-    // call than property changed
+     // call than property changed
     changed: function (path, method, args, last, curent, context)
     {
         var iamowner = false;
@@ -4798,7 +4759,7 @@
             {
                 var tmp = {};
 
-                main[i]["$source"] = i;
+                main[i]["__source"] = i;
 
                 tmp[prog.from.v] = main[i];
 
@@ -4916,7 +4877,7 @@
             // init main
             for (var i = 0; i < main.length; ++i)
             {
-                main[i]["$source"] = i;
+                main[i]["__source"] = i;
 
                 comp.push(main[i]);
             }
@@ -5529,7 +5490,7 @@
 
                     var ttt = 3;
 
-                    if (vField.js.list.length == 2 && vField.js.list[1].path == "#index")
+                    if (vField.js.list.length == 2 && vField.js.list[1].path == "__index")
                     {
                         ttt = 4;
                     }
@@ -6775,6 +6736,17 @@
 
                 this.WriteInt64(ticks);
             },
+            WriteArrayBuffer: function (arr, pos, len) 
+            {
+                var buf = new DataView(arr, 0);
+
+                for (var i = pos; i < pos + len; ++i) 
+                {
+                    var b = buf.getUint8(i, false);
+
+                    this.WriteByte(b);
+                }
+            },
             Write: function(val, type)
             {
                 eval("this.Write" + type + "(val);");
@@ -6810,8 +6782,6 @@
                     var b = this.dv.getUint8(i, this.inverse);
 
                     dv.setUint8(i, b, this.inverse);
-
-                    //buf1[i] = buf0[i];
                 }
 
                 this.dv = dv;
