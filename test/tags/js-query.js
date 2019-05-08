@@ -16,10 +16,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "user", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({ initial: 0 });
+
+        jsQueryTest.checkFrom(obj, "user", assert);
 
         h.checkData(jsQueryTest.createTestUserData(10), obj._cool.data, assert);
 
@@ -46,11 +46,11 @@
         assert.ok(area.childNodes.length == 1, "Chield count");
 
         var obj = area.childNodes[0];;
+        
+        // raise action
+        obj._cool.action({initial : 0});
 
         jsQueryTest.checkFrom(obj, "user", assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).sort(function(a, b)
         {
@@ -90,12 +90,12 @@
 
         assert.ok(area.childNodes.length == 1, "Chield count");
 
-        var obj = area.childNodes[0];;
-
-        jsQueryTest.checkFrom(obj, "user", assert);
-
+        var obj = area.childNodes[0];
+        
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+                
+        jsQueryTest.checkFrom(obj, "user", assert);
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 3);
         
@@ -124,11 +124,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+
         jsQueryTest.checkFrom(obj, "user", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 1);
 
@@ -157,11 +157,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+
         jsQueryTest.checkFrom(obj, "user", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).slice(9);
 
@@ -190,11 +190,11 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "user", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({ initial: 0 });
 
+        jsQueryTest.checkFrom(obj, "user", assert);
+        
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 3).sort(function (a, b)
         {
             if (a.code > b.code)
@@ -234,11 +234,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+
         jsQueryTest.checkFrom(obj, "user", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).slice(1, 4).sort(function (a, b)
         {
@@ -280,11 +280,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+        
         jsQueryTest.checkFrom(obj, "user", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
 
@@ -315,11 +315,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+        
         jsQueryTest.checkFrom(obj, "user", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = jsQueryTest.createTestUserData(10).slice(0, 5);
 
@@ -351,10 +351,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+
+        jsQueryTest.checkFrom(obj, "item", assert);
 
         var tdata = [];
 
@@ -393,11 +393,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+
         jsQueryTest.checkFrom(obj, "item", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = [];
 
@@ -436,11 +436,11 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({ initial: 0 });
 
+        jsQueryTest.checkFrom(obj, "item", assert);
+        
         var tdata = [];
 
         var u = jsQueryTest.createTestUserData(10).slice(0, 3);
@@ -478,10 +478,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+
+        jsQueryTest.checkFrom(obj, "item", assert);
 
         var tdata = [];
 
@@ -544,10 +544,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+
+        jsQueryTest.checkFrom(obj, "item", assert);
 
         var tdata = [];
 
@@ -610,11 +610,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+        
         jsQueryTest.checkFrom(obj, "item", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = [];
 
@@ -653,11 +653,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+        
         jsQueryTest.checkFrom(obj, "item", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = [];
 
@@ -720,11 +720,11 @@
 
         var obj = area.childNodes[0];;
 
+        // raise action
+        obj._cool.action({initial : 0});
+
         jsQueryTest.checkFrom(obj, "item", assert);
         jsQueryTest.checkWhere(obj, assert);
-
-        // raise action
-        obj._cool.action();
 
         var tdata = [];
 
@@ -789,10 +789,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+
+        jsQueryTest.checkFrom(obj, "item", assert);
 
         var tdata = [];
 
@@ -847,8 +847,7 @@
         delete jsQueryTest.profiles;
         delete area._cool;
     },
-
-
+    
     fromJoinJoin: function (assert)
     {
         jsQueryTest.users = jsQueryTest.createTestUserData(10);
@@ -867,10 +866,10 @@
 
         var obj = area.childNodes[0];;
 
-        jsQueryTest.checkFrom(obj, "item", assert);
-
         // raise action
-        obj._cool.action();
+        obj._cool.action({initial : 0});
+
+        jsQueryTest.checkFrom(obj, "item", assert);
 
         var tdata = [];
 

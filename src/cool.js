@@ -27,6 +27,7 @@
 
         cool.jsA =
         {
+            "js": cool.atrJs,
             "js-bind": cool.atrBindBoth,
             "js-read": cool.atrBindRead,
             "js-write": cool.atrBindWrite,
@@ -486,7 +487,7 @@
         }
     },
 
-    // js-load
+    // js-load +++
     tagLoad: function(obj)
     {
         obj._cool.atrMap =
@@ -1967,19 +1968,67 @@
     },
 
     // js-atr-proxy. This tag needs for html elements who has js-attributes
-    tagAtrProxy: function(obj)
+    tagAtrProxy: function(elm)
     {
-        obj._cool.cancelDisplay = true;
-
-        for (var i = 0; i < obj._cool.attributes.length; ++i)
+        elm._cool.cancelDisplay = true;
+        elm._cool.atrMap =
         {
-            var itm = obj._cool.attributes[i];
+            target: elm,
+            other: function(name)
+            {
+                if (this.target._cool[name] != null)
+                {
+                    var atr = this.target._cool[name];
+
+                    if (atr.changed != null)
+                    {
+                        atr.changed();
+                    }
+                }
+
+                if (this.target._cool.js != null)
+                {
+                    this.target._cool.js.refresh(name);
+                    this.target._cool.js.action();
+                }
+            }
+        }
+
+        for (var i = 0; i < elm._cool.attributes.length; ++i)
+        {
+            var itm = elm._cool.attributes[i];
 
             if (cool.jsA[itm.name] != null)
             {
-                cool.jsA[itm.name](obj, i);
+                cool.jsA[itm.name](elm, i);
             }
         }
+
+        elm._cool.action = function (context, force)
+        {
+            for (var i = 0; i < this.attributes.length; ++i)
+            {
+                var itm = this.attributes[i];
+
+                if (itm.action != null)
+                {
+                    itm.action(context);
+                }
+            }
+        };
+
+        elm._cool.canncel = function (context, force)
+        {
+            for (var i = 0; i < this.attributes.length; ++i)
+            {
+                var itm = this.attributes[i];
+
+                if (itm.cancel != null)
+                {
+                    itm.cancel(context);
+                }
+            }
+        };
     },
     
     // js-text
@@ -2313,7 +2362,180 @@
 
     // Attributes
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
+
+    // js 
+    atrJs: function(obj, index)
+    {
+        var atr = obj._cool.attributes[index];
+
+        atr.target = obj;
+        atr.refresh = function(selector, value)
+        {
+            if (selector != null)
+            {
+                if (typeof (selector) == "string" && this.target.hasAttribute(selector))
+                {
+                    var itm = this.target.attributes.getNamedItem(selector);
+
+                    if (value != null)
+                    {
+                        itm.value = value;
+                    }
+
+                    this.refreshItem(itm);
+                }
+                else if (typeof (selector) == "number" && selector < this.target.attributes.length)
+                {
+                    var itm = this.target.attributes[selector];
+
+                    if (value != null)
+                    {
+                        itm.value = value;
+                    }
+
+                    this.refreshItem(itm);
+                }
+
+                return;
+            }
+
+            atr.map = {};
+
+            for (var i = 0; i < obj.attributes.length; ++i)
+            {
+                var itm = obj.attributes[i];
+                var val = itm.value;
+
+                if (val == null)
+                {
+                    continue;
+                }
+
+                this.refreshItem(itm);
+            }
+        };
+        atr.refreshItem = function (item)
+        {
+            var ind = 0;
+            var key = item.name;
+            var val = item.value;
+            var cur = null;
+
+            while (true)
+            {
+                var last = ind;
+                ind = val.indexOf("{{", ind);
+
+                if (ind > -1)
+                {
+                    var end = val.indexOf("}}", ind);
+
+                    if (end == -1)
+                    {
+                        break;
+                    }
+
+                    if (cur == null)
+                    {
+                        cur =
+                        {
+                            name: key,
+                            orign: val,
+                            data: []
+                        };
+
+                        this.map[key] = cur;
+                    }
+
+                    // add text
+                    if (ind - last > 0)
+                    {
+                        cur.data.push({ type: 0, value: val.substr(last, ind - last )});
+                    }
+
+                    ind += 2;
+
+                    // add value
+                    cur.data.push({ type: 1, value: val.substr(ind, end - ind)});
+
+                    ind = end + 2;
+                    continue;
+                }
+
+                // add final text
+                if (last > 0 && last < val.length)
+                {
+                    cur.data.push({ type: 0, value: val.substr(last) });
+                }
+
+                break;
+            }
+
+            if (key.indexOf("to-") == 0)
+            {
+                if (cur == null)
+                {
+                    cur =
+                    {
+                        name: key,
+                        key: key.substr(3),
+                        orign: val,
+                        data: [{ type: 0, value: val }]
+                    };
+
+                    this.map[key] = cur;
+                }
+                else
+                {
+                    cur.key = key.substr(3);
+                }
+            }
+        };
+        atr.action = function ()
+        {
+            for (var name in this.map)
+            {
+                var val = "";
+                var itm = this.map[name];
+                var key = itm.key;
+
+                for (var i = 0; i < itm.data.length; ++i)
+                {
+                    var row = itm.data[i];
+
+                    // text
+                    if (row.type == 0)
+                    {
+                        val += row.value;
+                    }
+                    // variable
+                    else if (row.type == 1)
+                    {
+                        try
+                        {
+                            var tmp = null;
+
+                            eval("tmp = " + row.value);
+
+                            if (tmp != null)
+                            {
+                                val += tmp;
+                            }
+                        }
+                        catch (e)
+                        {
+                            console.log(e);
+                        }
+                    }
+                }
+
+                this.target.setAttribute(key, val);
+            }
+        };
+        atr.target.refresh = atr.refresh;
+        atr.refresh();
+    },
+
     // js-bind
     atrBindBoth: function(obj, index)
     {
@@ -2335,8 +2557,6 @@
     // js-bind all modes
     atrBindEx: function (obj, bind, isReadOnly, isWriteOnly)
     {
-        //var bind = {};
-
         obj._cool.bind = bind;
 
         bind.path = bind.value;
@@ -2872,7 +3092,17 @@
             get: function (target, property)
             {
                 var tmp = null;
-                var sckipInit = this.js.list.length > 0 && this.js.list[0].type == 32;
+                //var sckipInit = this.js.list.length > 0 && this.js.list[0].type == 32;
+                //var sckipInit =
+                //    this.js.type & 1 == 1 ||
+                //    this.js.type & 2 == 2 ||
+                //    this.js.type & 4 == 4 ||
+                //    this.js.type & 8 == 8 ||
+                //    this.js.type & 16 == 16 ||
+                //    this.js.type & 32 == 32 ||
+                //    this.js.type = 0;
+
+                var sckipInit = this.js.flags != 256;
 
                 if (target == null)
                 {
@@ -4119,6 +4349,15 @@
                 break;
             }
         }
+
+        return ret;
+    },
+
+    // 
+    $: function (elm, query)
+    {
+        var prog = cool.compileSelector(query);
+        var ret = cool.getBySelector(prog, elm);
 
         return ret;
     },
@@ -6075,7 +6314,7 @@
     // init dom tree
     processElement : function(elm, forceParent)
     {
-        var ptn = "js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, js-move, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel], html";
+        var ptn = "js-set, js-call, js-query, script[type=js-query], js-load, js-page, js-if, js-ajax, js-several, js-event, js-style, js-atr, js-validate, js-text, js-go, js-width, js-move, [js-bind], [js-read], [js-write], [js-class], [js-class-cancel], [js], html";
         var tmp = elm.querySelectorAll(ptn);
         var ht = {}; 
         var i = 0;
@@ -7044,27 +7283,27 @@ function InitCoolElement(base, elm)
                         // #remove_line
                         if (cool.trace) console.log(cool.tagLvlToString("Action: ", itm));
 
-                        for (var j = 0; j < itm._cool.attributes.length; ++j)
-                        {
-                            var atr = itm._cool.attributes[j];
+                        //for (var j = 0; j < itm._cool.attributes.length; ++j)
+                        //{
+                        //    var atr = itm._cool.attributes[j];
 
-                            if (atr.action != null)
-                            {
-                                // #remove_line
-                                if (cool.trace) console.log("Action atr: " + cool.atrToString(atr));
+                        //    if (atr.action != null)
+                        //    {
+                        //        // #remove_line
+                        //        if (cool.trace) console.log("Action atr: " + cool.atrToString(atr));
                                 
-                                try 
-                                {
-                                    atr.action(context);
-                                }
-                                catch (e) 
-                                {
-                                    console.log("Exeption on atr action: " + e);
-                                    // #remove_line
-                                    console.log(cool.getStack(itm));
-                                }
-                            }
-                        }
+                        //        try 
+                        //        {
+                        //            atr.action(context);
+                        //        }
+                        //        catch (e) 
+                        //        {
+                        //            console.log("Exeption on atr action: " + e);
+                        //            // #remove_line
+                        //            console.log(cool.getStack(itm));
+                        //        }
+                        //    }
+                        //}
 
                         if (itm._cool.isActive == null || !itm._cool.isActive || force || itm._cool.ever != null)
                         {
@@ -7134,27 +7373,27 @@ function InitCoolElement(base, elm)
                         // #remove_line
                         if (cool.trace) console.log(cool.tagLvlToString("Cancel: ", itm));
 
-                        for (var j = 0; j < itm._cool.attributes.length; ++j)
-                        {
-                            var atr = itm._cool.attributes[j];
+                        //for (var j = 0; j < itm._cool.attributes.length; ++j)
+                        //{
+                        //    var atr = itm._cool.attributes[j];
 
-                            if (atr.cancel != null)
-                            {
-                                // #remove_line
-                                if (cool.trace) console.log("Cancel atr: " + cool.atrToString(atr));
+                        //    if (atr.cancel != null)
+                        //    {
+                        //        // #remove_line
+                        //        if (cool.trace) console.log("Cancel atr: " + cool.atrToString(atr));
 
-                                try 
-                                {
-                                    atr.cancel(context);
-                                }
-                                catch (e) 
-                                {
-                                    console.log("Exeption on atr " + itm._cool.tagName + " cancel: " + e);
-                                    // #remove_line
-                                    console.log(cool.getStack(itm));
-                                }
-                            }
-                        }
+                        //        try 
+                        //        {
+                        //            atr.cancel(context);
+                        //        }
+                        //        catch (e) 
+                        //        {
+                        //            console.log("Exeption on atr " + itm._cool.tagName + " cancel: " + e);
+                        //            // #remove_line
+                        //            console.log(cool.getStack(itm));
+                        //        }
+                        //    }
+                        //}
 
                         if (itm._cool.isActive == null || itm._cool.isActive || force)
                         {

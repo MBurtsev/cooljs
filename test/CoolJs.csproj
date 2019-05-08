@@ -20,6 +20,7 @@
     <IISExpressWindowsAuthentication />
     <IISExpressUseClassicPipelineMode />
     <UseGlobalApplicationHostFile />
+    <Use64BitIISExpress />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,6 +62,7 @@
     <Content Include="..\src\cool.js">
       <Link>cool.js</Link>
     </Content>
+    <Content Include="attributes\js.js" />
     <Content Include="core\fields.js" />
     <Content Include="core\helper.js" />
     <Content Include="core\init.js" />
@@ -114,7 +116,12 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup>
-    <PreBuildEvent>copy $(TargetDir)..\..\src\cool.js $(TargetDir)..\cool.js /y</PreBuildEvent>
+    <PreBuildEvent>copy $(ProjectDir)..\src\cool.js $(ProjectDir)cool.js /y
+</PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

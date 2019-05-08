@@ -14,11 +14,11 @@
 
         fld.set(10);
 
-        assert.ok(fieldTest.testInt == 10, "Set with absolute path complete");
+        assert.ok(fieldTest.testInt == 10, "Set with absolute path");
 
         var tmp = fld.get();
 
-        assert.ok(tmp == 10, "Get with absolute path complate");
+        assert.ok(tmp == 10, "Get with absolute path");
     },
 
     intRel: function(assert)
@@ -29,11 +29,11 @@
 
         fld.set(20, fieldTest);
 
-        assert.ok(fieldTest.testInt == 20, "Set with relative path complete");
+        assert.ok(fieldTest.testInt == 20, "Set with relative path");
 
         var tmp = fld.get(fieldTest);
 
-        assert.ok(tmp == 20, "Get with relative path complate");
+        assert.ok(tmp == 20, "Get with relative path");
     },
 
     arrayIntIndex: function(assert)
