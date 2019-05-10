@@ -2,7 +2,9 @@
 {
     width: 100,
     height: 50,
+    count: 0,
 
+    // test style template
     style: function (assert)
     {
         jsQueryTest.users = jsQueryTest.createTestUserData(10);
@@ -26,9 +28,45 @@
 
         delete area._cool;
     },
+
+    // 
+    context: function (assert)
+    {
+        jsQueryTest.users = jsQueryTest.createTestUserData(10);
+
+        var area = document.querySelector("#testArea");
+
+        area.innerHTML =
+            "<div js>" +
+                "<js-atr name='title' value='\"{{atrJsTest.increment()}}\"' select='parent'></js-atr>" +
+                "<js-atr name='title' value='\"{{atrJsTest.increment()}}\"' select='parent'></js-atr>" +
+                "<js-atr name='title' value='\"{{atrJsTest.increment()}}\"' select='parent'></js-atr>" +
+            "</div>";
+
+        cool.processElement(area);
+
+        var div = area.querySelector("div");
+
+        // raise action
+        div._cool.action({initial : div._cool.hash});
+
+        assert.ok(div.hasAttribute("title") == true, "has attribute");
+        assert.ok(atrJsTest.count == 3, "check calling count");
+
+        area.innerHTML = "";
+        atrJsTest.count = 0;
+
+        delete area._cool;
+    },
+
+    increment: function ()
+    {
+        return ++this.count;
+    }
 };
 
 
 QUnit.module("attribute js");
 
 QUnit.test("Style template", atrJsTest.style);
+QUnit.test("Context", atrJsTest.context);

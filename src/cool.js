@@ -1675,45 +1675,52 @@
                 }
             }
 
-            for (var i = 0; i < this.arr.length; ++i)
+            try 
             {
-                var itm = this.arr[i];
-
-                if (this.mode == 0)
+                for (var i = 0; i < this.arr.length; ++i)
                 {
-                    var tmp;
+                    var itm = this.arr[i];
 
-                    eval("tmp = " + this.value);
+                    if (this.mode == 0)
+                    {
+                        var tmp;
 
-                    if (itm[this.name] != null)
-                    {
-                        itm[this.name] = tmp;
-                    }
-                    else
-                    {
-                        itm.setAttribute(this.name, tmp);
-                    }
-                }
-                else if (this.mode == 1)
-                {
-                    itm.removeAttribute(this.name);
-                }
+                        eval("tmp = " + this.value);
 
-                // changed atr of cool tag
-                if (itm._cool != null)
-                {
-                    if (itm._cool.atrMap != null)
-                    {
-                        if (itm._cool.atrMap[name] != null)
+                        if (itm[this.name] != null)
                         {
-                            itm._cool.atrMap[name]();
+                            itm[this.name] = tmp;
                         }
-                        else if (itm._cool.atrMap.other != null)
+                        else
                         {
-                            itm._cool.atrMap.other(name);
+                            itm.setAttribute(this.name, tmp);
                         }
                     }
+                    else if (this.mode == 1)
+                    {
+                        itm.removeAttribute(this.name);
+                    }
+
+                    // changed atr of cool tag
+                    if (itm._cool != null)
+                    {
+                        if (itm._cool.atrMap != null)
+                        {
+                            if (itm._cool.atrMap[name] != null)
+                            {
+                                itm._cool.atrMap[name]();
+                            }
+                            else if (itm._cool.atrMap.other != null)
+                            {
+                                itm._cool.atrMap.other(name);
+                            }
+                        }
+                    }
                 }
+            }
+            catch (e) 
+            {
+                console.log("Exeption on js-atr action: " + e);
             }
 
             this.actionBase(context, force);
@@ -1973,12 +1980,12 @@
         elm._cool.cancelDisplay = true;
         elm._cool.atrMap =
         {
-            target: elm,
+            element: elm,
             other: function(name)
             {
-                if (this.target._cool[name] != null)
+                if (this.element._cool[name] != null)
                 {
-                    var atr = this.target._cool[name];
+                    var atr = this.element._cool[name];
 
                     if (atr.changed != null)
                     {
@@ -1986,10 +1993,10 @@
                     }
                 }
 
-                if (this.target._cool.js != null)
+                if (this.element._cool.js != null)
                 {
-                    this.target._cool.js.refresh(name);
-                    this.target._cool.js.action();
+                    this.element._cool.js.refresh(name);
+                    this.element._cool.js.actionItem(name);
                 }
             }
         }
@@ -2015,6 +2022,8 @@
                     itm.action(context);
                 }
             }
+
+            this.actionBase(context, force);
         };
 
         elm._cool.canncel = function (context, force)
@@ -2028,6 +2037,8 @@
                     itm.cancel(context);
                 }
             }
+
+            this.cancelBase(context, force);
         };
     },
     
@@ -2368,14 +2379,16 @@
     {
         var atr = obj._cool.attributes[index];
 
-        atr.target = obj;
+        obj._cool.js = atr;
+        
+        atr.element = obj;
         atr.refresh = function(selector, value)
         {
             if (selector != null)
             {
-                if (typeof (selector) == "string" && this.target.hasAttribute(selector))
+                if (typeof (selector) == "string" && this.element.hasAttribute(selector))
                 {
-                    var itm = this.target.attributes.getNamedItem(selector);
+                    var itm = this.element.attributes.getNamedItem(selector);
 
                     if (value != null)
                     {
@@ -2384,9 +2397,9 @@
 
                     this.refreshItem(itm);
                 }
-                else if (typeof (selector) == "number" && selector < this.target.attributes.length)
+                else if (typeof (selector) == "number" && selector < this.element.attributes.length)
                 {
-                    var itm = this.target.attributes[selector];
+                    var itm = this.element.attributes[selector];
 
                     if (value != null)
                     {
@@ -2439,6 +2452,7 @@
                     {
                         cur =
                         {
+                            key: key,
                             name: key,
                             orign: val,
                             data: []
@@ -2456,7 +2470,9 @@
                     ind += 2;
 
                     // add value
-                    cur.data.push({ type: 1, value: val.substr(ind, end - ind)});
+                    cur.data.push({ type: 1, value: val.substr(ind, end - ind) });
+
+
 
                     ind = end + 2;
                     continue;
@@ -2495,44 +2511,48 @@
         {
             for (var name in this.map)
             {
-                var val = "";
-                var itm = this.map[name];
-                var key = itm.key;
-
-                for (var i = 0; i < itm.data.length; ++i)
-                {
-                    var row = itm.data[i];
-
-                    // text
-                    if (row.type == 0)
-                    {
-                        val += row.value;
-                    }
-                    // variable
-                    else if (row.type == 1)
-                    {
-                        try
-                        {
-                            var tmp = null;
-
-                            eval("tmp = " + row.value);
-
-                            if (tmp != null)
-                            {
-                                val += tmp;
-                            }
-                        }
-                        catch (e)
-                        {
-                            console.log(e);
-                        }
-                    }
-                }
-
-                this.target.setAttribute(key, val);
+                this.actionItem(name);
             }
         };
-        atr.target.refresh = atr.refresh;
+        atr.actionItem = function (name)
+        {
+            var itm = this.map[name];
+            var key = itm.key;
+            var val = "";
+
+            for (var i = 0; i < itm.data.length; ++i)
+            {
+                var row = itm.data[i];
+
+                // text
+                if (row.type == 0)
+                {
+                    val += row.value;
+                }
+                // variable
+                else if (row.type == 1)
+                {
+                    try
+                    {
+                        var tmp = null;
+
+                        eval("tmp = " + row.value);
+
+                        if (tmp != null)
+                        {
+                            val += tmp;
+                        }
+                    }
+                    catch (e)
+                    {
+                        console.log(e);
+                    }
+                }
+            }
+
+            this.element.setAttribute(key, val);
+        };
+        atr.element.refresh = atr.refresh;
         atr.refresh();
     },
 
@@ -3376,6 +3396,15 @@
                 {
                     this.root = path;
                 }
+            },
+            destroy: function ()
+            {
+                for (var i = 0; i < this.vars.length; ++i)
+                {
+                    var itm = this.vars[i];
+
+                    cool.removeObserve(itm.path, field);
+                }
             }
         };
 
@@ -3388,7 +3417,7 @@
             {
                 var itm = field.vars[i];
 
-                cool.addToObserve(itm.path, field, itm, observe.depth, observe.callback, observe.element);
+                cool.addObserve(itm.path, field, itm, observe.depth, observe.callback, observe.element);
             }
         }
 
@@ -3396,25 +3425,29 @@
     },
 
     // add field to observe, ignore depth
-    addToObserve: function (path, field, fieldVar, depth, callback, element)
+    addObserve: function (path, field, fieldVar, depth, callback, element)
     {
-        var arr = path.split(".");
+        var arr = [];
+        var ind = path.indexOf(".");
 
+        while (ind > -1)
+        {
+            arr.push(path.substr(0, ind));
+
+            ind = path.indexOf(".", ind + 1);
+        }
+
+        arr.push(path);
+        
         for (var j = 0; j < arr.length; ++j)
         {
-            var str = "";
-
-            for (var i = 0; i <= j; ++i)
-            {
-                str += arr[i] + (i < j ? "." : "");
-            }
+            var str = arr[i];
 
             if (cool.obHt[str] == null)
             {
                 cool.obHt[str] = { list: [] };
             }
 
-            var ind = -1;
             var list = cool.obHt[str].list;
             
             // check exist
@@ -3422,15 +3455,48 @@
             {
                 if (list[f].field == field)
                 {
-                    ind = f;
+                    list.push({ path: str, field: field, fieldVar: fieldVar, /*depth: depth,*/ callback: callback, element: element });
 
                     break;
                 }
             }
+        }
+    },
 
-            if (ind == -1)
+    // remove field from observation
+    removeObserve: function (path, field)
+    {
+        var ind = path.indexOf(".");
+
+        while (ind > -1)
+        {
+            arr.push(path.substr(0, ind));
+
+            ind = path.indexOf(".", ind + 1);
+        }
+
+        arr.push(path);
+
+        for (var j = 0; j < arr.length; ++j)
+        {
+            var str = arr[i];
+
+            if (cool.obHt[str] == null)
             {
-                list.push({ path: str, field: field, fieldVar: fieldVar, depth: depth, callback: callback, element: element });
+                cool.obHt[str] = { list: [] };
+            }
+
+            var list = cool.obHt[str].list;
+            
+            // check exist
+            for (var f = 0; f < list.length; ++f)
+            {
+                if (list[f].field == field)
+                {
+                    list.splice(f, 1);
+
+                    break;
+                }
             }
         }
     },
@@ -3465,11 +3531,6 @@
             context = { initial: 0 };
             iamowner = true;
         }
-
-        //if (path == "cat.cur.CatalogsCount" || path == "cat.cur.Records" || path == "cat.cur.Records.length")
-        //{
-        //    var bp = 0;
-        //}
 
         if (cool.obHt[path] != null)
         {
@@ -4917,7 +4978,7 @@
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     // the js-query context of data processing
-    queryContext: { items : [], index : 0},
+    queryContext: { items : [], index : 0 },
     
     // clone object
     cloneObj: function(src)
