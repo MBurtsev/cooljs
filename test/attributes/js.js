@@ -29,7 +29,7 @@
         delete area._cool;
     },
 
-    // 
+    // test dynamic set attribute template
     context: function (assert)
     {
         jsQueryTest.users = jsQueryTest.createTestUserData(10);
@@ -59,6 +59,37 @@
         delete area._cool;
     },
 
+    // test observation
+    observe: function (assert)
+    {
+        jsQueryTest.users = jsQueryTest.createTestUserData(10);
+
+        var area = document.querySelector("#testArea");
+
+        area.innerHTML =
+            "<div title='{{atrJsTest.count}}' js>" +
+                "<js-set name='atrJsTest.count' value='5' type='int'></js-set>" +
+            "</div>";
+
+        cool.processElement(area);
+
+        var div = area.querySelector("div");
+
+        var context = { initial: div._cool.hash };
+
+        // raise action
+        div._cool.action(context);
+        cool.contextProcess(context);
+
+        assert.ok(div.getAttribute("title") == "5", "check attribute");
+        assert.ok(atrJsTest.count == 5, "check count");
+
+        area.innerHTML = "";
+        atrJsTest.count = 0;
+
+        delete area._cool;
+    },
+
     increment: function ()
     {
         return ++this.count;
@@ -70,3 +101,4 @@ QUnit.module("attribute js");
 
 QUnit.test("Style template", atrJsTest.style);
 QUnit.test("Context", atrJsTest.context);
+QUnit.test("Observe", atrJsTest.observe);

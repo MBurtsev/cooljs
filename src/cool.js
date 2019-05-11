@@ -333,7 +333,6 @@
                     else if (type == "text")
                     {
                         var text = xhr.responseText;
-                        //var prop = cool.createField(this.target);
 
                         tag.target.set(text);
                     }
@@ -465,8 +464,6 @@
                     {
                         var f = arr[n];
                         var v = null;
-
-                        //eval("v = " + cool.decorateString(arr[n + 1]) + ";");
 
                         eval("v = " + decodeURIComponent(arr[n + 1]) + ";");
 
@@ -650,13 +647,13 @@
             return console.log("js-query: The 'select' attribute is empty");
         }
 
-        obj._cool.refresh = function (context, path, itm, method, args)
+        obj._cool.refresh = function (event, context)
         {
-            var c = itm.element._cool;
+            var c = event.element._cool;
 
             c.isChanged = true;
 
-            if (c.isActive )// || c.isActive == null && c.parent._cool.isActive
+            if (c.isActive)
             {
                 c.action(context, false);
 
@@ -699,7 +696,7 @@
 
                     prog.from =
                     {
-                        field: cool.createField(fieldName, { depth: 2, callback : obj._cool.refresh, element: obj })
+                        field: cool.createField(fieldName, { callback : obj._cool.refresh, element: obj })
                     };
 
                     ind = arr[0].indexOf(".");
@@ -742,7 +739,7 @@
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++], { depth: 2, callback : obj._cool.refresh, element:  obj })
+                        field: cool.createField(arr[i++], { callback : obj._cool.refresh, element: obj })
                     }
 
                     if (arr[i++] != "As")
@@ -1374,11 +1371,11 @@
 
         if (!obj._cool.unobserved)
         {
-            obj._cool.refresh = function (context, path, itm, method, args)
+            obj._cool.refresh = function (event, context)
             {
-                var c = itm.element._cool;
+                var c = event.element._cool;
 
-                if (c.parent._cool.isActive)// || c.parent._cool.isActive == null
+                if (c.parent._cool.isActive)
                 {
                     c.action(context, false);
 
@@ -1388,7 +1385,7 @@
                 return false;
             };
 
-            obj._cool.fieldCond = cool.createField(con, { depth: 2, callback: obj._cool.refresh, element: obj });
+            obj._cool.fieldCond = cool.createField(con, { callback: obj._cool.refresh, element: obj });
         }
 
         obj._cool.conditional = con;
@@ -2054,9 +2051,9 @@
 
         obj._cool.path = path;
         obj._cool.obj = obj;
-        obj._cool.refresh = function (context, path, itm, method, args)
+        obj._cool.refresh = function (event, context)
         {
-            var c = itm.element._cool;
+            var c = event.element._cool;
             var val = c.field.get();
 
             itm.element.innerHTML = val;
@@ -2069,7 +2066,7 @@
             this.actionBase(context, force);
         };
 
-        obj._cool.field = cool.createField(path, { depth: 2, callback: obj._cool.refresh, element: obj });
+        obj._cool.field = cool.createField(path, { callback: obj._cool.refresh, element: obj });
     },
     
     // js-go
@@ -2455,8 +2452,20 @@
                             key: key,
                             name: key,
                             orign: val,
+                            fields: [],
                             data: []
                         };
+
+                        // destroy old fields
+                        if (this.map[key] != null)
+                        {
+                            var tmp = this.map[key];
+
+                            for (var fld in tmp.fields)
+                            {
+                                fld.destroy();
+                            }
+                        }
 
                         this.map[key] = cur;
                     }
@@ -2470,11 +2479,17 @@
                     ind += 2;
 
                     // add value
-                    cur.data.push({ type: 1, value: val.substr(ind, end - ind) });
+                    var str = val.substr(ind, end - ind);
 
+                    cur.data.push({ type: 1, value: str });
 
+                    // add observe
+                    var fld = cool.createField(str, { callback: atr.onFieldChanged, element: this.element, tag: cur });
 
+                    cur.fields.push(fld);
+                    
                     ind = end + 2;
+
                     continue;
                 }
 
@@ -2551,6 +2566,10 @@
             }
 
             this.element.setAttribute(key, val);
+        };
+        atr.onFieldChanged = function (context, path, item, method, args)
+        {
+            var bp = 0;
         };
         atr.element.refresh = atr.refresh;
         atr.refresh();
@@ -2688,9 +2707,9 @@
                 };
             }
 
-            bind.refresh = function (context, path, itm, method, args)
+            bind.refresh = function (event, context)
             {
-                var c = itm.element._cool.bind;
+                var c = event.element._cool.bind;
 
                 if (!c.lock2)
                 {
@@ -2702,7 +2721,7 @@
                 return true;
             };
 
-            bind.field = cool.createField(bind.path, { depth: 1, callback : bind.refresh, element:  obj });
+            bind.field = cool.createField(bind.path, { callback : bind.refresh, element:  obj });
         }
         else
         {
@@ -3095,7 +3114,7 @@
     {
         if (observe == null)
         {
-            observe = { depth: 0, callback : null, element: null };
+            observe = { callback : null, element: null };
         }
 
         var field =
@@ -3411,13 +3430,13 @@
         field.refreshVars();
         delete field.ht;
 
-        if (observe.depth > 0 && observe.callback != null)
+        if (observe.callback != null)
         {
             for (var i = 0; i < field.vars.length; ++i)
             {
                 var itm = field.vars[i];
 
-                cool.addObserve(itm.path, field, itm, observe.depth, observe.callback, observe.element);
+                cool.addObserve(itm.path, field, itm, observe.callback, observe.element, observe.tag);
             }
         }
 
@@ -3425,7 +3444,7 @@
     },
 
     // add field to observe, ignore depth
-    addObserve: function (path, field, fieldVar, depth, callback, element)
+    addObserve: function (path, field, fieldVar, callback, element, tag)
     {
         var arr = [];
         var ind = path.indexOf(".");
@@ -3441,7 +3460,7 @@
         
         for (var j = 0; j < arr.length; ++j)
         {
-            var str = arr[i];
+            var str = arr[j];
 
             if (cool.obHt[str] == null)
             {
@@ -3449,16 +3468,22 @@
             }
 
             var list = cool.obHt[str].list;
-            
+            var skip = false;
+
             // check exist
             for (var f = 0; f < list.length; ++f)
             {
                 if (list[f].field == field)
                 {
-                    list.push({ path: str, field: field, fieldVar: fieldVar, /*depth: depth,*/ callback: callback, element: element });
+                    skip = true;
 
                     break;
                 }
+            }
+
+            if (!skip)
+            {
+                list.push({ path: str, field: field, fieldVar: fieldVar, callback: callback, element: element, tag : tag });
             }
         }
     },
@@ -3479,7 +3504,7 @@
 
         for (var j = 0; j < arr.length; ++j)
         {
-            var str = arr[i];
+            var str = arr[j];
 
             if (cool.obHt[str] == null)
             {
@@ -3635,6 +3660,36 @@
         }
 
         return ret;
+    },
+
+    // process context
+    contextProcess: function(context)
+    {
+        if (context.map == null)
+        {
+            return;
+        }
+
+        for (var key in context.map)
+        {
+            if (context.map.hasOwnProperty(key))
+            {
+                var itm = context.map[key];
+
+                if (context[itm.element._cool.hash] != true)
+                {
+                    if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
+                    {
+                        itm.element._cool.isActive = true;
+                    }
+
+                    if (itm.callback(context, itm.path, itm, itm.method, itm.args) == true)
+                    {
+                        context[itm.element._cool.hash] = true;
+                    }
+                }
+            }
+        }
     },
 
     // Selector query
@@ -6619,37 +6674,6 @@
         return tmp;
     },
     
-    // process context
-    // todo подумать здесь, должен ли элемент быть активным, если он вызван по событию изменения. Более логичным выглядит, что элемент сам должен решить активный он или нет...
-    contextProcess: function(context)
-    {
-        if (context.map == null)
-        {
-            return;
-        }
-
-        for (var key in context.map)
-        {
-            if (context.map.hasOwnProperty(key))
-            {
-                var itm = context.map[key];
-
-                if (context[itm.element._cool.hash] != true)
-                {
-                    if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
-                    {
-                        itm.element._cool.isActive = true;
-                    }
-
-                    if (itm.callback(context, itm.path, itm, itm.method, itm.args) == true)
-                    {
-                        context[itm.element._cool.hash] = true;
-                    }
-                }
-            }
-        }
-    },
-
     // Structures
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
