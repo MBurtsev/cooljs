@@ -3,6 +3,8 @@
     width: 100,
     height: 50,
     count: 0,
+    path: "",
+    ext: "",
 
     // test style template
     style: function (assert)
@@ -79,13 +81,43 @@
 
         // raise action
         div._cool.action(context);
-        cool.contextProcess(context);
 
         assert.ok(div.getAttribute("title") == "5", "check attribute");
         assert.ok(atrJsTest.count == 5, "check count");
 
         area.innerHTML = "";
         atrJsTest.count = 0;
+
+        delete area._cool;
+    },
+
+    // cool tags with templating
+    tagsTemplating: function (assert)
+    {
+        jsQueryTest.users = jsQueryTest.createTestUserData(10);
+
+        var area = document.querySelector("#testArea");
+
+        area.innerHTML =
+            "<div>" +
+                "<js-set name='atrJsTest.path' value='main/' type='string'></js-set>" +
+                "<js-set name='atrJsTest.ext' value='css' type='string'></js-set>" +
+                "<js-load src='{{atrJsTest.path}}html/test.html' type='{{atrJsTest.ext}}'></js-load>" +
+            "</div>";
+
+        cool.processElement(area);
+
+        var tag = area.querySelector("js-load");
+
+        var context = { initial: document.documentElement._cool.hash };
+
+        // raise action
+        document.documentElement._cool.action(context);
+
+        assert.ok(tag.getAttribute("src") == "main/html/test.html", "check attribute");
+
+        area.innerHTML = "";
+        atrJsTest.path = "";
 
         delete area._cool;
     },
@@ -102,3 +134,4 @@ QUnit.module("attribute js");
 QUnit.test("Style template", atrJsTest.style);
 QUnit.test("Context", atrJsTest.context);
 QUnit.test("Observe", atrJsTest.observe);
+QUnit.test("Templating", atrJsTest.tagsTemplating);

@@ -485,34 +485,33 @@
     },
 
     // js-load +++
-    tagLoad: function(obj)
+    tagLoad: function(elm)
     {
-        obj._cool.atrMap =
+        cool.createAtrMap(elm,
         {
-            obj: obj,
-            src : function()
+            src: function ()
             {
-                var src = this.obj.getAttribute("src");
+                var src = this.read("src");
 
                 if (src == null || src == "")
                 {
                     return console.log("js-load: The src attribute is empty");
                 }
 
-                this.obj._cool.src = src;
+                this.element._cool.src = src;
                 this.type();
             },
-            type : function ()
+            type: function ()
             {
-                var type = this.obj.getAttribute("type");
-            
+                var type = this.read("type");
+
                 if (type == null || type == "")
                 {
-                    var ind = this.obj._cool.src.lastIndexOf(".");
+                    var ind = this.element._cool.src.lastIndexOf(".");
 
-                    if (ind != -1 && ind < this.obj._cool.src.length - 1)
+                    if (ind != -1 && ind < this.element._cool.src.length - 1)
                     {
-                        type = this.obj._cool.src.substr(ind + 1);
+                        type = this.element._cool.src.substr(ind + 1);
                     }
                     else
                     {
@@ -525,22 +524,31 @@
                     return console.log("js-load: Wrong type");
                 }
 
-                this.obj._cool.type = type;
+                this.element._cool.type = type;
             },
-            always : function ()
+            always: function ()
             {
-                this.obj._cool.isAlways = this.obj.getAttribute("always") != null;
+                this.element._cool.isAlways = this.element.hasAttribute("always");
             },
-            other: function(name)
-            {
-            }
-        };
-        obj._cool.eventComplete = document.createEvent('Event');
-        obj._cool.eventComplete.initEvent('complete', true, true);
-        obj._cool.firstDone = false;
-        obj._cool.action = function (context, force)
+        });
+
+        elm._cool.eventComplete = document.createEvent('Event');
+        elm._cool.eventComplete.initEvent('complete', true, true);
+        elm._cool.firstDone = false;
+        elm._cool.ready = false;
+        elm._cool.init = function ()
         {
-            //this.obj.style.display = this.display;
+            this.atrMap.src();
+            this.atrMap.always();
+
+            this.ready = true;
+        };
+        elm._cool.action = function (context, force)
+        {
+            if (!this.ready)
+            {
+                this.init();
+            }
 
             if (this.isAlways || !this.firstDone)
             {
@@ -550,20 +558,20 @@
                     {
                         var script = document.createElement('script');
 
-                        script._cool = this.obj._cool;
+                        script._cool = this.elm._cool;
                         script.context = context;
                         script.force = force;
                         script.onload = function()
                         {
                             // fire
                             this._cool.eventComplete.context = context;
-                            this._cool.obj.dispatchEvent(this._cool.eventComplete);
+                            this._cool.elm.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
                         script.src = this.src;
 
-                        obj.appendChild(script);
-                        obj._cool.firstDone = true;
+                        elm.appendChild(script);
+                        elm._cool.firstDone = true;
 
                         break;
                     }
@@ -571,31 +579,31 @@
                     {
                         var link = document.createElement('link');
 
-                        link._cool = this.obj._cool;
+                        link._cool = this.elm._cool;
                         link.context = context;
                         link.force = force;
                         link.onload = function ()
                         {
                             // fire
                             this._cool.eventComplete.context = context;
-                            this._cool.obj.dispatchEvent(this._cool.eventComplete);
+                            this._cool.elm.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
                         link.rel = 'stylesheet';
                         link.type = 'text/css';
                         link.href = this.src;
-                        obj.appendChild(link);
+                        elm.appendChild(link);
                         
-                        obj._cool.firstDone = true;
+                        elm._cool.firstDone = true;
 
                         break;
                     }
                     case "html":
                     {
-                        obj._cool.force = force;
-                        obj._cool.context = context;
+                        elm._cool.force = force;
+                        elm._cool.context = context;
 
-                        cool.ajaxGet(this.src, this.obj, function(http, tag)
+                        cool.ajaxGet(this.src, this.elm, function(http, tag)
                         {
                             var tmp = cool.toQueryScript(http.responseText);
                                 
@@ -622,19 +630,15 @@
                     }
                     case "com":
                     {
-
                         break;
                     }
                 }
             }
             else
             {
-                this.obj._cool.actionBase(context, force);
+                this.elm._cool.actionBase(context, force);
             }
         }
-
-        obj._cool.atrMap.src();
-        obj._cool.atrMap.always();
     },
 
     // js-query
@@ -2461,8 +2465,10 @@
                         {
                             var tmp = this.map[key];
 
-                            for (var fld in tmp.fields)
+                            for (var i = 0; i < tmp.fields.length; ++i)
                             {
+                                var fld = tmp.fields[i];
+
                                 fld.destroy();
                             }
                         }
@@ -2532,6 +2538,12 @@
         atr.actionItem = function (name)
         {
             var itm = this.map[name];
+
+            if (itm == null)
+            {
+                return;
+            }
+
             var key = itm.key;
             var val = "";
 
@@ -2567,9 +2579,9 @@
 
             this.element.setAttribute(key, val);
         };
-        atr.onFieldChanged = function (context, path, item, method, args)
+        atr.onFieldChanged = function (event)
         {
-            var bp = 0;
+            event.element._cool.js.actionItem(event.tag.name);
         };
         atr.element.refresh = atr.refresh;
         atr.refresh();
@@ -3056,9 +3068,8 @@
         cool.changed("cool.currentPage", "set", null, lastPage, page, context);
         cool.changed("cool.lastPage", "set", null, tmp, lastPage, context);
 
-        cool.contextProcess(context);
+        cool.processContext (context);
     },
-
 
     // Ajax
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -3589,7 +3600,7 @@
 
         if (iamowner)
         {
-            cool.contextProcess(context);
+            cool.processContext (context);
         }
     },
 
@@ -3663,7 +3674,7 @@
     },
 
     // process context
-    contextProcess: function(context)
+    processContext: function(context)
     {
         if (context.map == null)
         {
@@ -3683,7 +3694,7 @@
                         itm.element._cool.isActive = true;
                     }
 
-                    if (itm.callback(context, itm.path, itm, itm.method, itm.args) == true)
+                    if (itm.callback(itm, context) == true)
                     {
                         context[itm.element._cool.hash] = true;
                     }
@@ -6017,6 +6028,90 @@
 
         return { start: start, end: end };
     },
+
+    // cteate attribute map for cool element
+    createAtrMap: function (elm, map)
+    {
+        map.element = elm;
+        map.fields = {};
+
+        map.read = function (name)
+        {
+            var val = this.element.getAttribute(name);
+
+            if (val == null)
+            {
+                return null;
+            }
+
+            var ind = 0;
+            var str = "";
+
+            // destroy old fields
+            if (this.fields[name] != null)
+            {
+                var tmp = this.fields[name];
+
+                for (var i = 0; i < tmp.fields.length; ++i)
+                {
+                    var fld = tmp.fields[i];
+
+                    fld.destroy();
+                }
+            }
+
+            this.fields[name] = [];
+
+            while (true)
+            {
+                var last = ind;
+
+                ind = val.indexOf("{{", ind);
+
+                if (ind > -1)
+                {
+                    var end = val.indexOf("}}", ind);
+
+                    if (end == -1)
+                    {
+                        break;
+                    }
+
+                    // add text
+                    str += val.substr(last, ind - last);
+
+                    ind += 2;
+
+                    // add value
+                    var tmp = val.substr(ind, end - ind);
+
+                    // add observe
+                    var fld = cool.createField(tmp, { callback: this.onFieldChanged, element: this.element, tag: name });
+
+                    this.fields[name].push(fld);
+
+                    str += fld.get();
+
+                    ind = end + 2;
+
+                    continue;
+                }
+
+                // add final text
+                str += val.substr(last);
+
+                break;
+            }
+
+            return str;
+        };
+        map.onFieldChanged = function(event)
+        {
+            event.element._cool.atrMap[event.tag]();
+        }
+
+        elm._cool.atrMap = map;
+    },
     
     // Helpers
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -7419,7 +7514,7 @@ function InitCoolElement(base, elm)
 
                     if (context.initial == this.hash)
                     {
-                        cool.contextProcess(context);
+                        cool.processContext (context);
                     }
                 },
                 cancelBase: function (context, force)
@@ -7509,7 +7604,7 @@ function InitCoolElement(base, elm)
 
                     if (context.initial == this.hash)
                     {
-                        cool.contextProcess(context);
+                        cool.processContext (context);
                     }
                 },
                 clear: function ()
