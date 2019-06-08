@@ -114,7 +114,8 @@
         // raise action
         document.documentElement._cool.action(context);
 
-        assert.ok(tag.getAttribute("src") == "main/html/test.html", "check attribute");
+        assert.ok(tag._cool.src == "main/html/test.html", "check attribute");
+        assert.ok(tag._cool.type == "css", "check attribute");
 
         area.innerHTML = "";
         atrJsTest.path = "";

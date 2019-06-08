@@ -37,16 +37,16 @@
 
         cool.initNavigator();
 
+        var html = document.documentElement;
+
+        cool.processElement(html);
+
+        html._cool.init("html", html);
+        html._cool.cancelDisplay = true;
+        html._cool.action({ initial: html._cool.hash }, false);
+
         cool.processElementWithPreload(document.body, function()
         {
-            var html = document.documentElement;
-
-            cool.processElement(html);
-
-            html._cool.init("html", html); 
-            html._cool.cancelDisplay = true;
-            html._cool.action({ initial: html._cool.hash}, false);
-
             if (cool.lastUrlHash != window.location.hash)
             {
                 cool.setPage();
@@ -62,13 +62,13 @@
     // Tags processing
 
     // js-set
-    tagSet: function(obj)
+    tagSet: function(element)
     {
-        var name = obj.getAttribute("name");
-        var type = obj.getAttribute("type");
-        var cancel = obj.getAttribute("cancel");
-        var value = obj.getAttribute("value");
-        var once = obj.getAttribute("once") != null;
+        var name = element.getAttribute("name");
+        var type = element.getAttribute("type");
+        var cancel = element.getAttribute("cancel");
+        var value = element.getAttribute("value");
+        var once = element.getAttribute("once") != null;
 
         if (name == null || name == "")
         {
@@ -80,29 +80,29 @@
             return console.log("js-set: The 'value' attribute is empty");
         }
 
-        obj._cool.info = name + " = " + value;
-        obj._cool.tval = cool.createTypedValue("js-set", type, value);
+        element._cool.info = name + " = " + value;
+        element._cool.tval = cool.createTypedValue("js-set", type, value);
 
-        if (obj._cool.tval == null)
+        if (element._cool.tval == null)
         {
             return;
         }
 
         if (cancel != null)
         {
-            obj._cool.tcan = cool.createTypedValue("js-set", type, cancel);
+            element._cool.tcan = cool.createTypedValue("js-set", type, cancel);
         }
         else
         {
-            obj._cool.tcan = null;
+            element._cool.tcan = null;
         }
 
-        obj._cool.name = name;
-        obj._cool.value = value;
-        obj._cool.once = once;
-        obj._cool.first = false;
-        obj._cool.field = cool.createField(name);
-        obj._cool.action = function (context, force)
+        element._cool.name = name;
+        element._cool.value = value;
+        element._cool.once = once;
+        element._cool.first = false;
+        element._cool.field = cool.createField(name);
+        element._cool.action = function (context, force)
         {
             if (!this.first || this.first && !this.once)
             {
@@ -115,7 +115,7 @@
 
             this.actionBase(context, force);
         }
-        obj._cool.cancel = function (context, force)
+        element._cool.cancel = function (context, force)
         {
             if (this.tcan != null)
             {
@@ -127,10 +127,10 @@
     },
 
     // js-ajax
-    tagAjax: function(obj)
+    tagAjax: function(element)
     {
-        var src = obj.getAttribute("src");
-        var type = obj.getAttribute("type");
+        var src = element.getAttribute("src");
+        var type = element.getAttribute("type");
 
         if (src == null || src == "")
         {
@@ -146,14 +146,14 @@
             return console.log("js-ajax: The type attribute must be text or json or stream or xml");
         }
 
-        var method = obj.getAttribute("method");
-        var data = obj.getAttribute("data");
-        var target = obj.getAttribute("target");
-        var mock = obj.getAttribute("mock");
-        var request = obj.getAttribute("request");
-        var response = obj.getAttribute("response");
-        var once = obj.getAttribute("once") != null;
-        var nocache = obj.getAttribute("nocache") != null;
+        var method = element.getAttribute("method");
+        var data = element.getAttribute("data");
+        var target = element.getAttribute("target");
+        var mock = element.getAttribute("mock");
+        var request = element.getAttribute("request");
+        var response = element.getAttribute("response");
+        var once = element.getAttribute("once") != null;
+        var nocache = element.getAttribute("nocache") != null;
         
         if (method == null || method == "")
         {
@@ -162,75 +162,75 @@
 
         if (target == null)
         {
-            obj._cool.target = cool.createField("");
+            element._cool.target = cool.createField("");
         }
         else
         {
-            obj._cool.target = cool.createField(target);
+            element._cool.target = cool.createField(target);
         }
 
         var desk = null;
 
-        for (var i = 0; i < obj.children.length; ++i)
+        for (var i = 0; i < element.children.length; ++i)
         {
-            var itm = obj.children[i];
+            var itm = element.children[i];
             var tnm = itm.tagName == null ? "" : itm.tagName.toLowerCase();
 
             if (tnm == "js-ajax-stream")
             {
-                obj._cool.metaIndex = i;
+                element._cool.metaIndex = i;
 
                 desk = itm;
             }
             else if (tnm == "js-ajax-params")
             {
-                obj._cool.paramsIndex = i;
+                element._cool.paramsIndex = i;
             }
 
-            if (obj._cool.metaIndex != null && obj._cool.paramsIndex != null)
+            if (element._cool.metaIndex != null && element._cool.paramsIndex != null)
             {
                 break;
             }
         }
 
-        obj._cool.params = null;
+        element._cool.params = null;
 
         if (type == "stream")
         {
-            if (obj._cool.metaIndex == null)
+            if (element._cool.metaIndex == null)
             {
                 return console.log("js-ajax: The js-ajax-stream must be defined, because type='stream' was chosen.");
             }
 
-            obj._cool.metaInline = desk.getAttribute("inline") != null;
+            element._cool.metaInline = desk.getAttribute("inline") != null;
 
-            if (!obj._cool.metaInline)
+            if (!element._cool.metaInline)
             {
-                obj._cool.meta = cool.metaStream.toShort(desk);
+                element._cool.meta = cool.metaStream.toShort(desk);
             }
 
             //if (desk.getAttribute("declare") != null)
             //{
-            //    cool.metaStream.declare(obj._cool.meta, cool.gocField(obj._cool.target));
+            //    cool.metaStream.declare(element._cool.meta, cool.gocField(element._cool.target));
             //}
         }
 
         // init event
-        obj._cool.eventComplete = document.createEvent('Event');
-        obj._cool.eventComplete.initEvent('complete', true, true);
+        element._cool.eventComplete = document.createEvent('Event');
+        element._cool.eventComplete.initEvent('complete', true, true);
         
-        obj._cool.src = src;
-        obj._cool.type = type;
-        obj._cool.data = data;
-        obj._cool.method = method;
-        obj._cool.mock = mock;
-        obj._cool.request = request;
-        obj._cool.response = response;
-        obj._cool.once = once;
-        obj._cool.first = false;
-        obj._cool.nocache = nocache;
-        //obj._cool.count = 0;
-        obj._cool.action = function (context, force)
+        element._cool.src = src;
+        element._cool.type = type;
+        element._cool.data = data;
+        element._cool.method = method;
+        element._cool.mock = mock;
+        element._cool.request = request;
+        element._cool.response = response;
+        element._cool.once = once;
+        element._cool.first = false;
+        element._cool.nocache = nocache;
+        //element._cool.count = 0;
+        element._cool.action = function (context, force)
         {
             if (this.params == null)
             {
@@ -238,7 +238,7 @@
 
                 if (this.paramsIndex != null)
                 {
-                    var pars = obj.children[this.paramsIndex];
+                    var pars = element.children[this.paramsIndex];
 
                     for (var j = 0; j < pars.children.length; ++j)
                     {
@@ -328,7 +328,7 @@
 
                     if (tag.response != null)
                     {
-                        tag.response(xhr, tag.obj, dt);
+                        tag.response(xhr, tag.element, dt);
                     }
                     else if (type == "text")
                     {
@@ -388,13 +388,13 @@
                     tag.first = true;
 
                     // fire
-                    tag.obj._cool.eventComplete.context = context;
-                    tag.obj.dispatchEvent(tag.obj._cool.eventComplete);
+                    tag.element._cool.eventComplete.context = context;
+                    tag.element.dispatchEvent(tag.element._cool.eventComplete);
                 });
 
                 if (this.request != null)
                 {
-                    this.request(ajax, this.obj);
+                    this.request(ajax, this.element);
                 }
 
                 ajax.go();
@@ -407,20 +407,13 @@
     },
 
     // js-page
-    tagPage: function(obj)
+    tagPage: function(element)
     {
-        var hash = obj.getAttribute("hash");4
+        var hash = element.getAttribute("hash");
 
         if (hash == null || hash == "")
         {
             return console.log("js-page: The src attribute is empty");
-        }
-
-        var def = obj.getAttribute("default");
-
-        if (def != null)
-        {
-            cool.defaultHash = hash;
         }
 
         if (cool.hashList[hash] == null)
@@ -428,28 +421,38 @@
             cool.hashList[hash] = [];
         }
 
-        cool.hashList[hash].push(obj);
+        cool.hashList[hash].push(element);
 
-        obj._cool.hashurl = hash;
-        obj._cool.first = false;
-        obj._cool.isActiveNav = false;
-        obj._cool.actionNav = function()
+        var def = element.getAttribute("default");
+
+        if (def != null)
         {
-            this.isActiveNav = true;
+            cool.defaultHash = hash;
 
+            if (cool.currentPage == "")
+            {
+                cool.go(hash);
+            }
+        }
+
+        element._cool.hashurl = hash;
+        element._cool.first = false;
+        element._cool.actionNav = function()
+        {
             if (this.parent._cool.isActive)
             {
                 this.action({ initial: this.hash }, false);
             }
         }
-        obj._cool.cancelNav = function()
+        element._cool.cancelNav = function()
         {
-            this.isActiveNav = false;
             this.cancelBase({ initial: this.hash }, false);
         }
-        obj._cool.action = function(context, force)
+        element._cool.action = function(context, force)
         {
-            if (this.isActiveNav)
+            var flag = window.location.hash.indexOf(this.hashurl) == 0;
+
+            if (flag)
             {
                 var hpg = window.location.hash;
                 var arr = hpg.split("/");
@@ -499,6 +502,7 @@
                 }
 
                 this.element._cool.src = src;
+                this.element._cool.loaded = false;
                 this.type();
             },
             type: function ()
@@ -534,23 +538,17 @@
 
         elm._cool.eventComplete = document.createEvent('Event');
         elm._cool.eventComplete.initEvent('complete', true, true);
-        elm._cool.firstDone = false;
-        elm._cool.ready = false;
-        elm._cool.init = function ()
+        elm._cool.loaded = false;
+        elm._cool.getReady = function ()
         {
             this.atrMap.src();
             this.atrMap.always();
 
-            this.ready = true;
+            return true;
         };
         elm._cool.action = function (context, force)
         {
-            if (!this.ready)
-            {
-                this.init();
-            }
-
-            if (this.isAlways || !this.firstDone)
+            if (this.isAlways || !this.loaded)
             {
                 switch (this.type)
                 {
@@ -558,20 +556,20 @@
                     {
                         var script = document.createElement('script');
 
-                        script._cool = this.elm._cool;
+                        script._cool = this.element._cool;
                         script.context = context;
                         script.force = force;
                         script.onload = function()
                         {
                             // fire
                             this._cool.eventComplete.context = context;
-                            this._cool.elm.dispatchEvent(this._cool.eventComplete);
+                            this._cool.element.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
                         script.src = this.src;
 
-                        elm.appendChild(script);
-                        elm._cool.firstDone = true;
+                        this.element.appendChild(script);
+                        this.element._cool.loaded = true;
 
                         break;
                     }
@@ -579,31 +577,31 @@
                     {
                         var link = document.createElement('link');
 
-                        link._cool = this.elm._cool;
+                        link._cool = this.element._cool;
                         link.context = context;
                         link.force = force;
                         link.onload = function ()
                         {
                             // fire
                             this._cool.eventComplete.context = context;
-                            this._cool.elm.dispatchEvent(this._cool.eventComplete);
+                            this._cool.element.dispatchEvent(this._cool.eventComplete);
                             this._cool.actionBase(this.context, this.force);
                         };
                         link.rel = 'stylesheet';
                         link.type = 'text/css';
                         link.href = this.src;
-                        elm.appendChild(link);
-                        
-                        elm._cool.firstDone = true;
+
+                        this.element.appendChild(link);
+                        this.element._cool.loaded = true;
 
                         break;
                     }
                     case "html":
                     {
-                        elm._cool.force = force;
-                        elm._cool.context = context;
+                        this.element._cool.force = force;
+                        this.element._cool.context = context;
 
-                        cool.ajaxGet(this.src, this.elm, function(http, tag)
+                        cool.ajaxGet(this.src, this.element, function(http, tag)
                         {
                             var tmp = cool.toQueryScript(http.responseText);
                                 
@@ -618,11 +616,45 @@
 
                             cool.processElement(tag);
 
-                            tag._cool.firstDone = true;
+                            tag._cool.loaded = true;
                             tag._cool.eventComplete.context = context;
                             tag.dispatchEvent(tag._cool.eventComplete);
 
                             tag._cool.actionBase(tag._cool.context, tag._cool.force);
+
+                            // run scripts
+                            cool.processElementWithPreload(tag, function (tag)
+                            {
+                                var scripts = tag.querySelectorAll("script");
+
+                                for (var i = 0; i < scripts.length; ++i)
+                                {
+                                    var itm = scripts[i];
+
+                                    if (itm.innerHTML.length == 0)
+                                    {
+                                        continue;
+                                    }
+
+                                    if (itm.type == "" || itm.type == "text/javascript")
+                                    {
+                                        try
+                                        {
+                                            var scr = document.createElement('script');
+
+                                            scr.type = 'text/javascript';
+                                            scr.text = itm.innerHTML;
+
+                                            tag.appendChild(scr);
+                                        }
+                                        catch (e)
+                                        {
+                                            console.log(tag._cool.src + ", script exeption:")
+                                            console.log(e);
+                                        }
+                                    }
+                                }
+                            });
 
                         }).go();
 
@@ -636,22 +668,22 @@
             }
             else
             {
-                this.elm._cool.actionBase(context, force);
+                this.element._cool.actionBase(context, force);
             }
         }
     },
 
     // js-query
-    tagQuery: function(obj)
+    tagQuery: function(element)
     {
-        var select = obj.getAttribute("select");
+        var select = element.getAttribute("select");
 
         if (select == null || select == "")
         {
             return console.log("js-query: The 'select' attribute is empty");
         }
 
-        obj._cool.refresh = function (event, context)
+        element._cool.refresh = function (event, context)
         {
             var c = event.element._cool;
 
@@ -700,7 +732,7 @@
 
                     prog.from =
                     {
-                        field: cool.createField(fieldName, { callback : obj._cool.refresh, element: obj })
+                        field: cool.createField(fieldName, { callback : element._cool.refresh, element: element })
                     };
 
                     ind = arr[0].indexOf(".");
@@ -743,7 +775,7 @@
                     var join =
                     {
                         type: arr[i++],
-                        field: cool.createField(arr[i++], { callback : obj._cool.refresh, element: obj })
+                        field: cool.createField(arr[i++], { callback : element._cool.refresh, element: element })
                     }
 
                     if (arr[i++] != "As")
@@ -811,7 +843,7 @@
 
                     var strCond = arr.slice(i, end).join("");
 
-                    prog.where.fieldCond = cool.createField(strCond, { depth: 2, callback : obj._cool.refresh, element:  obj });
+                    prog.where.fieldCond = cool.createField(strCond, { depth: 2, callback : element._cool.refresh, element:  element });
                     prog.where.condFuncName = cool.getRandomString();
 
                     // patch vars
@@ -955,12 +987,12 @@
             }
         }
 
-        obj._cool.prog = prog;
+        element._cool.prog = prog;
 
         // getting js-query's stack
-        var cur = obj._cool;
+        var cur = element._cool;
 
-        obj._cool.stack = [];
+        element._cool.stack = [];
 
         while (cur.parent != null)
         {
@@ -969,30 +1001,30 @@
 
             if (cur.tagName == "js-query-item")
             {
-                obj._cool.parentQueryItem = tmp;
+                element._cool.parentQueryItem = tmp;
 
                 break;
             }
         }
 
-        obj._cool.rootMap = {};
-        obj._cool.rootMap[obj._cool.prog.root] = true;
+        element._cool.rootMap = {};
+        element._cool.rootMap[element._cool.prog.root] = true;
 
-        if (obj._cool.parentQueryItem != null)
+        if (element._cool.parentQueryItem != null)
         {
-            obj._cool.parentQueryItem._cool.initMap(obj._cool.rootMap);
+            element._cool.parentQueryItem._cool.initMap(element._cool.rootMap);
         }
 
         // compile template 
-        obj._cool.isScript = obj._cool.tagName == "script";
+        element._cool.isScript = element._cool.tagName == "script";
 
-        if (obj._cool.isScript)
+        if (element._cool.isScript)
         {
-            tmp = obj.text; 
+            tmp = element.text; 
         }
         else
         {
-            tmp = cool.decodeEntities(obj.innerHTML);
+            tmp = cool.decodeEntities(element.innerHTML);
         }
         
         tmp = cool.toQueryScript(tmp);
@@ -1056,28 +1088,28 @@
         //    var bp = 0;
         //}
 
-        obj._cool.template = cool.buildTemplate(tmp, obj._cool.rootMap);
+        element._cool.template = cool.buildTemplate(tmp, element._cool.rootMap);
 
-        obj._cool.template.pl_start = pl_start;
-        obj._cool.template.pl_end = pl_end;
+        element._cool.template.pl_start = pl_start;
+        element._cool.template.pl_end = pl_end;
         
         // init events
-        obj._cool.renderEnd = document.createEvent('Event');
-        obj._cool.renderEnd.initEvent('renderEnd', true, true);
+        element._cool.renderEnd = document.createEvent('Event');
+        element._cool.renderEnd.initEvent('renderEnd', true, true);
 
 
-        obj._cool.beforeDestroy = document.createEvent('Event');
-        obj._cool.beforeDestroy.initEvent('beforeDestroy', true, true);
+        element._cool.beforeDestroy = document.createEvent('Event');
+        element._cool.beforeDestroy.initEvent('beforeDestroy', true, true);
 
-        obj._cool.afterDestroy = document.createEvent('Event');
-        obj._cool.afterDestroy.initEvent('afterDestroy', true, true);
+        element._cool.afterDestroy = document.createEvent('Event');
+        element._cool.afterDestroy.initEvent('afterDestroy', true, true);
  
-        obj._cool.select = select;
-        obj._cool.isChanged = true;
-        obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.firstDone = false;
-        obj._cool.cache = [];
-        obj._cool.action = function (context, force)
+        element._cool.select = select;
+        element._cool.isChanged = true;
+        element._cool.isAlways = element.getAttribute("always") != null;
+        element._cool.firstDone = false;
+        element._cool.cache = [];
+        element._cool.action = function (context, force)
         {
             // TODO extend observe meh
             //if (!this.isChanged)
@@ -1093,7 +1125,7 @@
 
             if (this.data != null && (!this.firstDone || this.isAlways || this.isChanged))
             {
-                if (this.obj.parentNode == null)
+                if (this.element.parentNode == null)
                 {
                     return;
                 }
@@ -1107,29 +1139,29 @@
 
                 // fire
                 this.beforeDestroy.context = context;
-                this.obj.dispatchEvent(this.beforeDestroy);
+                this.element.dispatchEvent(this.beforeDestroy);
 
                 this.clear();
 
                 // clear
                 if (!this.isScript)
                 {
-                    this.obj.innerHTML = "";
+                    this.element.innerHTML = "";
                 }
-                else if (this.targetObject != null)
+                else if (this.targetobject != null)
                 {
-                    if (this.targetObject instanceof Array)
+                    if (this.targetobject instanceof Array)
                     {
-                        for (var s = 0; s < this.targetObject.length; ++s)
+                        for (var s = 0; s < this.targetobject.length; ++s)
                         {
-                            var itm = this.targetObject[s];
+                            var itm = this.targetobject[s];
 
-                            if (itm == this.obj)
+                            if (itm == this.element)
                             {
                                 continue;
                             }
 
-                            if (this.obj.parentNode != itm.parentNode)
+                            if (this.element.parentNode != itm.parentNode)
                             {
                                 if (itm.coolDestroy != null)
                                 {
@@ -1141,23 +1173,23 @@
                                     itm.parentNode.removeChild(itm);
                                 }
                             }
-                            else//if (this.obj.parentNode != null)
+                            else//if (this.element.parentNode != null)
                             {
-                                this.obj.parentNode.removeChild(itm);
+                                this.element.parentNode.removeChild(itm);
                             }
                         }
 
-                        this.targetObject = null;
+                        this.targetobject = null;
                     }
                     else
                     {
-                        this.targetObject.innerHTML = "";
+                        this.targetobject.innerHTML = "";
                     }
                 }
 
                 // fire
                 this.afterDestroy.context = context;
-                this.obj.dispatchEvent(this.afterDestroy);
+                this.element.dispatchEvent(this.afterDestroy);
 
                 var arr = [];
 
@@ -1203,11 +1235,11 @@
 
                 if (!this.isScript)
                 {
-                    this.obj.innerHTML = arr.join("");
+                    this.element.innerHTML = arr.join("");
 
-                    cool.processElement(this.obj);
+                    cool.processElement(this.element);
 
-                    var tmp_arr = this.obj.querySelectorAll("[render-element-complate]");
+                    var tmp_arr = this.element.querySelectorAll("[render-element-complate]");
 
                     for (var ta = 0; ta < tmp_arr.length; ++ta)
                     {
@@ -1222,7 +1254,7 @@
                 }
                 else
                 {
-                    this.targetObject = [];
+                    this.targetobject = [];
 
                     var div = document.createElement("div");
 
@@ -1242,16 +1274,16 @@
                             continue;
                         }
 
-                        this.obj.parentNode.insertBefore(itm, this.obj);
-                        this.targetObject.push(itm);
+                        this.element.parentNode.insertBefore(itm, this.element);
+                        this.targetobject.push(itm);
                         
                     }
 
-                    cool.processElement(this.obj.parentNode, this.obj);
+                    cool.processElement(this.element.parentNode, this.element);
 
-                    for (var w = 0; w < this.targetObject.length; ++w)
+                    for (var w = 0; w < this.targetobject.length; ++w)
                     {
-                        var itm = this.targetObject[w];
+                        var itm = this.targetobject[w];
                         var method = itm.getAttribute("render-element-complate");
 
                         if (method != null && method.length > 0)
@@ -1306,7 +1338,7 @@
                 // fire
                 this.enable(context, force);
                 this.renderEnd.context = context;
-                this.obj.dispatchEvent(this.renderEnd);
+                this.element.dispatchEvent(this.renderEnd);
             }
             else
             {
@@ -1315,44 +1347,44 @@
 
             this.isChanged = false;
         }
-        obj._cool.cancel = function (context, force)
+        element._cool.cancel = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
-                if (this.targetObject != null)
+                if (this.targetobject != null)
                 {
-                    if (this.targetObject instanceof Array)
+                    if (this.targetobject instanceof Array)
                     {
-                        for (var i = 0; i < this.targetObject.length; ++i)
+                        for (var i = 0; i < this.targetobject.length; ++i)
                         {
-                            this.targetObject[i].style.display = this.cancelDisplayVal;
+                            this.targetobject[i].style.display = this.cancelDisplayVal;
                         }
                     }
                     else
                     {
-                        this.targetObject.style.display = this.cancelDisplayVal;
+                        this.targetobject.style.display = this.cancelDisplayVal;
                     }
                 }
             }
             
             this.cancelBase(context, force);
         }
-        obj._cool.enable = function (context, force)
+        element._cool.enable = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
-                if (this.targetObject != null)
+                if (this.targetobject != null)
                 {
-                    if (this.targetObject instanceof Array)
+                    if (this.targetobject instanceof Array)
                     {
-                        for (var i = 0; i < this.targetObject.length; ++i)
+                        for (var i = 0; i < this.targetobject.length; ++i)
                         {
-                            this.targetObject[i].style.display = this.actionDisplay;
+                            this.targetobject[i].style.display = this.actionDisplay;
                         }
                     }
                     else
                     {
-                        this.targetObject.style.display = this.actionDisplay;
+                        this.targetobject.style.display = this.actionDisplay;
                     }
                 }
             }
@@ -1362,20 +1394,20 @@
     },
 
     // js-if
-    tagIf: function(obj)
+    tagIf: function(element)
     {
-        var con = obj.getAttribute("conditional");
+        var con = element.getAttribute("conditional");
 
         if (con == null || con == "")
         {
             return console.log("The 'conditional' attribute is empty");
         }
         
-        obj._cool.unobserved = obj.getAttribute("unobserved") != null;
+        element._cool.unobserved = element.getAttribute("unobserved") != null;
 
-        if (!obj._cool.unobserved)
+        if (!element._cool.unobserved)
         {
-            obj._cool.refresh = function (event, context)
+            element._cool.refresh = function (event, context)
             {
                 var c = event.element._cool;
 
@@ -1389,14 +1421,24 @@
                 return false;
             };
 
-            obj._cool.fieldCond = cool.createField(con, { callback: obj._cool.refresh, element: obj });
+            element._cool.fieldCond = cool.createField(con, { callback: element._cool.refresh, element: element });
         }
 
-        obj._cool.conditional = con;
-        obj._cool.isChanged = true;
-        obj._cool.isFlug = null;
-        obj._cool.action = function (context, force)
+        element._cool.conditional = con;
+        element._cool.isChanged = true;
+        element._cool.isFlug = null;
+        element._cool.action = function (context, force)
         {
+            if (window["data"] == null)
+            {
+                var bp = 0;
+            }
+
+            //if (this.conditional == "data.user.current != null && data.user.current.Code == 1")
+            //{
+            //    console.log(data.user.current);
+            //}
+
             var flag = eval(this.conditional);
 
             if (flag)
@@ -1411,11 +1453,11 @@
     },
 
     // js-event
-    tagEvent: function(obj)
+    tagEvent: function(element)
     {
-        var name = obj.getAttribute("name");
-        var select = obj.getAttribute("select");
-        var onactive = obj.hasAttribute("onactive");
+        var name = element.getAttribute("name");
+        var select = element.getAttribute("select");
+        var onactive = element.hasAttribute("onactive");
 
         if (name == null || name == "")
         {
@@ -1428,9 +1470,9 @@
         }
 
         var prog = cool.compileSelector(select);
-        var arr = cool.getBySelector(prog, obj);
+        var arr = cool.getBySelector(prog, element);
 
-        function initEvent(obj, name)
+        function initEvent(element, name)
         {
             return function(e)
             {
@@ -1449,7 +1491,7 @@
                 }
 
 
-                if (obj._cool.parent._cool.isActive)
+                if (element._cool.parent._cool.isActive)
                 {
                     var context = null;
                     var force = true;
@@ -1463,29 +1505,29 @@
                     }
                     else
                     {
-                        context = { initial: obj._cool.hash };
+                        context = { initial: element._cool.hash };
                     }
                     
                     cool.currentEventElement = srcelm;
-                    obj._cool.actionBase(context, force);
-                    obj._cool.eventActive = false;
-                    obj._cool.cancelBase(context);
+                    element._cool.actionBase(context, force);
+                    element._cool.eventActive = false;
+                    element._cool.cancelBase(context);
                     cool.currentEventElement = null;
                 }
                 else
                 {
-                    obj._cool.eventActive = true;
+                    element._cool.eventActive = true;
                 }
                 
                 return false;
             }
         };
 
-        obj._cool.name = name;
-        obj._cool.eventActive = false;
-        obj._cool.onactive = onactive;
-        obj._cool.initCall = obj.hasAttribute("init-call");
-        obj._cool.action = function (context, force)
+        element._cool.name = name;
+        element._cool.eventActive = false;
+        element._cool.onactive = onactive;
+        element._cool.initCall = element.hasAttribute("init-call");
+        element._cool.action = function (context, force)
         {
             //if (this.eventActive && this.onactive || this.initCall)
             //{
@@ -1504,23 +1546,23 @@
             }
         };
 
-        //obj._cool.event = initEvent(obj, name);
+        //element._cool.event = initEvent(element, name);
 
         for (var i = 0; i < arr.length; ++i)
         {
             var itm = arr[i];
 
-            //itm.addEventListener(name, obj._cool.event);
-            itm.addEventListener(name, initEvent(obj, name));
+            //itm.addEventListener(name, element._cool.event);
+            itm.addEventListener(name, initEvent(element, name));
         }
     },
 
     // js-style
-    tagStyle: function(obj)
+    tagStyle: function(element)
     {
-        var name = obj.getAttribute("name");
-        var value = obj.getAttribute("value");
-        obj._cool.select = obj.getAttribute("select");
+        var name = element.getAttribute("name");
+        var value = element.getAttribute("value");
+        element._cool.select = element.getAttribute("select");
 
         if (name == null || name == "")
         {
@@ -1532,36 +1574,36 @@
             return console.log("js-event: The 'value' attribute is empty");
         }
 
-        if (obj._cool.select == null || obj._cool.select == "")
+        if (element._cool.select == null || element._cool.select == "")
         {
-            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
-            obj._cool.select = "parent";
+            element._cool.isSeveral = element.parentNode.tagName.toLowerCase() == "js-several";
+            element._cool.select = "parent";
         }
 
-        if (obj._cool.isSeveral)
+        if (element._cool.isSeveral)
         {
-            obj._cool.prog = obj.parentNode._cool.getProg();
+            element._cool.prog = element.parentNode._cool.getProg();
         }
         else
         {
-            obj._cool.prog = cool.compileSelector(obj._cool.select);
+            element._cool.prog = cool.compileSelector(element._cool.select);
         }
 
-        obj._cool.name = name;
-        obj._cool.value = value;
-        obj._cool.cancelValue = obj.getAttribute("cancel");
-        obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function (context, force)
+        element._cool.name = name;
+        element._cool.value = value;
+        element._cool.cancelValue = element.getAttribute("cancel");
+        element._cool.isAlways = element.getAttribute("always") != null;
+        element._cool.action = function (context, force)
         {
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
                 {
-                    this.arr = this.obj.parentNode._cool.getArr();
+                    this.arr = this.element.parentNode._cool.getArr();
                 }
                 else
                 {
-                    this.arr = cool.getBySelector(this.prog, this.obj);
+                    this.arr = cool.getBySelector(this.prog, this.element);
                 }
             }
 
@@ -1578,7 +1620,7 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function (context, force)
+        element._cool.cancel = function (context, force)
         {
             if (this.cancelValue != null)
             {
@@ -1586,11 +1628,11 @@
                 {
                     if (this.isSeveral)
                     {
-                        this.arr = this.obj.parentNode._cool.getArr();
+                        this.arr = this.element.parentNode._cool.getArr();
                     }
                     else
                     {
-                        this.arr = cool.getBySelector(this.prog, this.obj);
+                        this.arr = cool.getBySelector(this.prog, this.element);
                     }
                 }
 
@@ -1607,11 +1649,11 @@
     },
 
     // js-atr
-    tagAttribute: function(obj)
+    tagAttribute: function(element)
     {
-        var name = obj.getAttribute("name");
-        var value = obj.getAttribute("value");
-        obj._cool.select = obj.getAttribute("select");
+        var name = element.getAttribute("name");
+        var value = element.getAttribute("value");
+        element._cool.select = element.getAttribute("select");
 
         if (name == null || name == "")
         {
@@ -1623,56 +1665,56 @@
             return console.log("js-atr: The 'value' attribute is empty");
         }
 
-        if (obj._cool.select == null || obj._cool.select == "")
+        if (element._cool.select == null || element._cool.select == "")
         {
-            obj._cool.isSeveral = obj._cool.parent._cool.tagName == "js-several";
-            obj._cool.select = "parent";
+            element._cool.isSeveral = element._cool.parent._cool.tagName == "js-several";
+            element._cool.select = "parent";
         }
 
-        if (obj._cool.isSeveral)
+        if (element._cool.isSeveral)
         {
-            obj._cool.prog = obj.parentNode._cool.getProg();
+            element._cool.prog = element.parentNode._cool.getProg();
         }
         else
         {
-            obj._cool.prog = cool.compileSelector(obj._cool.select);
+            element._cool.prog = cool.compileSelector(element._cool.select);
         }
 
-        var cancel = obj.getAttribute("cancel");
+        var cancel = element.getAttribute("cancel");
 
         if (value == "#remove")
         {
-            obj._cool.mode = 1;
+            element._cool.mode = 1;
         }
         else
         {
-            obj._cool.mode = 0;
+            element._cool.mode = 0;
         }
 
         if (cancel == "#remove")
         {
-            obj._cool.cancelMode = 1;
+            element._cool.cancelMode = 1;
         }
         else
         {
-            obj._cool.cancelMode = 0;
+            element._cool.cancelMode = 0;
         }
 
-        obj._cool.value = cool.getTypedValue(value);
-        obj._cool.cancelValue = cool.getTypedValue(cancel);
-        obj._cool.name = name;
-        obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function (context, force)
+        element._cool.value = cool.getTypedValue(value);
+        element._cool.cancelValue = cool.getTypedValue(cancel);
+        element._cool.name = name;
+        element._cool.isAlways = element.getAttribute("always") != null;
+        element._cool.action = function (context, force)
         {
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
                 {
-                    this.arr = this.obj.parentNode._cool.getArr();
+                    this.arr = this.element.parentNode._cool.getArr();
                 }
                 else
                 {
-                    this.arr = cool.getBySelector(this.prog, this.obj);
+                    this.arr = cool.getBySelector(this.prog, this.element);
                 }
             }
 
@@ -1726,7 +1768,7 @@
 
             this.actionBase(context, force);
         };
-        obj._cool.cancel = function (context, force)
+        element._cool.cancel = function (context, force)
         {
             if (this.cancelValue != null)
             {
@@ -1734,11 +1776,11 @@
                 {
                     if (this.isSeveral)
                     {
-                        this.arr = this.obj.parentNode._cool.getArr();
+                        this.arr = this.element.parentNode._cool.getArr();
                     }
                     else
                     {
-                        this.arr = cool.getBySelector(this.prog, this.obj);
+                        this.arr = cool.getBySelector(this.prog, this.element);
                     }
                 }
 
@@ -1778,24 +1820,24 @@
     },
 
     // js-several
-    tagSeveral: function(obj)
+    tagSeveral: function(element)
     {
-        obj._cool.select = obj.getAttribute("select");
+        element._cool.select = element.getAttribute("select");
 
-        if (obj._cool.select == null || obj._cool.select == "")
+        if (element._cool.select == null || element._cool.select == "")
         {
-            obj._cool.isSeveral = obj.parentNode.tagName.toLowerCase() == "js-several";
-            obj._cool.select = "parent";
+            element._cool.isSeveral = element.parentNode.tagName.toLowerCase() == "js-several";
+            element._cool.select = "parent";
         }
 
-        obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.getProg = function()
+        element._cool.isAlways = element.getAttribute("always") != null;
+        element._cool.getProg = function()
         {
             if (this.prog == null || this.isAlways)
             {
                 if (this.isSeveral)
                 {
-                    this.prog = this.obj.parentNode._cool.getProg();
+                    this.prog = this.element.parentNode._cool.getProg();
                 }
                 else
                 {
@@ -1805,17 +1847,17 @@
 
             return this.prog;
         }
-        obj._cool.getArr = function()
+        element._cool.getArr = function()
         {
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
                 {
-                    this.arr = this.obj.parentNode._cool.getArr();
+                    this.arr = this.element.parentNode._cool.getArr();
                 }
                 else
                 {
-                    this.arr = cool.getBySelector(this.getProg(), this.obj);
+                    this.arr = cool.getBySelector(this.getProg(), this.element);
                 }
             }
 
@@ -1824,59 +1866,59 @@
     },
 
     // script
-    tagScript: function(obj)
+    tagScript: function(element)
     {
-        var type = obj.getAttribute("type");
+        var type = element.getAttribute("type");
 
         if (type == "js-query")
         {
-            cool.tagQuery(obj);
+            cool.tagQuery(element);
             
             // #remove_line
-            obj._cool.info = "type:js-query, " + "select:" + obj._cool.select;
+            element._cool.info = "type:js-query, " + "select:" + element._cool.select;
         }
     },
 
     // js-validate
-    tagValidate: function(obj)
+    tagValidate: function(element)
     {
-        var set = obj.getAttribute("set");
-        obj._cool.select = obj.getAttribute("select");
+        var set = element.getAttribute("set");
+        element._cool.select = element.getAttribute("select");
 
-        if (obj._cool.select == null || obj._cool.select == "")
+        if (element._cool.select == null || element._cool.select == "")
         {
-            obj._cool.isSeveral = obj._cool.parent._cool.tagName == "js-several";
-            obj._cool.select = "parent";
+            element._cool.isSeveral = element._cool.parent._cool.tagName == "js-several";
+            element._cool.select = "parent";
         }
 
-        if (obj._cool.isSeveral)
+        if (element._cool.isSeveral)
         {
-            obj._cool.prog = obj.parentNode._cool.getProg();
+            element._cool.prog = element.parentNode._cool.getProg();
         }
         else
         {
-            obj._cool.prog = cool.compileSelector(obj._cool.select);
+            element._cool.prog = cool.compileSelector(element._cool.select);
         }
 
         if (set != null)
         {
-            obj._cool.field = cool.createField(set);
+            element._cool.field = cool.createField(set);
         }
 
-        obj._cool.set = set;
-        obj._cool.validCount = 0;
-        obj._cool.isAlways = obj.getAttribute("always") != null;
-        obj._cool.action = function (context, force)
+        element._cool.set = set;
+        element._cool.validCount = 0;
+        element._cool.isAlways = element.getAttribute("always") != null;
+        element._cool.action = function (context, force)
         {
             if (this.arr == null || this.isAlways)
             {
                 if (this.isSeveral)
                 {
-                    this.arr = this.obj.parentNode._cool.getArr();
+                    this.arr = this.element.parentNode._cool.getArr();
                 }
                 else
                 {
-                    this.arr = cool.getBySelector(this.prog, this.obj);
+                    this.arr = cool.getBySelector(this.prog, this.element);
                 }
 
                 for (var i = 0; i < this.arr.length; ++i)
@@ -1929,7 +1971,7 @@
                 this.cancel(context);
             }
         };
-        obj._cool.func = function(arg)
+        element._cool.func = function(arg)
         {
             var elm = ((window.event)?(event.srcElement):(arg.currentTarget));
 
@@ -2026,7 +2068,6 @@
 
             this.actionBase(context, force);
         };
-
         elm._cool.canncel = function (context, force)
         {
             for (var i = 0; i < this.attributes.length; ++i)
@@ -2044,70 +2085,70 @@
     },
     
     // js-text
-    tagText: function(obj)
+    tagText: function(element)
     {
-        var path = obj.getAttribute("path");
+        var path = element.getAttribute("path");
 
         if (path == null || path == "")
         {
             return console.log("js-text: The 'path' attribute is empty.");
         }
 
-        obj._cool.path = path;
-        obj._cool.obj = obj;
-        obj._cool.refresh = function (event, context)
+        element._cool.path = path;
+        element._cool.element = element;
+        element._cool.refresh = function (event, context)
         {
             var c = event.element._cool;
             var val = c.field.get();
 
-            itm.element.innerHTML = val;
+            event.element.innerHTML = val;
 
             return true;
         }
-        obj._cool.action = function (context, force)
+        element._cool.action = function (context, force)
         {
-            this.obj.innerHTML = this.field.get();
+            this.element.innerHTML = this.field.get();
             this.actionBase(context, force);
         };
 
-        obj._cool.field = cool.createField(path, { callback: obj._cool.refresh, element: obj });
+        element._cool.field = cool.createField(path, { callback: element._cool.refresh, element: element });
     },
     
     // js-go
-    tagGo: function(obj)
+    tagGo: function(element)
     {
-        obj._cool.atrMap =
+        element._cool.atrMap =
         {
-            obj: obj,
+            element: element,
             value: function()
             {
-                var value = this.obj.getAttribute("value");
+                var value = this.element.getAttribute("value");
 
                 if (value == null)
                 {
                     return console.log("js-go: The 'value' attribute is empty.");
                 }
 
-                this.obj._cool.value = value;
+                this.element._cool.value = value;
             }
         };
 
-        obj._cool.action = function (context, force)
+        element._cool.action = function (context, force)
         {
             cool.go(this.value);
 
             this.actionBase(context, force);
         };
 
-        obj._cool.atrMap.value();
+        element._cool.atrMap.value();
     },
 
     // js-call
-    tagCall: function(obj)
+    tagCall: function(element)
     {
-        var name = obj.getAttribute("name");
-        var method = obj.getAttribute("method");
-        var context = obj.getAttribute("context") != null;
+        var name = element.getAttribute("name");
+        var method = element.getAttribute("method");
+        var context = element.getAttribute("context") != null;
         
         if (name == null || name == "")
         {
@@ -2119,9 +2160,9 @@
             return console.log("js-call: The 'method' attribute is empty.");
         }
 
-        obj._cool.params = [];
+        element._cool.params = [];
 
-        var tmp = obj.querySelectorAll("js-param");
+        var tmp = element.querySelectorAll("js-param");
 
         for (var i = 0; i < tmp.length; ++i)
         {
@@ -2136,13 +2177,13 @@
                 return;
             }
 
-            obj._cool.params.push(tval);
+            element._cool.params.push(tval);
         }
 
-        obj._cool.name = name;
-        obj._cool.method = method;
-        obj._cool.isContext = context;
-        obj._cool.action = function (context, force)
+        element._cool.name = name;
+        element._cool.method = method;
+        element._cool.isContext = context;
+        element._cool.action = function (context, force)
         {
             if (this.field == null)
             {
@@ -2184,40 +2225,42 @@
     },
 
     // js-width
-    tagWidth: function (obj)
+    tagWidth: function (element)
     {
-        obj._cool.target = obj.getAttribute("target");
-        obj._cool.min = obj.getAttribute("min");
-        obj._cool.max = obj.getAttribute("max");
+        var c = element._cool;
 
-        if (obj._cool.target == null || obj._cool.target == "")
+        c.target = element.getAttribute("target");
+        c.min = element.getAttribute("min");
+        c.max = element.getAttribute("max");
+
+        if (c.target == null || c.target == "")
         {
-            obj._cool.target = "window";
+            c.target = "window";
         }
 
-        if (obj._cool.min == null || obj._cool.min == "")
+        if (c.min == null || c.min == "")
         {
-            obj._cool.min = 0;
+            c.min = 0;
         }
         else
         {
-            obj._cool.min = parseInt(obj._cool.min);
+            c.min = parseInt(c.min);
         }
 
-        if (obj._cool.max == null || obj._cool.max == "")
+        if (c.max == null || c.max == "")
         {
-            obj._cool.max = 4096;
+            c.max = 4096;
         }
         else
         {
-            obj._cool.max = parseInt(obj._cool.max);
+            c.max = parseInt(c.max);
         }
 
-        obj._cool.prog = cool.compileSelector(obj._cool.target);
+        c.prog = cool.compileSelector(c.target);
         
-        obj._cool.action = function (context, force)
+        c.action = function (context, force)
         {
-            var arr = cool.getBySelector(this.prog, this.obj);
+            var arr = cool.getBySelector(this.prog, this.element);
 
             if (arr.length > 0)
             {
@@ -2247,36 +2290,41 @@
             }
         };
 
-        obj._cool.cancel = function(context, force)
+        c.cancel = function(context, force)
         {
             this.cancelBase(context, force);
         }
 
-        function initEvent(obj)
+        c.getReady = function ()
+        {
+            window.addEventListener('resize', initEvent(element), true);
+
+            return true;
+        }
+
+        function initEvent(element)
         {
             return function ()
             {
-                obj._cool.action({initial: obj._cool.hash}, false);
+                element._cool.action({initial: element._cool.hash}, false);
             }
         };
-
-        window.addEventListener('resize', initEvent(obj), true);
     },
 
     // js-move
-    tagMove: function (obj)
+    tagMove: function (element)
     {
-        obj._cool.target = obj.getAttribute("target");
-        obj._cool.isCancel = obj.getAttribute("cancel") != null;
-        obj._cool.isAlways = obj.getAttribute("always") != null;
+        element._cool.target = element.getAttribute("target");
+        element._cool.isCancel = element.getAttribute("cancel") != null;
+        element._cool.isAlways = element.getAttribute("always") != null;
 
-        if (obj._cool.target == null || obj._cool.target == "")
+        if (element._cool.target == null || element._cool.target == "")
         {
             return console.log("js-move: The 'target' attribute is empty.");
         }
 
-        obj._cool.prog = cool.compileSelector(obj._cool.target);
-        obj._cool.move = function(context)
+        element._cool.prog = cool.compileSelector(element._cool.target);
+        element._cool.move = function(context)
         {
             //if (!this.isAlways)
             //{
@@ -2292,16 +2340,16 @@
             //    }
             //}
 
-            var arr = cool.getBySelector(this.prog, this.obj);
+            var arr = cool.getBySelector(this.prog, this.element);
 
             if (arr.length > 0)
             {
                 var tar = arr[0];
                 var tmp = [];
 
-                for (var i = 0; i < this.obj.childNodes.length; ++i)
+                for (var i = 0; i < this.element.childNodes.length; ++i)
                 {
-                    var itm = this.obj.childNodes[i];
+                    var itm = this.element.childNodes[i];
 
                     if (itm.nodeType == 1)
                     {
@@ -2341,7 +2389,7 @@
                 this.chields = [];
             }
         };
-        obj._cool.action = function (context, force)
+        element._cool.action = function (context, force)
         {
             if (context.initial == this.parent._cool.hash)
             {
@@ -2359,7 +2407,7 @@
                 this.actionBase(context, force);
             }
         };
-        obj._cool.cancel = function (context, force)
+        element._cool.cancel = function (context, force)
         {
             if (this.isCancel)
             {
@@ -2376,13 +2424,13 @@
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     // js 
-    atrJs: function(obj, index)
+    atrJs: function(element, index)
     {
-        var atr = obj._cool.attributes[index];
+        var atr = element._cool.attributes[index];
 
-        obj._cool.js = atr;
+        element._cool.js = atr;
         
-        atr.element = obj;
+        atr.element = element;
         atr.refresh = function(selector, value)
         {
             if (selector != null)
@@ -2415,9 +2463,9 @@
 
             atr.map = {};
 
-            for (var i = 0; i < obj.attributes.length; ++i)
+            for (var i = 0; i < element.attributes.length; ++i)
             {
-                var itm = obj.attributes[i];
+                var itm = element.attributes[i];
                 var val = itm.value;
 
                 if (val == null)
@@ -2588,55 +2636,55 @@
     },
 
     // js-bind
-    atrBindBoth: function(obj, index)
+    atrBindBoth: function(element, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index], false, false);
+        cool.atrBindEx(element, element._cool.attributes[index], false, false);
     },
 
     // js-read
-    atrBindRead: function(obj, index)
+    atrBindRead: function(element, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index], true, false);
+        cool.atrBindEx(element, element._cool.attributes[index], true, false);
     },
 
     // js-write
-    atrBindWrite: function(obj, index)
+    atrBindWrite: function(element, index)
     {
-        cool.atrBindEx(obj, obj._cool.attributes[index], false, true);
+        cool.atrBindEx(element, element._cool.attributes[index], false, true);
     },
 
     // js-bind all modes
-    atrBindEx: function (obj, bind, isReadOnly, isWriteOnly)
+    atrBindEx: function (element, bind, isReadOnly, isWriteOnly)
     {
-        obj._cool.bind = bind;
+        element._cool.bind = bind;
 
         bind.path = bind.value;
 
         if (bind.path == null || bind.path == "")
         {
-            return console.log(obj.tagName + ": has empty 'js-bing' attribute.");
+            return console.log(element.tagName + ": has empty 'js-bing' attribute.");
         }
 
-        var tnm = obj.tagName.toLowerCase();
+        var tnm = element.tagName.toLowerCase();
 
         bind.isInput = tnm == "input";
         bind.isTextarea = tnm == "textarea";//Textarea
         bind.isSelect = tnm == "select";
-        bind.isFloat = obj.hasAttribute("float");
+        bind.isFloat = element.hasAttribute("float");
         bind.lock1 = false;
         bind.lock2 = false;
         bind.isCheckbox = false;
         bind.isRadio = false;
         bind.isText = false;
         bind.isNumber = false;
-        bind.obj = obj;
+        bind.element = element;
         bind.isReadOnly = isReadOnly;
         bind.isWriteOnly = isWriteOnly;
 
         // validate
         if (bind.isInput)
         {
-            var type = obj.getAttribute("type");
+            var type = element.getAttribute("type");
 
             if (type == "checkbox")
             {
@@ -2661,7 +2709,7 @@
         }
         else
         {
-            return console.log("The " + obj.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.");
+            return console.log("The " + element.tagName + " tag can't used with js-bind. You can use js-text tag for text binding, see docks.");
         }
 
         // set observe
@@ -2677,7 +2725,7 @@
 
                         if (tmp != null)
                         {
-                            this.obj.checked = tmp;
+                            this.element.checked = tmp;
                         }
                     };
                 }
@@ -2687,9 +2735,9 @@
                     {
                         var tmp = this.field.get();
 
-                        if (this.obj.value == tmp)
+                        if (this.element.value == tmp)
                         {
-                            this.obj.checked = true;
+                            this.element.checked = true;
                         }
                     };
                 }
@@ -2701,7 +2749,7 @@
 
                         if (tmp != null)
                         {
-                            this.obj.value = tmp;
+                            this.element.value = tmp;
                         }
                     };
                 }
@@ -2714,7 +2762,7 @@
 
                     if (tmp != null)
                     {
-                        this.obj.value = tmp;
+                        this.element.value = tmp;
                     }
                 };
             }
@@ -2733,7 +2781,7 @@
                 return true;
             };
 
-            bind.field = cool.createField(bind.path, { callback : bind.refresh, element:  obj });
+            bind.field = cool.createField(bind.path, { callback : bind.refresh, element:  element });
         }
         else
         {
@@ -2751,7 +2799,7 @@
                 {
                     bind.getVal = function()
                     {
-                        return this.obj.checked;
+                        return this.element.checked;
                     };
                 }
                 else if (bind.isRadio)
@@ -2760,7 +2808,7 @@
                     {
                         if (this.checked)
                         {
-                            return this.obj.value;
+                            return this.element.value;
                         }
 
                         return null;
@@ -2770,14 +2818,14 @@
                 {
                     bind.getVal = function()
                     {
-                        return this.obj.value;
+                        return this.element.value;
                     };
                 }
                 else if (bind.isNumber)
                 {
                     bind.getVal = function()
                     {
-                        var tmp = this.isFloat ? parseFloat(this.obj.value) : parseInt(this.obj.value);
+                        var tmp = this.isFloat ? parseFloat(this.element.value) : parseInt(this.element.value);
 
                         return tmp;
                     };
@@ -2787,11 +2835,11 @@
             {
                 bind.getVal = function ()
                 {
-                    return this.obj.value;
+                    return this.element.value;
                 };
             }
 
-            obj.addEventListener("change", function()
+            element.addEventListener("change", function()
             {
                 if (!this._cool.bind.lock1)
                 {
@@ -2821,9 +2869,9 @@
     },
 
     // js-class
-    atrClass: function(obj, index, isCancel)
+    atrClass: function(element, index, isCancel)
     {
-        var atr = obj._cool.attributes[index];
+        var atr = element._cool.attributes[index];
 
         if (isCancel == null)
         {
@@ -2887,27 +2935,27 @@
                 {
                     case 0:
                     {
-                        if (this._cool.obj.className.indexOf(itm.name) == -1)  
+                        if (this._cool.element.className.indexOf(itm.name) == -1)  
                         {
-                            this._cool.obj.className += " " + itm.name;
+                            this._cool.element.className += " " + itm.name;
                         }
 
                         break;
                     }
                     case 1:
                     {
-                        var ind = this._cool.obj.className.indexOf(itm.name);
+                        var ind = this._cool.element.className.indexOf(itm.name);
 
                         if (ind != -1)
                         {
-                            this._cool.obj.className = this._cool.obj.className.substr(0, ind) + this._cool.obj.className.substr(ind + itm.name.length);
+                            this._cool.element.className = this._cool.element.className.substr(0, ind) + this._cool.element.className.substr(ind + itm.name.length);
                         }
                         
                         break;
                     }
                     case 2:
                     {
-                        this._cool.obj.className = itm.name;
+                        this._cool.element.className = itm.name;
 
                         break;
                     }
@@ -2928,9 +2976,9 @@
     },
     
     // js-class-cancel
-    atrCancelClass: function(obj,  index)
+    atrCancelClass: function(element,  index)
     {
-        cool.atrClass(obj, index, true);
+        cool.atrClass(element, index, true);
     },
 
     
@@ -3068,7 +3116,7 @@
         cool.changed("cool.currentPage", "set", null, lastPage, page, context);
         cool.changed("cool.lastPage", "set", null, tmp, lastPage, context);
 
-        cool.processContext (context);
+        cool.processContext(context);
     },
 
     // Ajax
@@ -3077,27 +3125,27 @@
     // Ajax request helper todo make headers    XMLHttpRequest.setRequestHeader(name, value)
     ajax: function(method, url, data, tag, callback)
     {
-        var obj = new XMLHttpRequest();
+        var element = new XMLHttpRequest();
 
-        //obj.responseType = "text";
-        obj.open(method, encodeURI(url), true);
-        obj.setRequestHeader('Content-Type', 'text/plain');
+        //element.responseType = "text";
+        element.open(method, encodeURI(url), true);
+        element.setRequestHeader('Content-Type', 'text/plain');
 
-        InitCoolElement(null, obj).data = data;
+        InitCoolElement(null, element).data = data;
 
-        obj.onreadystatechange = function ()
+        element.onreadystatechange = function ()
         {
-            if (obj.readyState == 4)
+            if (element.readyState == 4)
             {
-                callback(obj, tag);
+                callback(element, tag);
             }
         }
-        obj.go = function()
+        element.go = function()
         {
-            obj.send(this._cool.data);
+            element.send(this._cool.data);
         }
 
-        return obj;
+        return element;
     },
 
     // ajax short for get
@@ -3152,9 +3200,11 @@
                 //    this.js.type & 32 == 32 ||
                 //    this.js.type = 0;
 
+                var hasTarget = target != null;
+                // This means that the expression is complex, and not just a variable.
                 var sckipInit = this.js.flags != 256;
 
-                if (target == null)
+                if (!hasTarget)
                 {
                     if (!sckipInit)
                     {
@@ -3195,14 +3245,14 @@
 
                         this.checkedPath = true;
                     }
-                    
-                    if (sckipInit)
+
+                    if (hasTarget || !sckipInit)
                     {
-                        eval("tmp = " + this.path + ";");
+                        eval("tmp = target." + this.path + property);
                     }
                     else
                     {
-                        eval("tmp = target." + this.path + property);
+                        eval("tmp = " + this.path + ";");
                     }
                 }
                 catch (e)
@@ -3215,13 +3265,14 @@
             },
             set: function (val, target, property)
             {
-                if (target == null)
+                var hasTarget = target != null;
+                var last = this.get(target, property);
+                var empty = true;
+
+                if (!hasTarget)
                 {
                     target = window;
                 }
-
-                var last = this.get(target, property);
-                var empty = true;
 
                 if (property == null)
                 {
@@ -3635,7 +3686,7 @@
                 }
                 else if (this.fastType == 2)
                 {
-                    return cool.cloneObj(this.value);
+                    return cool.cloneObject(this.value);
                 }
 
                 return this.value;
@@ -4510,7 +4561,7 @@
             var pos = 0;
             var name = "";
             var node = null;
-            var obj = root;
+            var element = root;
 
             while (cur < meta.length)
             {
@@ -4544,11 +4595,11 @@
 
                         if (name.length == 0)
                         {
-                            obj = val;
+                            element = val;
                         }
                         else
                         {
-                            obj[name] = val;
+                            element[name] = val;
                         }
 
                         break;
@@ -4564,11 +4615,11 @@
                             count: arr[pos++],
                             index: 0,
                             arr: [],
-                            context: obj
+                            context: element
                         };
 
                         name = meta[++cur];
-                        obj[name] = tmp0.arr;
+                        element[name] = tmp0.arr;
 
                         // skip
                         if (tmp0.count == 0)
@@ -4588,7 +4639,7 @@
                             node = tmp0;
                         }
 
-                        obj = {};
+                        element = {};
 
                         break;
                     }
@@ -4604,7 +4655,7 @@
                             parent: null,
                             sign: meta[++cur],
                             arr: [],
-                            context: obj
+                            context: element
                         };
 
                         // skip
@@ -4623,9 +4674,9 @@
                             node = tmp1;
                         }
 
-                        obj[name] = node.arr;
+                        element[name] = node.arr;
 
-                        obj = {};
+                        element = {};
 
                         break;
                     }
@@ -4639,7 +4690,7 @@
                             start: cur + 1,
                             end: cool.metaStream.findEnd(meta, cur + 1),
                             parent: null,
-                            context: obj
+                            context: element
                         };
 
                         if (node == null)
@@ -4652,8 +4703,8 @@
                             node = tmp2;
                         }
 
-                        obj[name] = {};
-                        obj = obj[name];
+                        element[name] = {};
+                        element = element[name];
 
                         break;
                     }
@@ -4663,7 +4714,7 @@
 
                         var sign = meta[++cur];
 
-                        if (obj[name] != sign)
+                        if (element[name] != sign)
                         {
                             var end = cool.metaStream.findEnd(meta, cur + 1);
 
@@ -4681,7 +4732,7 @@
 
                     if (node.type == 'f')
                     {
-                        node.arr.push(obj);
+                        node.arr.push(element);
                         node.index++;
 
                         if (node.index >= node.count)
@@ -4691,7 +4742,7 @@
                     }
                     else if (node.type == 'w')
                     {
-                        node.arr.push(obj);
+                        node.arr.push(element);
 
                         if (node.sign != arr[pos++])
                         {
@@ -4705,12 +4756,12 @@
 
                     if (exit)
                     {
-                        obj = node.context;
+                        element = node.context;
                         node = node.parent;
                     }
                     else
                     {
-                        obj = {};
+                        element = {};
                         cur = node.start;
                     }
                 }
@@ -4722,14 +4773,14 @@
         },
 
         // get short string from decription data tags
-        toShort: function(obj, spliter, arr)
+        toShort: function(element, spliter, arr)
         {
-            if (obj.tagName == null)
+            if (element.tagName == null)
             {
                 return "";
             }
 
-            var tagName = obj.tagName.toLowerCase();
+            var tagName = element.tagName.toLowerCase();
             var i = 0;
             var itm = null;
             var name = "";
@@ -4737,14 +4788,14 @@
 
             if (tagName == "js-ajax-stream")
             {
-                var short1 = obj.getAttribute("short");
+                var short1 = element.getAttribute("short");
 
                 if (short1 != null)
                 {
                     return short1;
                 }
 
-                spliter = obj.getAttribute("spliter");
+                spliter = element.getAttribute("spliter");
 
                 if (spliter == null || spliter == "")
                 {
@@ -4755,9 +4806,9 @@
 
                 arr.push(spliter);
 
-                for (i = 0; i < obj.children.length; ++i)
+                for (i = 0; i < element.children.length; ++i)
                 {
-                    itm = obj.children[i];
+                    itm = element.children[i];
 
                     cool.metaStream.toShort(itm, spliter, arr);
                 }
@@ -4768,8 +4819,8 @@
             }
             else if (tagName == "js-stream-var")
             {
-                name = obj.getAttribute("name");
-                type = obj.getAttribute("type");
+                name = element.getAttribute("name");
+                type = element.getAttribute("type");
 
                 if (name == null || name == "")
                 {
@@ -4786,9 +4837,9 @@
                     arr.push("o");
                     arr.push(name);
 
-                    for (i = 0; i < obj.children.length; ++i)
+                    for (i = 0; i < element.children.length; ++i)
                     {
-                        itm = obj.children[i];
+                        itm = element.children[i];
 
                         cool.metaStream.toShort(itm, spliter, arr);
                     }
@@ -4817,8 +4868,8 @@
             }
             else if (tagName == "js-stream-for" || tagName == "js-stream-while")
             {
-                name = obj.getAttribute("name");
-                type = obj.getAttribute("type");
+                name = element.getAttribute("name");
+                type = element.getAttribute("type");
 
                 if (name == null || name == "")
                 {
@@ -4830,7 +4881,7 @@
                     return console.log(tagName + ": The 'type' attribute is empty");
                 }
 
-                if (obj.children.length > 0 && type != "object")
+                if (element.children.length > 0 && type != "object")
                 {
                     return console.log(tagName + ": The 'type' must be 'object' than chields more zero.");
                 }
@@ -4843,7 +4894,7 @@
                 {
                     arr.push("w");
 
-                    var sign = obj.getAttribute("sign");
+                    var sign = element.getAttribute("sign");
 
                     if (sign == null || sign == "")
                     {
@@ -4857,9 +4908,9 @@
 
                 if (type == "object")
                 {
-                    for (i = 0; i < obj.children.length; ++i)
+                    for (i = 0; i < element.children.length; ++i)
                     {
-                        itm = obj.children[i];
+                        itm = element.children[i];
 
                         cool.metaStream.toShort(itm, spliter, arr);
                     }
@@ -4885,8 +4936,8 @@
             }
             else if (tagName == "js-stream-if")
             {
-                name = obj.getAttribute("name");
-                var value = obj.getAttribute("value");
+                name = element.getAttribute("name");
+                var value = element.getAttribute("value");
 
                 if (name == null || name == "")
                 {
@@ -4902,9 +4953,9 @@
                 arr.push(name);
                 arr.push(value);
 
-                for (i = 0; i < obj.children.length; ++i)
+                for (i = 0; i < element.children.length; ++i)
                 {
-                    itm = obj.children[i];
+                    itm = element.children[i];
 
                     cool.metaStream.toShort(itm, spliter, arr);
                 }
@@ -4942,7 +4993,7 @@
         },
 
         // declaring top fields of data stream
-        declare: function(metaStr, objTar)
+        declare: function(metaStr, elementTar)
         {
             var meta = metaStr.split(':');
             var name = "";
@@ -4950,7 +5001,7 @@
 
             var stack = [];
 
-            stack.push({ obj: objTar, end: meta.length });
+            stack.push({ element: elementTar, end: meta.length });
 
             for (var cur = 1; cur < meta.length; ++cur)
             {
@@ -4961,14 +5012,14 @@
                     stack.pop();
                 }
 
-                var obj = stack[stack.length - 1].obj;
+                var element = stack[stack.length - 1].element;
 
                 switch (meta[cur])
                 {
                     case 'v':
                     {
                         name = meta[++cur];
-                        has = name in obj;
+                        has = name in element;
 
                         if (!has)
                         {
@@ -4978,20 +5029,20 @@
 
                                 if (name[name.length - 1] == 'i')
                                 {
-                                    obj[n] = 0;
+                                    element[n] = 0;
                                 }
                                 else if (name[name.length - 1] == 'f')
                                 {
-                                    obj[n] = parseFloat("0");
+                                    element[n] = parseFloat("0");
                                 }
                                 else if (name[name.length - 1] == 'b')
                                 {
-                                    obj[n] = false;
+                                    element[n] = false;
                                 }
                             }
                             else
                             {
-                                obj[name] = "";
+                                element[name] = "";
                             }
                         }
 
@@ -5001,11 +5052,11 @@
                     case 'f':
                     {
                         name = meta[++cur];
-                        has = name in obj;
+                        has = name in element;
 
                         if (!has)
                         {
-                            obj[name] = [];
+                            element[name] = [];
                         }
 
                         cur = cool.metaStream.findEnd(meta, cur + 1);
@@ -5015,14 +5066,14 @@
                     case 'o':
                     {
                         name = meta[++cur];
-                        has = name in obj;
+                        has = name in element;
 
                         if (!has)
                         {
-                            obj[name] = {};
+                            element[name] = {};
                         }
 
-                        stack.push({ obj: obj[name], end: cool.metaStream.findEnd(meta, cur + 1) });
+                        stack.push({ element: element[name], end: cool.metaStream.findEnd(meta, cur + 1) });
 
                         break;
                     }
@@ -5047,7 +5098,7 @@
     queryContext: { items : [], index : 0 },
     
     // clone object
-    cloneObj: function(src)
+    cloneObject: function(src)
     {
         var dst;
 
@@ -5059,7 +5110,7 @@
             {
                 if (typeof src[i] == "object")
                 {
-                    dst.push(cool.cloneObj(src[i]));
+                    dst.push(cool.cloneObject(src[i]));
                 }
                 else
                 {
@@ -5077,7 +5128,7 @@
                 {
                     if (typeof src[p] == "object")
                     {
-                        dst[p] = cool.cloneObj(src[p]);
+                        dst[p] = cool.cloneObject(src[p]);
                     }
                     else
                     {
@@ -5197,7 +5248,7 @@
                             {
                                 if (!und)
                                 {
-                                    comp.push(cool.cloneObj(com));
+                                    comp.push(cool.cloneObject(com));
                                 }
                                 else
                                 {
@@ -5315,10 +5366,10 @@
     },
 
     // check exist
-    exist: function (item, obj, path)
+    exist: function (item, element, path)
     {
         var itemKey;
-        var tmp = InitCoolElement(1, obj);
+        var tmp = InitCoolElement(1, element);
         var ht = null;
 
         if (path == null)
@@ -5331,19 +5382,19 @@
         // build hashtable
         if (cool.queryContext[key] == null)
         {
-            if (obj instanceof Array)
+            if (element instanceof Array)
             {
                 ht = {};
 
-                for (var i = 0; i < obj.length; ++i)
+                for (var i = 0; i < element.length; ++i)
                 {
                     if (path == "")
                     {
-                        itemKey = obj[i];
+                        itemKey = element[i];
                     }
                     else
                     {
-                        eval("itemKey = obj[i]." + path);
+                        eval("itemKey = element[i]." + path);
                     }
 
                     ht[itemKey] = 32;
@@ -5351,7 +5402,7 @@
             }
             else
             {
-                ht = obj;
+                ht = element;
             }
 
             cool.queryContext[key] = ht;
@@ -5375,6 +5426,11 @@
         for (var i = 0; i < tmp.list.length; ++i)
         {
             var itm = tmp.list[i];
+
+            //if (itm.text != null && itm.text.indexOf("atm.FieldValue.repla") != -1)
+            //{
+            //    var bp = 0;
+            //}
 
             itm.cache = cnt.cache;
 
@@ -5694,7 +5750,7 @@
                 var ind3 = inds_else.end;
                 var text0 = cool.buildTemplate(str.substr(inds.start + 3, ind1 - inds.start - 3), roots);
 
-                var obj1 =
+                var element1 =
                 {
                     type: 1,
                     conditional: text0
@@ -5702,17 +5758,17 @@
 
                 if (ind3 != -1 && ind3 < inds.end)
                 {
-                    obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, ind3 - ind1 - 2), roots);
-                    obj1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
+                    element1.main_block = cool.buildTemplate(str.substr(ind1 + 2, ind3 - ind1 - 2), roots);
+                    element1.else_block = cool.buildTemplate(str.substr(ind3 + 5, inds.end - ind3 - 5), roots);
                 }
                 else
                 {
-                    obj1.main_block = cool.buildTemplate(str.substr(ind1 + 2, inds.end - ind1 - 2), roots);
+                    element1.main_block = cool.buildTemplate(str.substr(ind1 + 2, inds.end - ind1 - 2), roots);
                 }
                 
-                if (obj1.conditional.selfVars)
+                if (element1.conditional.selfVars)
                 {
-                    obj1.func = cool.getRandomString();
+                    element1.func = cool.getRandomString();
 
                     var args0 = "";
 
@@ -5729,12 +5785,12 @@
                     var scr0 = document.createElement('script');
 
                     scr0.type = 'text/javascript';
-                    scr0.text = "document['" + obj1.func + "'] = function(" + args0 + "){ return " + cool.concateTmpFrag(obj1.conditional) + ";}";
+                    scr0.text = "document['" + element1.func + "'] = function(" + args0 + "){ return " + cool.concateTmpFrag(element1.conditional) + ";}";
 
                     document.getElementsByTagName('body')[0].appendChild(scr0);
                 }
             
-                tmp.list.push(obj1);
+                tmp.list.push(element1);
 
                 i = inds.end + len_end_if - 1;
             }
@@ -6471,19 +6527,10 @@
     // init dom tree and preload resource
     processElementWithPreload : function(elm, callback)
     {
-        var arr = [];
+        var arr = elm.querySelectorAll("JS-LOAD");
+        var counter = { count: arr.length };
 
-        for (var i = 0; i < elm.childNodes.length; ++i)
-        {
-            var itm = elm.childNodes[i];
-
-            if (itm.tagName == "JS-LOAD")
-            {
-                arr.push(itm);
-            }
-        }
-
-        if (arr.length > 0)
+        if (counter.count > 0)
         {
             for (var j = 0; j < arr.length; ++j)
             {
@@ -6492,32 +6539,49 @@
 
                 if (src == null)
                 {
+                    counter.count--;
+
                     continue;
                 }
 
-                cool.ajaxGet(src, {arr: arr, index: j, elm: elm, callback: callback}, function (http, tag)
+                if (src.indexOf("{") != -1)
                 {
-                    tag.arr.splice(tag.index, 1);
-
-                    if (tag.arr.length == 0)
+                    if (itm._cool.isReady)
                     {
-                        //cool.processElement(tag.elm);
+                        src = itm._cool.src;
+                    }
+                    else
+                    {
+                        counter.count--;
 
+                        continue;
+                    }
+                }
+                               
+                cool.ajaxGet(src, { arr: arr, counter: counter, elm: elm, callback: callback}, function (http, tag)
+                {
+                    tag.counter.count--;
+
+                    if (tag.counter.count < 1)
+                    {
                         if (tag.callback != null)
                         {
-                            tag.callback();
+                            tag.callback(tag.elm);
                         }
                     }
                 }).go();
             }
+
+            if (callback != null && counter.count < 1)
+            {
+                callback(elm);
+            }
         }
         else
         {
-            //cool.processElement(elm);
-
             if (callback != null)
             {
-                callback();
+                callback(elm);
             }
         }
     },
@@ -6584,7 +6648,7 @@
             
             if (cool.jsF[name] != null)
             {
-                arr.push({obj : itm, name : name});
+                arr.push({element : itm, name : name});
 
                 code = InitCoolElement(null, itm).hash;
 
@@ -6604,41 +6668,38 @@
         {
             itm = arr[i];
 
-            var cur = itm.obj.parentNode;
+            var cur = itm.element.parentNode;
 
             while (cur != null)
             {
                 if (cur._cool != null)
                 {
-                    if (cur._cool == true || cur._cool.tagName == "js-query" && (!cur._cool.isActive)) //cur._cool.isActive == null || 
+                    if (cur._cool == true || cur._cool.tagName == "js-query" && (!cur._cool.isActive)) 
                     {
                         itm._cool = true;
 
                         break;
                     }
 
-                    //if (ht[cur._cool.hash] != null)
-                    //{
-                        if (itm.name == "js-set" && ht[cur._cool.hash] != null)
-                        {
-                            sets.push(itm.obj);
-                        }
+                    if (itm.name == "js-set" && ht[cur._cool.hash] != null)
+                    {
+                        sets.push(itm.element);
+                    }
                         
-                        if (forceParent != null && (cur == elm || ht[cur._cool.hash] == null))
-                        {
-                            itm.obj._cool.parent = forceParent;
+                    if (forceParent != null && (cur == elm || ht[cur._cool.hash] == null))
+                    {
+                        itm.element._cool.parent = forceParent;
 
-                            forceParent._cool.chields.push(itm.obj);
-                        }
-                        else
-                        {
-                            itm.obj._cool.parent = cur;
+                        forceParent._cool.chields.push(itm.element);
+                    }
+                    else
+                    {
+                        itm.element._cool.parent = cur;
 
-                            cur._cool.chields.push(itm.obj);
-                        }
+                        cur._cool.chields.push(itm.element);
+                    }
 
-                        break;
-                    //}
+                    break;
                 }
 
                 cur = cur.parentNode;
@@ -6650,10 +6711,10 @@
         {
             itm = arr[i];
 
-            if (itm.obj._cool.parent != null)
+            if (itm.element._cool.parent != null)
             {
-                itm.obj._cool.isCancel = itm.obj.getAttribute("cancel") != null;
-                cool.jsF[itm.name](itm.obj);
+                itm.element._cool.isCancel = itm.element.getAttribute("cancel") != null;
+                cool.jsF[itm.name](itm.element);
             }
         }
 
@@ -6837,21 +6898,21 @@
     },
     
     // Class for binary io 
-    createBinRW: function(obj)
+    createBinRW: function(element)
     {
         var dv = null;
 
-        if (obj == null)
+        if (element == null)
         {
             dv = new DataView(new ArrayBuffer(512), 0);
         }
-        else if (obj instanceof ArrayBuffer)
+        else if (element instanceof ArrayBuffer)
         {
-            dv = new DataView(obj, 0);
+            dv = new DataView(element, 0);
         }
-        else if (obj instanceof DataView)
+        else if (element instanceof DataView)
         {
-            dv = obj;
+            dv = element;
         }
         else
         {
@@ -7260,23 +7321,23 @@
         return level;
     },
 
-    tagLvlToString : function(name, obj)
+    tagLvlToString : function(name, element)
     {
         if (!cool.debug)
         {
             return "";
         }
 
-        var c = obj._cool;
+        var c = element._cool;
         var level = cool.getLevel();
-        var str = Array(level * 2).join(' ') + name + cool.tagToString(obj);
+        var str = Array(level * 2).join(' ') + name + cool.tagToString(element);
 
         return str;
     },
 
-    tagToString : function(obj)
+    tagToString : function(element)
     {
-        var c = obj._cool;
+        var c = element._cool;
 
         var str = c.tagName;
 
@@ -7342,9 +7403,9 @@
         }
         else if (c.tagName == "js-atr-proxy")
         {
-            for (var i = 0; i < obj._cool.attributes.length; ++i)
+            for (var i = 0; i < element._cool.attributes.length; ++i)
             {
-                var atr = obj._cool.attributes[i];
+                var atr = element._cool.attributes[i];
 
                 str +=  " " + atr.name;
             }
@@ -7361,9 +7422,9 @@
         return str;
     },
 
-    atrToString : function(obj)
+    atrToString : function(element)
     {
-        var c = obj._cool;
+        var c = element._cool;
         var str = c.tagName;
 
         if (c.tagName == "js-if")
@@ -7374,15 +7435,15 @@
         return str;
     },
 
-    getStack: function(obj)
+    getStack: function(element)
     {
         var arr = [];
 
-        while (obj != null && obj._cool != null)
+        while (element != null && element._cool != null)
         {
-            arr.unshift(cool.tagToString(obj));
+            arr.unshift(cool.tagToString(element));
 
-            obj = obj._cool.parent;
+            element = element._cool.parent;
         }
 
         return arr.join('   -->   ');
@@ -7404,25 +7465,33 @@ function InitCoolElement(base, elm)
                 parent: null,
                 chields: [],
                 isActive: null,
-                init: function (name, obj)
+                isReady : false,
+                init: function (name, element)
                 {
                     this.tagName = name;
-                    this.obj = obj;
-                    this.cancelDisplay = obj.getAttribute("d") != null;
-                    this.actionDisplay = this.obj.style.display;
+                    this.element = element;
+                    this.cancelDisplay = element.getAttribute("d") != null;
+                    this.actionDisplay = this.element.style.display;
 
                     if (!this.cancelDisplay)
                     {
-                        this.cancelDisplayVal = obj.getAttribute("display-cancel");
+                        this.cancelDisplayVal = element.getAttribute("display-cancel");
                         this.cancelDisplayVal = this.cancelDispayVal != null ? this.cancelDisplayVal : "none";
                     }
 
-                    this.ever = obj.getAttribute("ever");
+                    this.ever = element.getAttribute("ever");
                 },
+                // function for overload
+                getReady: function ()
+                {
+                    return true;
+                },
+                // function for overload
                 action: function (context, force)
                 {
                     this.actionBase(context, force);
                 },
+                // function for overload
                 cancel: function (context, force)
                 {
                     this.cancelBase(context, force);
@@ -7442,20 +7511,29 @@ function InitCoolElement(base, elm)
                     for (var i = 0; i < this.chields.length; ++i)
                     {
                         var itm = this.chields[i];
+                        var coo = itm._cool;
+
+                        // check element one time initialization
+                        if (!coo.isReady)
+                        {
+                            coo.isReady = coo.getReady();
+
+                            if (!coo.isReady)
+                            {
+                                continue;
+                            }
+                        }
 
                         // call cancel
-                        if (itm._cool.isCancel)
+                        if (coo.isCancel)
                         {
-                            //if (itm._cool.isActive == null || itm._cool.isActive || force)
-                            //{
-                                if (context[itm._cool.hash] != true)
-                                {
-                                    context[itm._cool.hash] = true;
+                            if (context[coo.hash] != true)
+                            {
+                                context[coo.hash] = true;
 
-                                    itm._cool.isActive = false;
-                                    itm._cool.cancel(context, force);
-                                }
-                            //}
+                                coo.isActive = false;
+                                coo.cancel(context, force);
+                            }
 
                             continue;
                         }
@@ -7463,43 +7541,21 @@ function InitCoolElement(base, elm)
                         // #remove_line
                         if (cool.trace) console.log(cool.tagLvlToString("Action: ", itm));
 
-                        //for (var j = 0; j < itm._cool.attributes.length; ++j)
-                        //{
-                        //    var atr = itm._cool.attributes[j];
-
-                        //    if (atr.action != null)
-                        //    {
-                        //        // #remove_line
-                        //        if (cool.trace) console.log("Action atr: " + cool.atrToString(atr));
-                                
-                        //        try 
-                        //        {
-                        //            atr.action(context);
-                        //        }
-                        //        catch (e) 
-                        //        {
-                        //            console.log("Exeption on atr action: " + e);
-                        //            // #remove_line
-                        //            console.log(cool.getStack(itm));
-                        //        }
-                        //    }
-                        //}
-
-                        if (itm._cool.isActive == null || !itm._cool.isActive || force || itm._cool.ever != null)
+                        if (coo.isActive == null || !coo.isActive || force || coo.ever != null)
                         {
-                            if (context[itm._cool.hash] != true)
+                            if (context[coo.hash] != true)
                             {
-                                context[itm._cool.hash] = true;
+                                context[coo.hash] = true;
 
-                                itm._cool.isActive = true;
+                                coo.isActive = true;
 
                                 try 
                                 {
-                                    itm._cool.action(context, force);                                    
+                                    coo.action(context, force);                                    
                                 }
                                 catch (e) 
                                 {
-                                    console.log("Exeption on " + itm._cool.tagName + " action: " + e);
+                                    console.log("Exeption on " + coo.tagName + " action: " + e);
                                     // #remove_line
                                     console.log(cool.getStack(itm));
                                 }
@@ -7509,7 +7565,7 @@ function InitCoolElement(base, elm)
 
                     if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
                     {
-                        this.obj.style.display = this.actionDisplay;
+                        this.element.style.display = this.actionDisplay;
                     }
 
                     if (context.initial == this.hash)
@@ -7532,20 +7588,24 @@ function InitCoolElement(base, elm)
                     for (var i = 0; i < this.chields.length; ++i)
                     {
                         var itm = this.chields[i];
+                        var coo = itm._cool;
+
+                        // skip cancel action if element never initialized
+                        if (!coo.isReady)
+                        {
+                            continue;
+                        }
 
                         // call action
-                        if (itm._cool.isCancel)
+                        if (coo.isCancel)
                         {
-                            //if (itm._cool.isActive == null || !itm._cool.isActive || force)
-                            //{
-                                if (context[itm._cool.hash] != true)
-                                {
-                                    context[itm._cool.hash] = true;
+                            if (context[coo.hash] != true)
+                            {
+                                context[coo.hash] = true;
 
-                                    itm._cool.isActive = true;
-                                    itm._cool.action(context, force);
-                                }
-                            //}
+                                coo.isActive = true;
+                                coo.action(context, force);
+                            }
 
                             continue;
                         }
@@ -7553,43 +7613,21 @@ function InitCoolElement(base, elm)
                         // #remove_line
                         if (cool.trace) console.log(cool.tagLvlToString("Cancel: ", itm));
 
-                        //for (var j = 0; j < itm._cool.attributes.length; ++j)
-                        //{
-                        //    var atr = itm._cool.attributes[j];
-
-                        //    if (atr.cancel != null)
-                        //    {
-                        //        // #remove_line
-                        //        if (cool.trace) console.log("Cancel atr: " + cool.atrToString(atr));
-
-                        //        try 
-                        //        {
-                        //            atr.cancel(context);
-                        //        }
-                        //        catch (e) 
-                        //        {
-                        //            console.log("Exeption on atr " + itm._cool.tagName + " cancel: " + e);
-                        //            // #remove_line
-                        //            console.log(cool.getStack(itm));
-                        //        }
-                        //    }
-                        //}
-
-                        if (itm._cool.isActive == null || itm._cool.isActive || force)
+                        if (coo.isActive == null || coo.isActive || force)
                         {
-                            if (context[itm._cool.hash] != true)
+                            if (context[coo.hash] != true)
                             {
-                                context[itm._cool.hash] = true;
+                                context[coo.hash] = true;
 
-                                itm._cool.isActive = false;
+                                coo.isActive = false;
 
                                 try 
                                 {
-                                    itm._cool.cancel(context, force);
+                                    coo.cancel(context, force);
                                 }
                                 catch (e) 
                                 {
-                                    console.log("Exeption on " + itm._cool.tagName + " cancel: " + e);
+                                    console.log("Exeption on " + coo.tagName + " cancel: " + e);
                                     // #remove_line
                                     console.log(cool.getStack(itm));
                                 }
@@ -7599,7 +7637,7 @@ function InitCoolElement(base, elm)
 
                     if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
                     {
-                        this.obj.style.display = this.cancelDisplayVal;
+                        this.element.style.display = this.cancelDisplayVal;
                     }
 
                     if (context.initial == this.hash)
