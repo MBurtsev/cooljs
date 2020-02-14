@@ -429,7 +429,7 @@
         {
             cool.defaultHash = hash;
 
-            if (cool.currentPage == "")
+            if (window.location.hash == "")
             {
                 cool.go(hash);
             }
@@ -468,7 +468,14 @@
                         var f = arr[n];
                         var v = null;
 
-                        eval("v = " + decodeURIComponent(arr[n + 1]) + ";");
+                        try
+                        {
+                            eval("v = " + decodeURIComponent(arr[n + 1]) + ";");
+                        }
+                        catch (e)
+                        {
+                            console.log("Tag page: " + e.toString());
+                        }
 
                         var fld = cool.createField(f);
 
@@ -1083,7 +1090,7 @@
             }
         }
         
-        //if (select == "atm From rec.Atoms Order atm.fld.Order")
+        //if (select == "catalog From cat.cur.getParentTree()")
         //{
         //    var bp = 0;
         //}
@@ -3655,6 +3662,14 @@
         }
     },
 
+    // change variable 
+    set: function (path, value, obj)
+    {
+        var fld = cool.createField(path);
+
+        fld.set(value, obj);
+    },
+
     // create typed value
     createTypedValue: function (owner, type, value)
     {
@@ -5988,38 +6003,55 @@
     {
         var cur = 0;
         var ret = str;
+        var len = "<js-query".length;
         var inds = cool.findCloseTag(str, "<js-query", "</js-query", cur);
 
         while (inds.start >= 0 && inds.end > 0)
         {
-            var tmp_s = str.indexOf("<script", cur);
+            // we need to make sure that it is no longer in the parent query.
+            var tmp_s = str.lastIndexOf("<script", inds.start);
 
             if (tmp_s != -1)
             {
-                var tmp_e = str.indexOf(">", tmp_s);
+                var par = cool.findCloseTag(str, "<script", "</script", tmp_s);
 
-                if (tmp_e != -1)
+                if (par.start < inds.start && par.end > inds.end)
                 {
-                    var tmp_c = str.indexOf("</script", tmp_e);
-                    var tmp_t = str.indexOf("type", tmp_s);
+                    var tmp_e = str.indexOf(">", par.start);
 
-                    if (tmp_t != -1 && tmp_t < tmp_e && tmp_c != -1)
+                    if (tmp_e != -1)
                     {
-                        var tmp_q = str.indexOf("js-query", tmp_t);
+                        var tmp_t = str.indexOf("type", par.start);
 
-                        if (tmp_q != -1 && tmp_q < tmp_e && tmp_s < inds.start && tmp_c > inds.start)
+                        if (tmp_t != -1 && tmp_t < tmp_e && par.end != -1)
                         {
-                            cur = tmp_c;
+                            var tmp_q = str.indexOf("js-query", tmp_t);
 
-                            inds = cool.findCloseTag(ret, "<js-query", "</js-query", cur);
-                            
-                            continue;
+                            if (tmp_q != -1 && tmp_q < tmp_e)
+                            {
+                                cur = par.end;
+
+                                inds = cool.findCloseTag(ret, "<js-query", "</js-query", cur);
+
+                                continue;
+                            }
                         }
                     }
                 }
             }
-            
-            ret = ret.substr(0, inds.start) + "<script type='js-query'" + ret.substring(inds.start + "<js-query".length, inds.end) + "</script" + ret.substring(inds.end + "</js-query".length, ret.length);
+
+            // replace <js-query to <script
+            var tmp =
+                // previous text
+                ret.substr(0, inds.start) + "<script type='js-query'" +
+                // query body
+                ret.substring(inds.start + len, inds.end) +
+                // close tag
+                "</script" +
+                // subsequent text
+                ret.substring(inds.end + len + 1, ret.length);
+
+            var ret = tmp;
 
             cur = inds.end;
 
@@ -6260,7 +6292,7 @@
                     }
 
 
-                    var js = cool.parseJs(null, exps, n + 1, ind);
+                    var js = cool.parseJs(null, exps, n + 1, ind + 1);
 
                     if (list.length == 0)
                     {
@@ -6527,6 +6559,14 @@
     // init dom tree and preload resource
     processElementWithPreload : function(elm, callback)
     {
+        if (cool.dissablePreloadPolicy)
+        {
+            if (callback != null)
+            {
+                callback(elm);
+            }
+        }
+
         var arr = elm.querySelectorAll("JS-LOAD");
         var counter = { count: arr.length };
 
@@ -6536,8 +6576,9 @@
             {
                 var itm = arr[j];
                 var src = itm.getAttribute("src");
+                var skip = itm.hasAttribute("skip");
 
-                if (src == null)
+                if (src == null || skip)
                 {
                     counter.count--;
 
@@ -6838,6 +6879,7 @@
     numHt: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true, 9: true, ".": true },
     body: document.getElementsByTagName('BODY')[0],
     dissableDisplayPolicy: false,
+    dissablePreloadPolicy: false,
     hashList: {},
     defaultHash: "",
     lastUrlHash: "",
