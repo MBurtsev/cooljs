@@ -64,11 +64,11 @@
     // js-set
     tagSet: function(element)
     {
-        var name = element.getAttribute("name");
-        var type = element.getAttribute("type");
+        var name   = element.getAttribute("name");
+        var type   = element.getAttribute("type");
         var cancel = element.getAttribute("cancel");
-        var value = element.getAttribute("value");
-        var once = element.getAttribute("once") != null;
+        var value  = element.getAttribute("value");
+        var once   = element.getAttribute("once") != null;
 
         if (name == null || name == "")
         {
@@ -518,11 +518,12 @@
 
                 if (type == null || type == "")
                 {
-                    var ind = this.element._cool.src.lastIndexOf(".");
+                    var src = this.element._cool.src;
+                    var ind = src.lastIndexOf(".");
 
-                    if (ind != -1 && ind < this.element._cool.src.length - 1)
+                    if (ind != -1 && ind < src.length - 1)
                     {
-                        type = this.element._cool.src.substr(ind + 1);
+                        type = src.substr(ind + 1);
                     }
                     else
                     {
@@ -539,8 +540,10 @@
             },
             always: function ()
             {
-                this.element._cool.isAlways = this.element.hasAttribute("always");
-            },
+                var always = this.read("always");
+
+                this.element._cool.isAlways = always != null;
+            }
         });
 
         elm._cool.eventComplete = document.createEvent('Event');
@@ -683,440 +686,430 @@
     // js-query
     tagQuery: function(element)
     {
-        var select = element.getAttribute("select");
+        var clm = element._cool;
 
-        if (select == null || select == "")
+        cool.createAtrMap(element,
         {
-            return console.log("js-query: The 'select' attribute is empty");
-        }
-
-        element._cool.refresh = function (event, context)
-        {
-            var c = event.element._cool;
-
-            c.isChanged = true;
-
-            if (c.isActive)
+            select: function (context)
             {
-                c.action(context, false);
+                var clm = this.element._cool;
 
-                return true;
-            }
+                clm.select = this.read("select");
 
-            return false;
-        };
-        
-        // compile query
-        var prog = { ht: {} };
-        var tmp;
-        var end;
-        var ind = 0;
-
-        var arr = cool.splitExpression(select);
-
-        for (var i = 0; i < arr.length; ++i)
-        {
-            var scr;
-
-            switch (arr[i])
-            {
-                case "From":
+                if (clm.select == null || clm.select == "")
                 {
-                    if (prog.from != null)
-                    {
-                        return console.log("js-query: Operator 'From' must defined only once.");
-                    }
-
-                    if (i != 1)
-                    {
-                        return console.log("js-query: Operator 'From' must be first.");
-                    }
-
-                    end = cool.findNextOperator(i, arr);
-
-                    //var fieldName = arr[i + end];
-                    var fieldName = arr.slice(i + 1, end).join("");
-
-                    prog.from =
-                    {
-                        field: cool.createField(fieldName, { callback : element._cool.refresh, element: element })
-                    };
-
-                    ind = arr[0].indexOf(".");
-
-                    if (ind == -1)
-                    {
-                        prog.root = arr[0];
-                        prog.from.v = arr[0];
-                    }
-                    else
-                    {
-                        prog.root = arr[0].substr(0, ind);
-                        prog.from.v = arr[0].substr(ind + 1);
-                        prog.ht[arr[0].substr(ind + 1)] = true;
-                    }
-
-                    i++;
-
-                    break;
+                    return console.log("js-query: The 'select' attribute is empty");
                 }
-                case "Join-full":
-                case "Join-right":
-                case "Join-left":
-                case "Join":
+
+                // compile query
+                var prog = { ht: {} };
+                var tmp;
+                var end;
+                var ind = 0;
+
+                var arr = cool.splitExpression(clm.select);
+
+                for (var i = 0; i < arr.length; ++i)
                 {
-                    if (prog.where != null || prog.order != null || prog.group != null)
+                    var scr;
+
+                    switch (arr[i])
                     {
-                        return console.log("js-query: Operator 'Join' must defined after 'From'.");
-                    }
-
-                    if (prog.join == null)
-                    {
-                        prog.join = 
-                        {
-                            list: [],
-                            ht: {}
-                        };
-                    }
-
-                    var join =
-                    {
-                        type: arr[i++],
-                        field: cool.createField(arr[i++], { callback : element._cool.refresh, element: element })
-                    }
-
-                    if (arr[i++] != "As")
-                    {
-                        return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'As' required.");
-                    }
-
-                    join.v = arr[i++];
-                    join.vField = join.v.split(".");
-                    join.vRoot = join.vField[0];
-
-                    prog.join.list.push(join);
-
-                    prog.ht[join.vRoot] = true;
-
-                    if (arr[i++] != "On")
-                    {
-                        return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'On' required.");
-                    }
-
-                    end = cool.findNextOperator(i, arr);
-
-                    join.strCond = arr.slice(i, end).join("");
-                    join.fieldCond = cool.createField(join.strCond);
-
-                    // patch vars
-                    for (var c = 0; c < join.fieldCond.vars.length; ++c)
-                    {
-                        var cv = join.fieldCond.vars[c];
-
-                        if (prog.ht[cv.raw[0].path])
-                        {
-                            join.strCond = join.strCond.replace(cv.path, prog.root + "." + cv.path);
-                        }
-                    }
-                    
-                    join.funcName = cool.getRandomString();
-                    scr = document.createElement('script');
-                    scr.type = 'text/javascript';
-                    scr.text = "document['" + join.funcName + "'] = function(" + prog.root + "){return " + join.strCond + ";}";
-
-                    document.getElementsByTagName('body')[0].appendChild(scr);
-
-                    i = end - 1;
-
-                    break;
-                }
-                case "Where":
-                {
-                    if (prog.where != null)
-                    {
-                        return console.log("js-query: Operator 'Where' must defined only once.");
-                    }
-
-                    if (prog.order != null || prog.group != null)
-                    {
-                        return console.log("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
-                    }
-
-                    prog.where =
-                    {
-                    };
-
-                    end = cool.findNextOperator(++i, arr);
-
-                    var strCond = arr.slice(i, end).join("");
-
-                    prog.where.fieldCond = cool.createField(strCond, { depth: 2, callback : element._cool.refresh, element:  element });
-                    prog.where.condFuncName = cool.getRandomString();
-
-                    // patch vars
-                    for (var c = 0; c < prog.where.fieldCond.vars.length; ++c)
-                    {
-                        var cv = prog.where.fieldCond.vars[c];
-
-                        if (prog.ht[cv.raw[0].path])
-                        {
-                            strCond = strCond.replace(cv.path, prog.root + "." + cv.path);
-                        }
-                    }
-                    
-                    scr = document.createElement('script');
-                    scr.type = 'text/javascript';
-                    scr.text = "document['" + prog.where.condFuncName + "'] = function(" + prog.root + "){return " + strCond + ";}";
-
-                    document.getElementsByTagName('body')[0].appendChild(scr);
-
-                    i = end - 1;
-
-                    break;
-                }
-                case "Order":
-                {
-                    if (prog.order != null)
-                    {
-                        return console.log("js-query: Operator 'Order' must defined only once.");
-                    }
-
-                    if (prog.group != null)
-                    {
-                        return console.log("js-query: Operator 'Order' must defined before 'Group'");
-                    }
-
-                    prog.order = { func : cool.getRandomString()};
-
-                    end = cool.findNextOperator(++i, arr);
-                    tmp = [];
-
-                    for (j = i; j < end; ++j)
-                    {
-                        tmp.push(arr[j]);
-                    }
-
-                    tmp = tmp.join('').split(',');
-
-                    var f_str = "document['" + prog.order.func + "'] = function(a, b) { ";
-                    var c_str = "return ";
-
-                    var p = 0;
-
-                    for (j = 0; j < tmp.length; ++j)
-                    {
-                        itm = tmp[j];
-
-                        var op1 = ">";
-                        var op2 = "<";
-
-                        if (itm[0] == "!")
-                        {
-                            op1 = "<";
-                            op2 = ">";
-
-                            itm = itm.substr(1);
-                        }
-                        
-                        ind = itm.indexOf(".", 0);
-
-                        if (ind > -1)
-                        {
-                            str = itm.substr(0, ind);
-
-                            if (str == prog.root)
+                        case "From":
                             {
-                                itm = itm.substr(ind + 1);
+                                if (prog.from != null)
+                                {
+                                    return console.log("js-query: Operator 'From' must defined only once.");
+                                }
+
+                                if (i != 1)
+                                {
+                                    return console.log("js-query: Operator 'From' must be first.");
+                                }
+
+                                end = cool.findNextOperator(i, arr);
+
+                                //var fieldName = arr[i + end];
+                                var fieldName = arr.slice(i + 1, end).join("");
+
+                                prog.from =
+                                {
+                                    field: cool.createField(fieldName, { callback: clm.refresh, element: element })
+                                };
+
+                                ind = arr[0].indexOf(".");
+
+                                if (ind == -1)
+                                {
+                                    prog.root = arr[0];
+                                    prog.from.v = arr[0];
+                                }
+                                else
+                                {
+                                    prog.root = arr[0].substr(0, ind);
+                                    prog.from.v = arr[0].substr(ind + 1);
+                                    prog.ht[arr[0].substr(ind + 1)] = true;
+                                }
+
+                                i++;
+
+                                break;
                             }
-                        }
-
-                        f_str += "var c" + p + " = a." + itm + " " + op1 + " b." + itm + " ? 1 : a." + itm + " " + op2 + " b." + itm + " ? -1 : 0; ";
-
-                        p++;
-                    }
-
-                    p--;
-
-                    for (j = p; j >= 0; --j)
-                    {
-                        if (j > 0)
-                        {
-                            c_str += "(";
-                        }
-
-                        c_str += "c" + (p - j);
-
-                        if (j > 0)
-                        {
-                            c_str +=" << " + j + ") + ";
-                        }
-                    }
-
-                    f_str += c_str + "; }";
-
-                    scr = document.createElement('script');
-                    scr.type = 'text/javascript';
-                    scr.text = f_str;
-
-                    document.getElementsByTagName('body')[0].appendChild(scr);
-
-                    i = end - 1;
-
-                    break;
-                }
-                case "Group":
-                {
-                    // TODO check this
-                    if (prog.group != null)
-                    {
-                        return console.log("js-query: Operator 'Group' must defined only once.");
-                    }
-
-                    prog.group = [];
-
-                    end = cool.findNextOperator(i + 1, arr);
-                    tmp = [];
-
-                    for (j = i + 1; j < end; ++j)
-                    {
-                        tmp.push(arr[j]);
-                    }
-
-                    tmp = tmp.join(',').split(',');
-
-                    for (j = i + 1; j < end; ++j)
-                    {
-                        prog.group.push(arr[j]);
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        element._cool.prog = prog;
-
-        // getting js-query's stack
-        var cur = element._cool;
-
-        element._cool.stack = [];
-
-        while (cur.parent != null)
-        {
-            tmp = cur.parent;
-            cur = cur.parent._cool;
-
-            if (cur.tagName == "js-query-item")
-            {
-                element._cool.parentQueryItem = tmp;
-
-                break;
-            }
-        }
-
-        element._cool.rootMap = {};
-        element._cool.rootMap[element._cool.prog.root] = true;
-
-        if (element._cool.parentQueryItem != null)
-        {
-            element._cool.parentQueryItem._cool.initMap(element._cool.rootMap);
-        }
-
-        // compile template 
-        element._cool.isScript = element._cool.tagName == "script";
-
-        if (element._cool.isScript)
-        {
-            tmp = element.text; 
-        }
-        else
-        {
-            tmp = cool.decodeEntities(element.innerHTML);
-        }
-        
-        tmp = cool.toQueryScript(tmp);
-
-        var pl_start = null;
-        var pl_end = null;
-        var inds = cool.findCloseTag(tmp, "#placeholder-start", "#placeholder-end");
-        
-        if (inds.start != -1)
-        {
-            var skip = false;
-            var test = tmp.indexOf("<js-script");
-
-            if (test >= 0 && inds.start > test)
-            {
-                skip = true;
-            }
-            else
-            {
-                test = tmp.indexOf("<script");
-
-                if (test >= 0)
-                {
-                    var ind_scr = tmp.indexOf(">", test);
-
-                    if (ind_scr > 0)
-                    {
-                        var ind_tpe = tmp.indexOf("type", test);
-
-                        if (ind_tpe > 0 && ind_tpe < ind_scr)
-                        {
-                            var jsq = tmp.indexOf("js-query", ind_tpe);
-
-                            if (jsq < ind_scr && inds.start > test)
+                        case "Join-full":
+                        case "Join-right":
+                        case "Join-left":
+                        case "Join":
                             {
-                                skip = true;
+                                if (prog.where != null || prog.order != null || prog.group != null)
+                                {
+                                    return console.log("js-query: Operator 'Join' must defined after 'From'.");
+                                }
+
+                                if (prog.join == null)
+                                {
+                                    prog.join =
+                                    {
+                                        list: [],
+                                        ht: {}
+                                    };
+                                }
+
+                                var join =
+                                {
+                                    type: arr[i++],
+                                    field: cool.createField(arr[i++], { callback: clm.refresh, element: element })
+                                }
+
+                                if (arr[i++] != "As")
+                                {
+                                    return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'As' required.");
+                                }
+
+                                join.v = arr[i++];
+                                join.vField = join.v.split(".");
+                                join.vRoot = join.vField[0];
+
+                                prog.join.list.push(join);
+
+                                prog.ht[join.vRoot] = true;
+
+                                if (arr[i++] != "On")
+                                {
+                                    return console.log("js-query: Operator 'Join' has format <... Join source_array_path As object_name On link_conditionals ...>. Keyword 'On' required.");
+                                }
+
+                                end = cool.findNextOperator(i, arr);
+
+                                join.strCond = arr.slice(i, end).join("");
+                                join.fieldCond = cool.createField(join.strCond);
+
+                                // patch vars
+                                for (var c = 0; c < join.fieldCond.vars.length; ++c)
+                                {
+                                    var cv = join.fieldCond.vars[c];
+
+                                    if (prog.ht[cv.raw[0].path])
+                                    {
+                                        join.strCond = join.strCond.replace(cv.path, prog.root + "." + cv.path);
+                                    }
+                                }
+
+                                join.funcName = cool.getRandomString();
+                                scr = document.createElement('script');
+                                scr.type = 'text/javascript';
+                                scr.text = "document['" + join.funcName + "'] = function(" + prog.root + "){return " + join.strCond + ";}";
+
+                                document.getElementsByTagName('body')[0].appendChild(scr);
+
+                                i = end - 1;
+
+                                break;
                             }
-                        }
+                        case "Where":
+                            {
+                                if (prog.where != null)
+                                {
+                                    return console.log("js-query: Operator 'Where' must defined only once.");
+                                }
+
+                                if (prog.order != null || prog.group != null)
+                                {
+                                    return console.log("js-query: Operator 'Where' must defined after 'From' or after 'Join'.");
+                                }
+
+                                prog.where =
+                                {
+                                };
+
+                                end = cool.findNextOperator(++i, arr);
+
+                                var strCond = arr.slice(i, end).join("");
+
+                                prog.where.fieldCond = cool.createField(strCond, { depth: 2, callback: clm.refresh, element: element });
+                                prog.where.condFuncName = cool.getRandomString();
+
+                                // patch vars
+                                for (var c = 0; c < prog.where.fieldCond.vars.length; ++c)
+                                {
+                                    var cv = prog.where.fieldCond.vars[c];
+
+                                    if (prog.ht[cv.raw[0].path])
+                                    {
+                                        strCond = strCond.replace(cv.path, prog.root + "." + cv.path);
+                                    }
+                                }
+
+                                scr = document.createElement('script');
+                                scr.type = 'text/javascript';
+                                scr.text = "document['" + prog.where.condFuncName + "'] = function(" + prog.root + "){return " + strCond + ";}";
+
+                                document.getElementsByTagName('body')[0].appendChild(scr);
+
+                                i = end - 1;
+
+                                break;
+                            }
+                        case "Order":
+                            {
+                                if (prog.order != null)
+                                {
+                                    return console.log("js-query: Operator 'Order' must defined only once.");
+                                }
+
+                                if (prog.group != null)
+                                {
+                                    return console.log("js-query: Operator 'Order' must defined before 'Group'");
+                                }
+
+                                prog.order = { func: cool.getRandomString() };
+
+                                end = cool.findNextOperator(++i, arr);
+                                tmp = [];
+
+                                for (j = i; j < end; ++j)
+                                {
+                                    tmp.push(arr[j]);
+                                }
+
+                                tmp = tmp.join('').split(',');
+
+                                var f_str = "document['" + prog.order.func + "'] = function(a, b) { ";
+                                var c_str = "return ";
+
+                                var p = 0;
+
+                                for (j = 0; j < tmp.length; ++j)
+                                {
+                                    itm = tmp[j];
+
+                                    var op1 = ">";
+                                    var op2 = "<";
+
+                                    if (itm[0] == "!")
+                                    {
+                                        op1 = "<";
+                                        op2 = ">";
+
+                                        itm = itm.substr(1);
+                                    }
+
+                                    ind = itm.indexOf(".", 0);
+
+                                    if (ind > -1)
+                                    {
+                                        str = itm.substr(0, ind);
+
+                                        if (str == prog.root)
+                                        {
+                                            itm = itm.substr(ind + 1);
+                                        }
+                                    }
+
+                                    f_str += "var c" + p + " = a." + itm + " " + op1 + " b." + itm + " ? 1 : a." + itm + " " + op2 + " b." + itm + " ? -1 : 0; ";
+
+                                    p++;
+                                }
+
+                                p--;
+
+                                for (j = p; j >= 0; --j)
+                                {
+                                    if (j > 0)
+                                    {
+                                        c_str += "(";
+                                    }
+
+                                    c_str += "c" + (p - j);
+
+                                    if (j > 0)
+                                    {
+                                        c_str += " << " + j + ") + ";
+                                    }
+                                }
+
+                                f_str += c_str + "; }";
+
+                                scr = document.createElement('script');
+                                scr.type = 'text/javascript';
+                                scr.text = f_str;
+
+                                document.getElementsByTagName('body')[0].appendChild(scr);
+
+                                i = end - 1;
+
+                                break;
+                            }
+                        case "Group":
+                            {
+                                // TODO check this
+                                if (prog.group != null)
+                                {
+                                    return console.log("js-query: Operator 'Group' must defined only once.");
+                                }
+
+                                prog.group = [];
+
+                                end = cool.findNextOperator(i + 1, arr);
+                                tmp = [];
+
+                                for (j = i + 1; j < end; ++j)
+                                {
+                                    tmp.push(arr[j]);
+                                }
+
+                                tmp = tmp.join(',').split(',');
+
+                                for (j = i + 1; j < end; ++j)
+                                {
+                                    prog.group.push(arr[j]);
+                                }
+
+                                break;
+                            }
                     }
                 }
-            }
 
-            if (!skip)
-            {
-                if (inds.end != -1)
+                clm.prog = prog;
+
+                // getting js-query's stack
+                var cur = clm;
+
+                clm.stack = [];
+
+                while (cur.parent != null)
                 {
-                    pl_start = tmp.substr(0, inds.start);
-                    pl_end = tmp.substr(inds.end + 16);
-                    tmp = tmp.substr(inds.start + 18, inds.end - inds.start - 18);
+                    tmp = cur.parent;
+                    cur = cur.parent._cool;
+
+                    if (cur.tagName == "js-query-item")
+                    {
+                        clm.parentQueryItem = tmp;
+
+                        break;
+                    }
+                }
+
+                clm.rootMap = {};
+                clm.rootMap[clm.prog.root] = true;
+
+                if (clm.parentQueryItem != null)
+                {
+                    clm.parentQueryItem._cool.initMap(clm.rootMap);
+                }
+
+                // compile template 
+                clm.isScript = clm.tagName == "script";
+
+                if (clm.isScript)
+                {
+                    tmp = element.text;
                 }
                 else
                 {
-                    pl_start = tmp.substr(0, inds.start);
-                    tmp = tmp.substr(inds.start + 18);
+                    tmp = cool.decodeEntities(element.innerHTML);
                 }
+
+                tmp = cool.toQueryScript(tmp);
+
+                var pl_start = null;
+                var pl_end = null;
+                var inds = cool.findCloseTag(tmp, "#placeholder-start", "#placeholder-end");
+
+                if (inds.start != -1)
+                {
+                    var skip = false;
+                    var test = tmp.indexOf("<js-script");
+
+                    if (test >= 0 && inds.start > test)
+                    {
+                        skip = true;
+                    }
+                    else
+                    {
+                        test = tmp.indexOf("<script");
+
+                        if (test >= 0)
+                        {
+                            var ind_scr = tmp.indexOf(">", test);
+
+                            if (ind_scr > 0)
+                            {
+                                var ind_tpe = tmp.indexOf("type", test);
+
+                                if (ind_tpe > 0 && ind_tpe < ind_scr)
+                                {
+                                    var jsq = tmp.indexOf("js-query", ind_tpe);
+
+                                    if (jsq < ind_scr && inds.start > test)
+                                    {
+                                        skip = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!skip)
+                    {
+                        if (inds.end != -1)
+                        {
+                            pl_start = tmp.substr(0, inds.start);
+                            pl_end = tmp.substr(inds.end + 16);
+                            tmp = tmp.substr(inds.start + 18, inds.end - inds.start - 18);
+                        }
+                        else
+                        {
+                            pl_start = tmp.substr(0, inds.start);
+                            tmp = tmp.substr(inds.start + 18);
+                        }
+                    }
+                }
+
+                clm.template = cool.buildTemplate(tmp, clm.rootMap);
+
+                clm.template.pl_start = pl_start;
+                clm.template.pl_end = pl_end;
+            },
+            always: function (context)
+            {
+                this.element._cool.isAlways = this.read("always") != null;
             }
-        }
-        
-        //if (select == "catalog From cat.cur.getParentTree()")
-        //{
-        //    var bp = 0;
-        //}
+        });
 
-        element._cool.template = cool.buildTemplate(tmp, element._cool.rootMap);
-
-        element._cool.template.pl_start = pl_start;
-        element._cool.template.pl_end = pl_end;
-        
         // init events
-        element._cool.renderEnd = document.createEvent('Event');
-        element._cool.renderEnd.initEvent('renderEnd', true, true);
+        clm.renderEnd = document.createEvent('Event');
+        clm.renderEnd.initEvent('renderEnd', true, true);
 
+        clm.beforeDestroy = document.createEvent('Event');
+        clm.beforeDestroy.initEvent('beforeDestroy', true, true);
 
-        element._cool.beforeDestroy = document.createEvent('Event');
-        element._cool.beforeDestroy.initEvent('beforeDestroy', true, true);
-
-        element._cool.afterDestroy = document.createEvent('Event');
-        element._cool.afterDestroy.initEvent('afterDestroy', true, true);
+        clm.afterDestroy = document.createEvent('Event');
+        clm.afterDestroy.initEvent('afterDestroy', true, true);
  
-        element._cool.select = select;
-        element._cool.isChanged = true;
-        element._cool.isAlways = element.getAttribute("always") != null;
-        element._cool.firstDone = false;
-        element._cool.cache = [];
-        element._cool.action = function (context, force)
+        clm.isChanged = true;
+        clm.firstDone = false;
+        clm.cache = [];
+        clm.action = function (context, force)
         {
             // TODO extend observe meh
             //if (!this.isChanged)
@@ -1203,11 +1196,6 @@
                 if (this.template.pl_start != null)
                 {
                     arr.push(this.template.pl_start);
-                }
-
-                if (select == "atm From rec.Atoms Order atm.fld.Order")
-                {
-                    var bp = 0;
                 }
 
                 // fill template
@@ -1354,7 +1342,7 @@
 
             this.isChanged = false;
         }
-        element._cool.cancel = function (context, force)
+        clm.cancel = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
@@ -1376,7 +1364,7 @@
             
             this.cancelBase(context, force);
         }
-        element._cool.enable = function (context, force)
+        clm.enable = function (context, force)
         {
             if (!cool.dissableDisplayPolicy && !this.cancelDisplay)
             {
@@ -1398,6 +1386,16 @@
 
             this.actionBase(context, force);
         }
+        clm.getReady = function ()
+        {
+            var flag = true;
+            var map = this.atrMap;
+
+            flag &= map.select() == null;
+            flag &= map.always() == null;
+
+            return flag;
+        };
     },
 
     // js-if
@@ -2987,8 +2985,7 @@
     {
         cool.atrClass(element, index, true);
     },
-
-    
+        
     // Navigator
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
@@ -3560,6 +3557,7 @@
     // remove field from observation
     removeObserve: function (path, field)
     {
+        var arr = [];
         var ind = path.indexOf(".");
 
         while (ind > -1)
@@ -3577,7 +3575,7 @@
 
             if (cool.obHt[str] == null)
             {
-                cool.obHt[str] = { list: [] };
+                continue;
             }
 
             var list = cool.obHt[str].list;
@@ -3645,13 +3643,23 @@
                     context.map = {};
                 }
 
-                if (context.map[itm.element._cool.hash] == null)
+                if (itm.element == null)
                 {
                     itm.path = path;
                     itm.method = method;
                     itm.args = args;
+                    itm.hash = cool.lastHash++;
 
-                    context.map[itm.element._cool.hash] = itm;
+                    context.map[itm.hash] = itm;
+                }
+                else if (context.map[itm.element._cool.hash] == null)
+                {
+                    itm.path   = path;
+                    itm.method = method;
+                    itm.args = args;
+                    itm.hash = itm.element._cool.hash;
+
+                    context.map[itm.hash] = itm;
                 }
             }
         }
@@ -3740,12 +3748,14 @@
     },
 
     // process context
-    processContext: function(context)
+    processContext: function (context)
     {
         if (context.map == null)
         {
             return;
-        }
+        } 
+
+        var ext = [];
 
         for (var key in context.map)
         {
@@ -3753,16 +3763,75 @@
             {
                 var itm = context.map[key];
 
-                if (context[itm.element._cool.hash] != true)
+                if (context[itm.hash] != true)
                 {
-                    if (itm.element._cool.isActive == null && itm.element._cool.parent._cool.isActive)
+                    ext.push(itm);
+                }
+            }
+        }
+
+        for (var n = 0; n < ext.length; ++n)
+        {
+            var itm = ext[n];
+            var elm = itm.element;
+
+            if (context[itm.hash] != true)
+            {
+                if (elm != null && elm._cool.isActive == null && elm._cool.parent._cool.isActive)
+                {
+                    elm._cool.isActive = true;
+                }
+
+                var res = itm.callback(itm, context);
+
+                if (res == true)
+                {
+                    context[itm.hash] = true;
+                }
+                else if (typeof (res) == "object")
+                {
+                    for (var i = 0; i < res.length; ++i)
                     {
-                        itm.element._cool.isActive = true;
+                        var itm2 = res[i];
+
+                        if (context[itm2.hash] == null)
+                        {
+                            ext.push(itm2);
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    processContext2: function(context)
+    {
+        if (context.map == null)
+        {
+            return;
+        }
+
+        var ext = [];
+
+        for (var key in context.map)
+        {
+            if (context.map.hasOwnProperty(key))
+            {
+                var itm = context.map[key];
+                var elm = itm.element;
+
+                if (context[itm.hash] != true)
+                {
+                    if (elm != null && elm._cool.isActive == null && elm._cool.parent._cool.isActive)
+                    {
+                        elm._cool.isActive = true;
                     }
 
-                    if (itm.callback(itm, context) == true)
+                    var res = itm.callback(itm, context);
+
+                    if (res == true)
                     {
-                        context[itm.element._cool.hash] = true;
+                        context[itm.hash] = true;
                     }
                 }
             }
@@ -6140,9 +6209,9 @@
             {
                 var tmp = this.fields[name];
 
-                for (var i = 0; i < tmp.fields.length; ++i)
+                for (var i = 0; i < tmp.length; ++i)
                 {
-                    var fld = tmp.fields[i];
+                    var fld = tmp[i];
 
                     fld.destroy();
                 }
@@ -6172,9 +6241,25 @@
 
                     // add value
                     var tmp = val.substr(ind, end - ind);
+                    var refresh = this.refresh;
+
+                    if (this.element._cool.refresh != null)
+                    {
+                        refresh = this.element._cool.refresh;
+                    }
 
                     // add observe
-                    var fld = cool.createField(tmp, { callback: this.onFieldChanged, element: this.element, tag: name });
+                    var fld = cool.createField(tmp,
+                    {
+                        callback: this.onFieldChanged,
+                        element: null,
+                        tag:
+                        {
+                            element: this.element,
+                            callback: refresh,
+                            name: name
+                        }
+                    });
 
                     this.fields[name].push(fld);
 
@@ -6193,9 +6278,23 @@
 
             return str;
         };
-        map.onFieldChanged = function(event)
+        map.onFieldChanged = function(event, context)
         {
-            event.element._cool.atrMap[event.tag]();
+            var elm = event.tag.element;
+            var clm = elm._cool;
+
+            clm.atrMap[event.tag.name](context);
+
+            var arr =
+            [
+                {
+                    callback: clm.refresh,
+                    element: elm,
+                    hash: clm.hash
+                }
+            ];
+
+            return arr;
         }
 
         elm._cool.atrMap = map;
@@ -7507,7 +7606,8 @@ function InitCoolElement(base, elm)
                 parent: null,
                 chields: [],
                 isActive: null,
-                isReady : false,
+                isReady: false,
+                isChanged: false,
                 init: function (name, element)
                 {
                     this.tagName = name;
@@ -7690,6 +7790,21 @@ function InitCoolElement(base, elm)
                 clear: function ()
                 {
                     this.chields = [];
+                },
+                refresh : function (event, context)
+                {
+                    var clm = event.element._cool;
+
+                    clm.isChanged = true;
+
+                    if (clm.isActive)
+                    {
+                        clm.action(context, false);
+
+                        return true;
+                    }
+
+                    return false;
                 }
             };
         }
